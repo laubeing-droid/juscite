@@ -10,6 +10,9 @@ build/
 .DS_Store
 Thumbs.db
 
+# 备份残留（*.bak、*.bak-* 等）不入库
+*.bak*
+
 # desktop 壳（packages/desktop）：build/ 是图标/安装器资源源目录（根 build/ 忽略规则的例外），out/ 是构建产物
 !packages/desktop/build/
 packages/desktop/out/
@@ -22,5 +25,4 @@ packages/desktop/bridge-bundle/
 *.db
 *.lic
 *.exe
-dist/
 *.tsbuildinfo
