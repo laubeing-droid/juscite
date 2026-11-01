@@ -75,6 +75,8 @@ export function readFrontmatterScalars(text: string): Record<string, string> | n
   const lines = normalized.split("\n");
   const close = lines.indexOf("---", 1);
   if (close < 0) return null;
+  // 闭合围栏之后只允许空白：第二份文档（--- / !!python）不得被读回器忽略。
+  if (lines.slice(close + 1).some((line) => line.trim() !== "")) return null;
   const out: Record<string, string> = {};
   for (let index = 1; index < close; index += 1) {
     const match = /^([A-Za-z_][A-Za-z0-9_-]*): "((?:[^"\\]|\\.)*)"$/u.exec(lines[index] ?? "");

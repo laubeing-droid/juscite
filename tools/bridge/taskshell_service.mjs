@@ -99,17 +99,25 @@ export function createTaskShell(db, { artifactsDir, sweepOnBoot = true } = {}) {
     register(kind, runner) { runners.set(kind, runner); },
 
     // 建任务：入队即回，绝不同步等完成（R1）。
-    create(kind, payload = {}, { ref = null, ttlSeconds = null } = {}) {
+    create(kind, payload = {}, { ref = null, ttlSeconds = null, id = null } = {}) {
       if (typeof kind !== "string" || !kind.trim()) throw new TaskShellError("VALIDATION", "kind 必填");
       if (!runners.has(kind)) throw new TaskShellError("VALIDATION", `未注册的任务类型 ${kind}`);
       if (ttlSeconds != null && (!Number.isInteger(ttlSeconds) || ttlSeconds < 0))
         throw new TaskShellError("VALIDATION", "ttlSeconds 须为非负整数");
-      const id = "fgt_" + randomUUID().slice(0, 8);
-      db.prepare(`INSERT INTO async_tasks (id, kind, ref, status, payload_json, artifact_ttl, created_at)
-                  VALUES (?, ?, ?, 'QUEUED', ?, ?, ?)`)
-        .run(id, kind, ref, JSON.stringify(payload ?? {}), ttlSeconds, nowIso());
-      setImmediate(() => { void run(id); });   // 下一刻起跑：QUEUED 态真实可观测（排队期取消有窗口）
-      return this.get(id);
+      const taskId = id == null || id === "" ? "fgt_" + randomUUID().slice(0, 8) : String(id);
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(taskId)) throw new TaskShellError("VALIDATION", "任务 id 形状非法");
+      try {
+        db.prepare(`INSERT INTO async_tasks (id, kind, ref, status, payload_json, artifact_ttl, created_at)
+                    VALUES (?, ?, ?, 'QUEUED', ?, ?, ?)`)
+          .run(taskId, kind, ref, JSON.stringify(payload ?? {}), ttlSeconds, nowIso());
+      } catch (e) {
+        if (e?.code === "ERR_SQLITE_ERROR" && /UNIQUE constraint failed/i.test(String(e?.message ?? ""))) {
+          throw new TaskShellError("DUPLICATE", `任务已存在 ${taskId}`);
+        }
+        throw e;
+      }
+      setImmediate(() => { void run(taskId); });   // 下一刻起跑：QUEUED 态真实可观测（排队期取消有窗口）
+      return this.get(taskId);
     },
 
     // 查任务：SUCCEEDED 且 TTL 已过 → 惰性翻 EXPIRED 并删产物（无清扫线程，A3）。

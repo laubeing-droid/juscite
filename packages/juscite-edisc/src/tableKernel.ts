@@ -25,6 +25,21 @@ export interface RowRef {
 export const DEFAULT_ROW_START = 1;
 export const DEFAULT_ROW_END = 50;
 export const MAX_ROW_SPAN = 500; // 单次行读取上限（防整表倾倒；搜索另有 limit 口径）
+/** 整表解析字节上限。超过则拒绝展开，避免把超大 Buffer 扫成单元格。 */
+export const TABULAR_PARSE_MAX_BYTES = 150 * 1024 * 1024;
+
+function byteLengthOf(input: string | Uint8Array): number {
+  if (typeof input !== "string" && input instanceof Uint8Array) return input.byteLength;
+  return new TextEncoder().encode(String(input ?? "")).byteLength;
+}
+
+function rejectOversizedTable(bytes: number): void {
+  if (bytes > TABULAR_PARSE_MAX_BYTES) {
+    const error = new Error(`表格 ${bytes} 字节超过解析上限 ${TABULAR_PARSE_MAX_BYTES}，拒绝展开`);
+    (error as Error & { code: string }).code = "PAYLOAD_TOO_LARGE";
+    throw error;
+  }
+}
 export const SEARCH_LIMIT_MAX = 200;
 export const SEARCH_LIMIT_DEFAULT = 50;
 
@@ -63,8 +78,11 @@ export function rowText(row: TableRow): string {
 }
 
 // ── CSV 解析（RFC4180 式状态机：引号/引号内逗号/引号内换行/双引号转义；行列对应保持）──
-export function parseCsvTable(text: string, name = "csv"): SheetTable[] {
-  const s = String(text ?? "");
+export function parseCsvTable(text: string | Uint8Array, name = "csv"): SheetTable[] {
+  rejectOversizedTable(byteLengthOf(typeof text === "string" || text == null ? String(text ?? "") : text));
+  const s = typeof text === "string" || text == null
+    ? String(text ?? "")
+    : new TextDecoder("utf-8", { fatal: false }).decode(text);
   const rows: TableRow[] = [];
   let cells: string[] = [];
   let cur = "";
@@ -116,6 +134,9 @@ function colIndexOf(addr: string): number {
 /** xlsx 解析（entries=zip 解包件，来自调用方 parseZip；SheetML 子集：sharedStrings/inlineStr/数字/布尔）。
  *  数字单元格的 <v> 原文串直读——金额不落浮点（H2）。行号取 r 属性，缺行以空行占位保持行号对位。 */
 export function parseXlsxTables(entries: Map<string, Buffer>): { sheets: SheetTable[]; notes: string[] } {
+  let total = 0;
+  for (const buf of entries.values()) total += buf?.byteLength ?? 0;
+  rejectOversizedTable(total);
   const notes: string[] = [];
   const get = (p: string) => entries.get(p) ?? entries.get("/" + p) ?? null;
   // 共享串表：一个 <si> 内多个 <t>（rich run）串接

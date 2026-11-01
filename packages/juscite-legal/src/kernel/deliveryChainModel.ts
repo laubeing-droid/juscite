@@ -122,9 +122,24 @@ export interface DeliverableItem {
   producer: "user" | "agent";
 }
 
-/** 族键=剥版本后缀的 stem::extension（跨扩展名不折叠：docx 与 pdf 是两件交付）。 */
+/** 复合扩展名：版本后缀在 stem 上，不能被最后一个点切成 `name.tar::gz`。 */
+const COMPOUND_EXTENSIONS = ["tar.gz", "tar.bz2", "tar.xz", "tar.zst"];
+
+function trimmedBasename(filename: string): string {
+  return basenameOf(String(filename ?? "")).replace(/^[\s\u3000]+|[\s\u3000]+$/gu, "");
+}
+
+/** 族键=剥版本后缀的 stem::extension（跨扩展名不折叠：docx 与 pdf 是两件交付）。
+ *  尾随空白不另成一族；.tar.gz 整段当扩展名；纯数字扩展名仍是 ext（清单.12 与 清单v2.12 同族）。 */
 export function deliveryFamilyKey(filename: string): string {
-  const base = basenameOf(filename);
+  const base = trimmedBasename(filename);
+  const lower = base.toLowerCase();
+  for (const compound of COMPOUND_EXTENSIONS) {
+    const suffix = `.${compound}`;
+    if (lower.endsWith(suffix) && base.length > suffix.length) {
+      return `${stripVersionSuffix(base.slice(0, base.length - suffix.length))}::${compound}`;
+    }
+  }
   const dot = base.lastIndexOf(".");
   const stem = dot > 0 ? base.slice(0, dot) : base;
   const ext = dot > 0 ? base.slice(dot + 1).toLowerCase() : "";

@@ -10,7 +10,14 @@
 // #32 尽调台账经桥 I/O 层 tools/bridge/diligence_service.mjs import（juscite-legal kernel 零跨包依赖不碰）。
 // 回验=报告旗标面（呈现给复核者），不承担发布硬门——引用存在性闭环（各面既有 cite-verify 族）与本件分立。
 // 纯函数、零 IO、零模型；同输入字节级同输出。
-import { FlowEngineError } from "./engine.mjs";
+// engine.mjs 不在本分支（S12 缺口）。回验只需要这个错误类型，不装配整套流程引擎。
+class FlowEngineError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.name = "FlowEngineError";
+    this.code = code;
+  }
+}
 
 export const QUOTE_BACK_VERDICTS = ["pass", "mismatch", "fabricated"];
 // 严重度全序（RE-12 规则三）：已答错（mismatch）与已答无据（fabricated）均压过如实未答（unclear）；
@@ -60,7 +67,10 @@ export function checkQuoteBack({ value, quote } = {}) {
   }
   const nv = normalizeQuoteText(value);
   const nq = normalizeQuoteText(quote);
-  if (nv === "" || nq.includes(nv)) {
+  if (nv === "") {
+    return { verdict: "mismatch", severity: QUOTE_BACK_SEVERITY.mismatch, reason: "归一后值为空，不能按已核验放行" };
+  }
+  if (nq.includes(nv)) {
     return { verdict: "pass", severity: QUOTE_BACK_SEVERITY.pass, reason: "值在其逐字引文中复现（归一空白后子串匹配，全半角标点互认）" };
   }
   return { verdict: "mismatch", severity: QUOTE_BACK_SEVERITY.mismatch, reason: "引文不支持该值（归一后值非引文子串）——已作答但证据链对不上" };

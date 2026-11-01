@@ -3,10 +3,11 @@
 // 异表面；机制学习，零文本搬运，文案自写）。集中一处、禁各导出面散写：
 //   - 单元格值（用户/文档来源字符串）去除前导空白后以 `= + - @ \t \r` 任一开头 → CSV 前置 `'`；
 //   - 我方自产纯数字金额（含负数/千分位，如 -1200.00 / +300 / 1,200.50）不拦——不是注入向量；
+//   - 全角 ＝＋－＠、零宽字符（U+200B/U+200C 等）与换行后的新起始符同样视为注入（表格软件会折叠或另起一行）；
 //   - xlsx/SpreadsheetML 侧的防御是「强制 cell type=string，不经公式/数值推断」，不在此文件
 //     （见 @juscite/vizb shared/xml.ts ssCell：字符串格恒 ss:Type="String"，公式通道仅对
 //     数值格开放；桥 Python 侧 excel_export.py inlineStr 恒字符串格）。
-// 纯函数、零 IO。闭集刻意窄：全角 ＝ 等 Excel 不认作公式起始符的字形不拦（逐字保留交付值）。
+// 纯函数、零 IO。
 
 /** CSV 公式注入起始符闭集（OWASP CSV Injection 口径收口：= + - @ 及制表/回车先行形）。 */
 export const CSV_FORMULA_LEAD_CHARS: ReadonlySet<string> = new Set(["=", "+", "-", "@", "\t", "\r"]);
@@ -14,11 +15,27 @@ export const CSV_FORMULA_LEAD_CHARS: ReadonlySet<string> = new Set(["=", "+", "-
 /** 我方自产纯数字金额豁免形：符号后跟数字，其余仅数字/小数点/千分位（十进制串口径，金额不落浮点）。 */
 const OWN_NUMERIC_AMOUNT_RE = /^[-+]\d[\d.,]*$/u;
 
-/** 去前导空白（含空格/制表/回车/换行/BOM 等全空白族）后首字符是否落入注入起始符闭集。 */
+/** 零宽/不可见字符：夹在起始符前可绕过「看首字符」。 */
+const CSV_INVISIBLE_RE = /[\u200B\u200C\u200D\u2060\uFEFF\u00AD]/g;
+
+/** 全角公式起始符折成半角再进闭集（＝＋－＠）。 */
+const FULLWIDTH_FORMULA_LEAD: Readonly<Record<string, string>> = {
+  "\uFF1D": "=",
+  "\uFF0B": "+",
+  "\uFF0D": "-",
+  "\uFF20": "@",
+};
+
+function lineIsFormulaLead(line: string): boolean {
+  const visible = line.replace(CSV_INVISIBLE_RE, "").replace(/^[\s\uFEFF]+/u, "");
+  const ch = FULLWIDTH_FORMULA_LEAD[visible[0] ?? ""] ?? visible[0] ?? "";
+  return ch !== "" && CSV_FORMULA_LEAD_CHARS.has(ch);
+}
+
+/** 去前导空白/零宽后，任一行首字符落入注入起始符闭集（含全角折半角、换行注入）。 */
 export function isCsvFormulaLead(value: string): boolean {
-  const lead = String(value ?? "").replace(/^\s+/u, "");
-  const ch = lead[0];
-  return ch !== undefined && CSV_FORMULA_LEAD_CHARS.has(ch);
+  const raw = String(value ?? "").replace(CSV_INVISIBLE_RE, "");
+  return raw.split(/\r\n|\n|\r/u).some((line) => lineIsFormulaLead(line));
 }
 
 /**
@@ -29,6 +46,6 @@ export function isCsvFormulaLead(value: string): boolean {
 export function csvFormulaGuard(value: string): string {
   const v = String(value ?? "");
   if (!isCsvFormulaLead(v)) return v;
-  if (OWN_NUMERIC_AMOUNT_RE.test(v.replace(/^\s+/u, ""))) return v;
+  if (OWN_NUMERIC_AMOUNT_RE.test(v.replace(/^[\s\uFEFF]+/u, ""))) return v;
   return "'" + v;
 }

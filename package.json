@@ -6,7 +6,8 @@
     "dev:web": "pnpm --filter @zcode/web dev",
     "typecheck": "tsc -b packages/rpc packages/provider packages/provider-node packages/shared packages/services packages/client packages/ui packages/web packages/desktop packages/desktop/tsconfig.host.json",
     "build": "pnpm -r build",
-    "build:desktop": "pnpm --filter @zcode/desktop build"
+    "build:desktop": "pnpm --filter @zcode/desktop build",
+    "test:adversarial": "node --experimental-strip-types tests/adversarial/run-all.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

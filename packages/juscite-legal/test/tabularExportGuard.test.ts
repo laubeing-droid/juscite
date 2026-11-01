@@ -54,7 +54,7 @@ describe("tabularExportGuard 注入起始形判定（闭集）", () => {
     for (const p of CSV_PAYLOADS) expect(isCsvFormulaLead(p)).toBe(true);
   });
   it("干净值不命中（纯数字金额另由 guard 豁免，见下）", () => {
-    for (const clean of ["合计金额", "7200.00", "A+B 合同", "#REF!", "＝全角等号不是注入向量", ""]) {
+    for (const clean of ["合计金额", "7200.00", "A+B 合同", "#REF!", "全角括号（备注）不是注入向量", ""]) {
       expect(isCsvFormulaLead(clean)).toBe(false);
     }
   });

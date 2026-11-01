@@ -39,6 +39,31 @@ export function sanitizeUrl(raw: string, opts: { allowDataImage?: boolean } = {}
 
 const NONCE_RE = /^[A-Za-z0-9+/=]{22,}$/u; // CSP nonce=base64 至少 16 字节（22 字符起）
 
+const DANGEROUS_HTML_TAG = "script|iframe|object|embed|noscript|noembed|svg|math|title|textarea|style|link|meta|base|form|foreignobject|annotation-xml";
+
+/** 正文片段去可执行面：危险标签、内联事件、javascript/vbscript/data: URL。骨架标签保留。 */
+function neutralizeHtmlFragment(html: string): string {
+  let s = String(html ?? "");
+  const paired = new RegExp(`<\\s*(${DANGEROUS_HTML_TAG})\\b[^>]*>[\\s\\S]*?<\\s*/\\s*\\1\\s*>`, "gi");
+  for (let pass = 0; pass < 4; pass += 1) s = s.replace(paired, "");
+  s = s.replace(new RegExp(`<\\s*/?\\s*(?:${DANGEROUS_HTML_TAG})\\b[^>]*>`, "gi"), "");
+  s = s.replace(/\s+on[a-z0-9:-]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  s = s.replace(
+    /\b(href|src|xlink:href|action|formaction)\s*=\s*(["'])\s*(?:javascript|vbscript|data)\s*:[^"']*\2/gi,
+    "$1=$2#$2",
+  );
+  s = s.replace(/\b(href|src|xlink:href|action|formaction)\s*=\s*(?:javascript|vbscript|data)\s*:[^\s>]*/gi, "$1=\"#\"");
+  return s;
+}
+
+function neutralizeStyle(css: string): string {
+  return String(css).replace(/</g, "\\3c ");
+}
+
+function neutralizeScript(js: string): string {
+  return String(js).replace(/<\s*\/\s*script/gi, "<\\/script");
+}
+
 /** CSP 图片来源闭集：'self' 或四类位图 data 子串（声明内嵌图片时按需最小放行）。 */
 const IMG_SOURCE_RE = /^'(self)'$|^data:image\/(?:png|jpeg|gif|webp)$/;
 
@@ -108,7 +133,7 @@ export function safeHtmlDocument(o: SafeDocOptions): string {
   }
   const monitoringBlock = o.monitoring
     ? `<script type="application/json" id="${MONITORING_DECL_ID}">${monitoringDeclaration(o.monitoring)}</script>\n`
-      + `<script nonce="${nonce}">${monitoringRuntimeJs()}</script>\n`
+      + `<script nonce="${nonce}">${neutralizeScript(monitoringRuntimeJs())}</script>\n`
     : "";
   return `<!doctype html>
 <html lang="${htmlEscape(o.lang ?? "zh-CN")}"><head>
@@ -116,10 +141,10 @@ export function safeHtmlDocument(o: SafeDocOptions): string {
 ${o.csp}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${htmlEscape(o.title)}</title>
-${o.style ? `<style nonce="${nonce}">${o.style}</style>` : ""}
+${o.style ? `<style nonce="${nonce}">${neutralizeStyle(o.style)}</style>` : ""}
 </head><body>
-${monitoringBlock}${o.body}
-${o.script ? `<script nonce="${o.script.nonce}">${o.script.js}</script>` : ""}
+${monitoringBlock}${neutralizeHtmlFragment(o.body)}
+${o.script ? `<script nonce="${o.script.nonce}">${neutralizeScript(o.script.js)}</script>` : ""}
 </body></html>`;
 }
 
