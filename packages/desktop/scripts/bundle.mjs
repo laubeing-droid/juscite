@@ -102,6 +102,9 @@ const requiredRuntimeModules = [
   "node-forge",
   // 与 tsup external 对齐，保留 ZIP 解包器的 CommonJS 运行时边界。
   "yauzl",
+  // Bugfix: 飞书 SDK 为了避开 Electron ESM 动态 require 崩溃会作为外部依赖保留，
+  // 生产包必须显式校验 app.asar 中存在该 scoped 包。
+  "@larksuiteoapi/node-sdk",
 ];
 const electronBuilderRetryCount = 3;
 const electronBuilderRetryDelayMs = 5_000;
