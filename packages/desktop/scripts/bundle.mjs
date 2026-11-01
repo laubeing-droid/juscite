@@ -23,15 +23,18 @@ import {
   runCommandAndReadStdout,
 } from "./spawn-command.mjs";
 import { resolveIntranetDepsBaseUrl } from "./intranetDefaults.mjs";
+import { assertInjectListsHitLockPackages } from "./assert-inject-lock-packages.mjs";
 
 const desktopRoot = resolve(import.meta.dirname, "..");
 const workspaceRoot = resolve(desktopRoot, "../..");
 const requireFromBundle = createRequire(import.meta.url);
-const asarCliPath = resolve(
-  dirname(requireFromBundle.resolve("@electron/asar/package.json")),
-  "bin",
-  "asar.js",
-);
+function resolveAsarCliPath() {
+  return resolve(
+    dirname(requireFromBundle.resolve("@electron/asar/package.json")),
+    "bin",
+    "asar.js",
+  );
+}
 const runtimeModuleLookupRoots = [
   desktopRoot,
   workspaceRoot,
@@ -85,7 +88,7 @@ const artifactArchHintsByArch = {
   arm64: ["arm64", "aarch64"],
 };
 const commandStdoutMaxBuffer = 64 * 1024 * 1024;
-const requiredRuntimeModules = [
+export const requiredRuntimeModules = [
   "pngjs",
   // services 里的代理探测会在运行时 require("undici")。
   // 如果这里只校验 pngjs 等既有依赖，打包链路就会放过“产物能生成但主进程启动即缺 undici”的坏包。
@@ -638,7 +641,7 @@ function verifyPackagedRuntimeDependencies(os, arch) {
   const asarEntriesWithPackState = parseAsarListWithPackState(
     // pnpm exec 会把 workspace engine warning 混进 stdout，严格的 asar 行解析会误判失败。
     // 直接执行锁定版本的 CLI，让 stdout 只包含 asar pack state，不靠放宽解析器吞掉未知输出。
-    runAndReadStdout(process.execPath, [asarCliPath, "list", "--is-pack", appAsarPath]),
+    runAndReadStdout(process.execPath, [resolveAsarCliPath(), "list", "--is-pack", appAsarPath]),
   );
   const asarEntries = asarEntriesWithPackState.map((entry) => entry.path);
 
@@ -688,6 +691,7 @@ function verifyPackagedRuntimeDependencies(os, arch) {
 }
 
 async function main() {
+  assertInjectListsHitLockPackages();
   const { os, arch, skipPrepare, skipBuild, dryRun } = parseArgs(process.argv.slice(2));
   const buildArgs = [
     "exec",
