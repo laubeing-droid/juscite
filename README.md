@@ -66,6 +66,7 @@ python scripts/launch_desktop_trial.py  # 以产物模式拉起桌面应用（Wi
 - [快速上手](docs/getting-started.md)：环境、命令与验证门禁。
 - [架构概览](docs/architecture.md)：组件分层、一次请求的旅程、边界合同与门禁。
 - [自有包一览](docs/packages.md)：每个 `@juscite/*` 包的职责、版本与依赖关系。
+- [模块边界与可维护性评估](docs/maintainability-module-boundaries.md)：包划分、依赖方向、主要边界问题和按序可做的改进。
 
 ### 贡献者
 从[快速上手](docs/getting-started.md)跑通环境，读[自有包一览](docs/packages.md)找到感兴趣的包，改动前先看[架构概览](docs/architecture.md)的边界合同一节。
