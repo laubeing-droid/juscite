@@ -86,7 +86,6 @@ const artifactArchHintsByArch = {
 };
 const commandStdoutMaxBuffer = 64 * 1024 * 1024;
 const requiredRuntimeModules = [
-  "module-details-from-path",
   "pngjs",
   // Bugfix: @arms/rum-core 运行时会从 CJS 入口继续 require('@babel/runtime/helpers/*')。
   // 它把 @babel/runtime 挂在 peerDependencies，pnpm workspace 开发态通常能解析，
