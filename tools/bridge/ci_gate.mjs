@@ -29,10 +29,13 @@
 //             ③adapter 行数纪律（全部 adapter ≤ 桥代码 10%，口径=contracts/adapter-budget.md，超限爆红）
 //             ④品牌正则全量检查（=fast 的 brand 步，此处按 §五顺序显式占位）
 //             ⑤fast 全量（nodecheck/vitest/e2e/license/mech/support/graph/citation；brand 已在④跑不重跑）。
+//             citation 步先做产品权威混用闸（只认轻量核），再跑合成自测。
+//   citation-authority = 只跑引证产品权威混用闸（读文件 + 解析器行为，不拉桥、不跑合成自测）。
 // 用法（内部自行 chdir 仓库根，任意目录可调；推荐工作区根）：
 //   node juscite/.local/worktrees/m1-u01/tools/bridge/ci_gate.mjs fast
 //   node juscite/.local/worktrees/m1-u01/tools/bridge/ci_gate.mjs persist --port 3055
 //   node juscite/.local/worktrees/m1-u01/tools/bridge/ci_gate.mjs upgrade
+//   node tools/bridge/ci_gate.mjs citation-authority
 // 安全：桥 :3030 先探活复用，死了才经 loadCredentials 读注册文件拉起（口令运行时解码传递，不硬编码不入日志）；
 //       oc28(:43127) 是用户进程绝不动；杀桥前必须核验 PID 命令行含 bridge_host.mjs，否则拒绝动手。
 // 纯 Node，不新增依赖。单命令 exit 0/1 可判（施工单-02 任务四验收口径）。
@@ -53,8 +56,8 @@ const VITEST_TESTS = 150; // sessionsIndexStore(基线) + agentV4ConnectionTrans
 const VITEST_LEGAL_TESTS = 96; // vizbPanelContract（施工波二轮·可视化B轨 UI 件：大事记投影 10+摄入载荷 2+对抗摘要 2+下载名净化 1）+ skillActivationModel（施工波三轮·#7 全量面：触发通道/分值/预算/上限/双语义/supplemental/注入格式 17）+ deliveryChainModel（施工波三轮·#7 全量面：路径提取/双层过滤/版本族去重/D4 两层短路 15）+ flowStudioModel（施工波三轮·#35 尾巴②：运行七态闭集/未知态灰具名/双来源只读/运行面摘要/关卡冲突回显/AI-run G1-G3 视图/定义普查与发起门槛 14）+ configWriteModel（施工单-10 单元二·结构化写入防御：safe-quote 纯标量 yaml 对拍/键闭集闸含原型键拒/round-trip 键集合零变化 27）+ tabularExportGuard（施工单-10 单元一·CSV 公式注入防御：闭集判定/20 payload 读回首字符 '/金额豁免/干净值零改写/列名同防 8），独立 vitest 配置独立期望
 
 const mode = process.argv[2];
-if (!["fast", "persist", "full", "package", "upgrade"].includes(mode)) {
-  console.error("用法: node tools/bridge/ci_gate.mjs <fast|persist|full|package|upgrade> [--port N]");
+if (!["fast", "persist", "full", "package", "upgrade", "citation-authority"].includes(mode)) {
+  console.error("用法: node tools/bridge/ci_gate.mjs <fast|persist|full|package|upgrade|citation-authority> [--port N]");
   process.exit(2);
 }
 let persistPort = 3030;
@@ -401,14 +404,177 @@ function stepGraph() {
   return { ok: true, msg: `轻量知识图谱合成自测 ${okCount} 用例 OK，末行 GRAPH_SYNTH_PASS` };
 }
 
-// ── 步骤（fast）：功能 #14 引证核验合成自测（RE-14 §3.5：引擎针组+桥端四针+F4 落账）──
+// 第二核标记在运行时拼出来。本文件源码不写这些全名，自扫才不会把自己判红。
+function secondAuthorityTokens() {
+  return [
+    ["citation_", "verifier"].join(""),
+    ["legal_", "entry.py"].join(""),
+    ["PENDING_OWNER_", "f70_", "citation_", "verifier", "_recon.py"].join(""),
+  ];
+}
+
+function repoText(rel) {
+  return readFileSync(join(REPO_ROOT, rel), "utf-8");
+}
+
+// 产品引证权威闸：接线、pin、合同例外、架构例外句、解析器拒非轻量核文件名。
+// 不跑合成桥。F70 recon / 冻结核 / 白名单入口不能拿来充当产品引证绿灯。
+function assertCitationProductLiteOnly() {
+  const tokens = secondAuthorityTokens();
+  const built = [
+    ["citation_", "verifier"].join(""),
+    ["legal_", "entry.py"].join(""),
+    ["PENDING_OWNER_", "f70_", "citation_", "verifier", "_recon.py"].join(""),
+  ];
+  if (tokens.length !== 3 || tokens.some((t, i) => t !== built[i] || t.length < 8)) {
+    return { ok: false, msg: "混用闸标记拼装异常" };
+  }
+  const productFiles = [
+    "tools/bridge/bridge_host.mjs",
+    "tools/bridge/citation_verify_service.mjs",
+    "tools/bridge/citation_verify_synthetic.mjs",
+    "tools/bridge/citation_engine_probe.py",
+    "tools/bridge/g6_connector_mcp.mjs",
+    "packages/desktop/scripts/materialize-bridge-bundle.mjs",
+    "packages/juscite-runtime-adapters/opencode/src/opencodeAdapter.mjs",
+  ];
+  const gateRel = "tools/bridge/ci_gate.mjs";
+  const misses = [];
+  for (const rel of [...productFiles, gateRel]) {
+    let text;
+    try { text = repoText(rel); } catch (e) { return { ok: false, msg: `读不到 ${rel}：${e.message}` }; }
+    for (const token of tokens) {
+      if (text.includes(token)) misses.push(`${rel} 含第二核标记，不能算产品引证绿`);
+    }
+  }
+  if (misses.length) return { ok: false, msg: misses.join("；") };
+
+  const host = repoText("tools/bridge/bridge_host.mjs");
+  if (!host.includes('from "./citation_verify_service.mjs"')) {
+    return { ok: false, msg: "bridge_host 未从 citation_verify_service.mjs 接入引证" };
+  }
+  if ((host.match(/createCitationVerifyService\(/g) ?? []).length !== 1) {
+    return { ok: false, msg: "bridge_host 里 createCitationVerifyService( 不是恰好一处" };
+  }
+  if ((host.match(/startsWith\("\/api\/verify\/"\)/g) ?? []).length !== 1) {
+    return { ok: false, msg: "bridge_host 里 /api/verify/ 分发不是恰好一处" };
+  }
+  if (!host.includes("citationVerify.httpHandler")) {
+    return { ok: false, msg: "bridge_host 的 /api/verify/ 未交给 citationVerify.httpHandler" };
+  }
+
+  const service = repoText("tools/bridge/citation_verify_service.mjs");
+  if (!service.includes("citationEngineBasename(env) !== PRODUCT_CITATION_ENGINE) return null")) {
+    return { ok: false, msg: "解析器未拒绝非轻量核文件名" };
+  }
+  const servicePy = service.match(/[\w./\\-]+\.py/g) ?? [];
+  if (servicePy.length < 1 || servicePy.some((p) => !p.endsWith("citation_verify_lite.py"))) {
+    return { ok: false, msg: `引证服务里的 .py 必须都是轻量核，实际：${servicePy.join(",")}` };
+  }
+
+  const probe = repoText("tools/bridge/citation_engine_probe.py");
+  if (!probe.includes("import citation_verify_lite as cv") || !probe.includes('"citation_verify_lite.py"')) {
+    return { ok: false, msg: "引擎探针未钉死轻量核" };
+  }
+  const synth = repoText("tools/bridge/citation_verify_synthetic.mjs");
+  const synthPy = synth.match(/[\w./\\-]+\.py/g) ?? [];
+  if (synthPy.length < 1 || synthPy.some((p) => p !== "citation_engine_probe.py")) {
+    return { ok: false, msg: `引证合成自测只能调轻量探针，实际：${synthPy.join(",")}` };
+  }
+  const g6 = repoText("tools/bridge/g6_connector_mcp.mjs");
+  if (!g6.includes("resolveCitationEnginePath()") || !g6.includes("citation_verify_lite.py")) {
+    return { ok: false, msg: "G6 法条腿未走引证解析器 / 未点名轻量核" };
+  }
+  const bundle = repoText("packages/desktop/scripts/materialize-bridge-bundle.mjs");
+  if (!bundle.includes('const CITATION_ENGINE_FILE = join("implementation", "python", "citation_verify_lite.py");')) {
+    return { ok: false, msg: "随包引证引擎不是轻量核单文件" };
+  }
+
+  let pins;
+  try { pins = JSON.parse(repoText("contracts/pin-points.json")).pinPoints; }
+  catch (e) { return { ok: false, msg: `pin-points.json 打不开：${e.message}` }; }
+  const hits = (pins ?? []).filter((p) => (p.symbols ?? []).some((s) => s.name === "citation_verify_lite.py"));
+  if (hits.length !== 1) return { ok: false, msg: `引证产品 pin 应恰好 1 条，实际 ${hits.length}` };
+  const pin = hits[0];
+  const names = new Set((pin.symbols ?? []).map((s) => s.name));
+  const lite = (pin.symbols ?? []).find((s) => s.name === "citation_verify_lite.py");
+  const phrase = "引证产品路径不经 legal_entry 白名单";
+  if (pin.file !== "tools/bridge/bridge_host.mjs" || pin.kind !== "wire"
+    || !names.has("createCitationVerifyService") || !names.has("citationVerify.httpHandler")
+    || !String(lite?.via ?? "").includes("citation_verify_service.mjs")
+    || !String(lite?.via ?? "").includes("/api/verify")
+    || !String(pin.what ?? "").includes(phrase)) {
+    return { ok: false, msg: "pin 23 形状不对：要有桥 /api/verify 与服务到轻量核，并写明白名单例外" };
+  }
+
+  const contract = repoText("contracts/citation-product-authority.md");
+  if (!contract.includes("CITATION_PRODUCT_AUTHORITY: citation_verify_lite")
+    || !contract.includes(phrase)
+    || !contract.includes("## 降级计划")) {
+    return { ok: false, msg: "缺引证产品权威合同，或合同没写白名单例外 / 降级计划" };
+  }
+  const arch = repoText("docs/architecture.md");
+  if (!arch.includes(phrase) || !arch.includes("冻结白名单入口（引证核验除外）")
+    || !arch.includes("citation_verify_lite.py")
+    || arch.includes('BSVCS -- "冻结白名单入口" --> PY')) {
+    return { ok: false, msg: "架构仍把引证画进白名单，或没写直连轻量核的例外" };
+  }
+
+  const gateSrc = repoText(gateRel);
+  const synthCalls = [...gateSrc.matchAll(/runChild\(\s*"citation-synth"\s*,\s*\[([\s\S]*?)\]/g)];
+  if (synthCalls.length !== 1 || !synthCalls[0][1].includes("citation_verify_synthetic.mjs")) {
+    return { ok: false, msg: "citation 步必须只跑轻量合成自测一次" };
+  }
+  if ((gateSrc.match(/\["citation", stepCitation\]/g) ?? []).length < 2) {
+    return { ok: false, msg: "fast 与 upgrade 都要挂 citation 步" };
+  }
+
+  const resolver = `
+import { resolveCitationEnginePath } from "./tools/bridge/citation_verify_service.mjs";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+const root = process.cwd();
+const lite = join(root, "implementation", "python", "citation_verify_lite.py");
+const verifier = join(root, "implementation", "python", ${JSON.stringify(["citation_", "verifier.py"].join(""))});
+const legal = join(root, "implementation", "python", ${JSON.stringify(["legal_", "entry.py"].join(""))});
+function isLite(p) {
+  return typeof p === "string" && p.replaceAll("\\\\", "/").endsWith("/citation_verify_lite.py");
+}
+delete process.env.BRIDGE_CITATION_ENGINE;
+const d = resolveCitationEnginePath();
+if (!isLite(d) || !existsSync(d)) { console.error("default-not-lite", d); process.exit(1); }
+process.env.BRIDGE_CITATION_ENGINE = verifier;
+if (resolveCitationEnginePath() !== null) { console.error("second-engine-accepted"); process.exit(1); }
+process.env.BRIDGE_CITATION_ENGINE = legal;
+if (resolveCitationEnginePath() !== null) { console.error("whitelist-entry-accepted"); process.exit(1); }
+process.env.BRIDGE_CITATION_ENGINE = join(root, "no-such-dir", ${JSON.stringify(["citation_", "verifier.py"].join(""))});
+if (resolveCitationEnginePath() !== null) { console.error("missing-second-engine-fell-through"); process.exit(1); }
+process.env.BRIDGE_CITATION_ENGINE = lite;
+if (resolveCitationEnginePath() !== lite) { console.error("lite-env-rejected", resolveCitationEnginePath()); process.exit(1); }
+process.env.BRIDGE_CITATION_ENGINE = join(root, "no-such-dir", "citation_verify_lite.py");
+const fell = resolveCitationEnginePath();
+if (fell !== d) { console.error("missing-lite-no-fallthrough", fell); process.exit(1); }
+console.log("CITATION_AUTHORITY_RESOLVER_PASS");
+`;
+  const r = runChild("citation-authority", ["--input-type=module", "-e", resolver], { timeoutMs: 30000 });
+  const out = stripAnsi(r.out);
+  if (r.status !== 0 || !out.includes("CITATION_AUTHORITY_RESOLVER_PASS")) {
+    return { ok: false, msg: `解析器行为闸失败 exit=${r.status}`, tail: childTail("citation-authority") };
+  }
+  return { ok: true, msg: "产品引证只认 citation_verify_lite（pin、合同例外、架构例外、解析器拒第二核文件名）" };
+}
+
+// ── 步骤（fast）：功能 #14 引证核验。先混用闸（只认轻量核），再合成自测
+// （RE-14 §3.5：引擎针组+桥端四针+F4 落账）。F70 recon 不在本步。──
 function stepCitation() {
+  const mix = assertCitationProductLiteOnly();
+  if (!mix.ok) return mix;
   const r = runChild("citation-synth", [join("tools", "bridge", "citation_verify_synthetic.mjs")], { timeoutMs: 420000 });
   if (r.status !== 0) return { ok: false, msg: `citation-synth exit=${r.status}（期望 0）`, tail: childTail("citation-synth") };
   const text = stripAnsi(r.out);
   if (!text.includes("CITATION_VERIFY_SYNTH_PASS")) return { ok: false, msg: "citation-synth 输出无 CITATION_VERIFY_SYNTH_PASS 末行", tail: childTail("citation-synth") };
   const okCount = (text.match(/^\[citation-synth\] \d+: OK/gm) ?? []).length;
-  return { ok: true, msg: `引证核验合成自测 ${okCount} 用例 OK，末行 CITATION_VERIFY_SYNTH_PASS（含引擎针组 CITATION_ENGINE_PROBE）` };
+  return { ok: true, msg: `引证核验合成自测 ${okCount} 用例 OK，末行 CITATION_VERIFY_SYNTH_PASS（含引擎针组 CITATION_ENGINE_PROBE；${mix.msg}）` };
 }
 
 // ── 步骤（fast）：功能 #31 支持通道合成自测（RE-31 对拍：C27/§3.5/E31-E38/B15-B24/A6/A10/A12+桥接线）──
@@ -835,6 +1001,8 @@ async function main() {
     // 设计 §五 ①→⑤：豁免 apply --check → 合同面类型快照 diff → adapter 行数纪律 → 品牌正则 → fast 全量
     // （brand 属 fast 步骤之一，按 §五顺序置于④位，⑤尾段不重跑）。
     steps = [["apply-check", stepApplyCheck], ["type-snapshot", stepTypeSnapshot], ["adapter-budget", stepAdapterBudget], ["brand", stepBrand], ["nodecheck", stepNodecheck], ["vitest", stepVitest], ["vitestlegal", stepVitestLegal], ["e2e", stepE2E], ["license", stepLicense], ["mech", stepMechanisms], ["support", stepSupport], ["graph", stepGraph], ["vizbpanel", stepVizbPanel], ["tabularexport", stepTabularExport], ["monitoring", stepMonitoring], ["citation", stepCitation]];
+  } else if (mode === "citation-authority") {
+    steps = [["citation-authority", assertCitationProductLiteOnly]];
   } else {
     steps = [["nodecheck", stepNodecheck], ["vitest", stepVitest], ["vitestlegal", stepVitestLegal], ["e2e", stepE2E], ["license", stepLicense], ["mech", stepMechanisms], ["support", stepSupport], ["graph", stepGraph], ["vizbpanel", stepVizbPanel], ["tabularexport", stepTabularExport], ["monitoring", stepMonitoring], ["citation", stepCitation], ["brand", stepBrand]];
     if (mode === "persist" || mode === "full") steps.push(["persist", stepPersist]);

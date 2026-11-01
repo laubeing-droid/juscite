@@ -7,7 +7,7 @@
       "contracts/pin-points-wave3.md #1-#8（本文件吸收，符号级化）",
       "contracts/ref-graph.json（scripts/gen-ref-graph.mjs 生成，bridgeConsumedExports 与之同源）"
     ],
-    "note": "pinPoints=法律面板族出树后树内仅存的注册/挂载/接线点（升级时必须保活的合同面）；bridgeConsumedExports=桥、自有包与树内注册点对上游合同包(@zcode/*)消费的全部具名导出（符号级，类型快照见 contracts/type-snapshot.json，upgrade 门禁②步 diff 此面）。两表均由树内代码实证（ts-morph 提取，非手写断言）；#42 施工波-20261030 增补 pin 9（桥面 edisc 接线点）。",
+    "note": "pinPoints=法律面板族出树后树内仅存的注册/挂载/接线点（升级时必须保活的合同面）；bridgeConsumedExports=桥、自有包与树内注册点对上游合同包(@zcode/*)消费的全部具名导出（符号级，类型快照见 contracts/type-snapshot.json，upgrade 门禁②步 diff 此面）。两表均由树内代码实证（ts-morph 提取，非手写断言）；#42 施工波-20261030 增补 pin 9（桥面 edisc 接线点）。2026-11-01 增补 pin 23（引证产品接线：/api/verify* → citation_verify_lite，白名单例外）。",
     "relatedArtifacts": {
       "refGraph": "contracts/ref-graph.json",
       "typeSnapshot": "contracts/type-snapshot.json",
@@ -366,6 +366,28 @@
           "via": "runtime.setPermissionGate((request) =>"
         }
       ]
+    },
+    {
+      "id": 23,
+      "file": "tools/bridge/bridge_host.mjs",
+      "kind": "wire",
+      "what": "功能 #14 引证产品接线：createCitationVerifyService 单实例 + /api/verify/* HTTP 分发。引证产品路径不经 legal_entry 白名单，引擎只认 citation_verify_lite.py（2026-11-01 专班锁定）。",
+      "symbols": [
+        {
+          "name": "createCitationVerifyService",
+          "via": "./citation_verify_service.mjs"
+        },
+        {
+          "name": "citationVerify.httpHandler",
+          "via": "/api/verify/* 路由分发（/api/verify/citation、/api/verify/document、config、history）"
+        },
+        {
+          "name": "citation_verify_lite.py",
+          "via": "citation_verify_service.mjs resolveCitationEnginePath（产品 HTTP /api/verify 直连；随包 CITATION_ENGINE_FILE 与 G6 法条腿同一解析器）"
+        }
+      ],
+      "consumedBy": "引证面板经桥 HTTP；g6_connector_mcp.mjs 法条腿；packages/desktop/scripts/materialize-bridge-bundle.mjs 随包物化；tools/bridge/ci_gate.mjs citation 步",
+      "source": "2026-11-01 工程上线优化专班：产品引证权威=citation_verify_lite；contracts/citation-product-authority.md"
     }
   ],
   "bridgeConsumedExports": [

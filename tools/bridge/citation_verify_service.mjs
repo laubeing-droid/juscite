@@ -24,11 +24,25 @@ const HISTORY_DEFAULT = 20;
 const HISTORY_CAP = 100;
 const ENGINE_TIMEOUT_MS = 120_000; // 轻量包毫秒级；超时=环境异常具名拒
 
+// 产品引证权威的文件名。BRIDGE_CITATION_ENGINE 只能改这个文件的位置。
+const PRODUCT_CITATION_ENGINE = "citation_verify_lite.py";
+
+function citationEngineBasename(p) {
+  const norm = String(p).replace(/\\/g, "/");
+  const slash = norm.lastIndexOf("/");
+  return slash === -1 ? norm : norm.slice(slash + 1);
+}
+
 // 引擎路径解析：env 覆盖 > 随包布局（<bundle>/tools/bridge 相邻 ../../implementation/python）
 // > dev 布局 cwd 向上 8 级扫描（kb/lawbook 同款）。
+// 文件名必须是 citation_verify_lite.py。env 指向其它文件名（哪怕文件存在）返回 null，
+// 不回退到内置轻量核——第二核不能被当成核验成功。文件名正确但路径不存在时，仍走随包/dev 查找。
 export function resolveCitationEnginePath() {
   const env = process.env.BRIDGE_CITATION_ENGINE;
-  if (env && existsSync(env)) return env;
+  if (env) {
+    if (citationEngineBasename(env) !== PRODUCT_CITATION_ENGINE) return null;
+    if (existsSync(env)) return env;
+  }
   const bundled = fileURLToPath(new URL("../../implementation/python/citation_verify_lite.py", import.meta.url));
   if (existsSync(bundled)) return bundled;
   let dir = process.cwd();
