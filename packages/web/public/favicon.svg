@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Juscite 占位图标：深底白抽象天平（正式 logo 定稿后替换） -->
+  <rect x="1" y="1" width="30" height="30" rx="7" fill="#161616"/>
+  <g stroke="#ffffff" stroke-width="2" stroke-linecap="round" fill="none">
+    <line x1="16" y1="7" x2="16" y2="24"/>
+    <line x1="8" y1="10" x2="24" y2="10"/>
+    <path d="M8 10 L5 16 H11 Z" fill="#ffffff" stroke="none"/>
+    <path d="M24 10 L21 16 H27 Z" fill="#ffffff" stroke="none"/>
+    <line x1="10" y1="24.5" x2="22" y2="24.5"/>
+  </g>
+</svg>

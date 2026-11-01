@@ -1,0 +1,13 @@
+{
+  "name": "@juscite/office-bridge",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./taskpane/": "./taskpane/"
+  },
+  "comments": {
+    "deps": "运行时仅用 node: 内建 + 既有提升依赖 ws（同 tools/bridge 口径，不新增依赖）；taskpane 静态页零构建直发"
+  }
+}

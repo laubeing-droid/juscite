@@ -1,0 +1,9 @@
+# 修复原因：显式开启开发态自动更新时 electron-updater 会读取 dev-app-update.yml 初始化下载缓存。
+# 服务端 manifest provider 仍负责返回真实安装包 URL；这里的 generic url 只作为本地配置占位。
+# 自动更新源=自家占位（步骤5 打包单②）：当前无真实更新源，用 RFC 2606 保留 TLD .invalid 的
+# 自家命名桩（保证不可解析）。真实源就位后同步改 electron-builder.config.js publish.url
+# 与 src/main/autoUpdater.ts JUSCITE_UPDATE_FEED_ORIGIN（NOTES.md「autoUpdater 换源」节）。
+provider: generic
+url: https://updates.juscite.invalid/
+useMultipleRangeRequest: false
+updaterCacheDirName: zcode-dev-updater

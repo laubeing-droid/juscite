@@ -1,0 +1,124 @@
+diff --git a/packages/shared/src/channels.ts b/packages/shared/src/channels.ts
+index cab3a0a7..f5207d60 100644
+--- a/packages/shared/src/channels.ts
++++ b/packages/shared/src/channels.ts
+@@ -76,6 +76,11 @@ import type {
+   WindowControlsOverlayMetrics,
+   WindowControlsOverlayReadyPayload,
+ } from "./platform.js";
++import type {
++  PetConfigPatch,
++  PetRunEventPayload,
++  PetStatusPayload,
++} from "./desktop-pet.js";
+ import type { BrowserViewportSize } from "./browser-use/command-metadata.js";
+ import type {
+   CuaAccessibilitySettingsResult,
+@@ -262,6 +267,14 @@ export const PlatformChannels = {
+   SaveMcpToUserDirectory: "zcode:save-mcp-to-user-directory",
+   /** Renderer → Main：查询"关闭驻留托盘"能力（Linux 置灰判断；spec：docs/desktop/linux-close-to-tray.md） */
+   GetCloseToTrayCapability: "zcode:get-close-to-tray-capability",
++  /** 功能 #28 桌宠：Renderer → Main 查询桌宠状态（配置+运行态+几何） */
++  PetGetStatus: "zcode:pet-get-status",
++  /** 功能 #28 桌宠：Renderer → Main 更新桌宠配置（设置面五控件），回吐全量状态 */
++  PetUpdateConfig: "zcode:pet-update-config",
++  /** 功能 #28 桌宠：Main → Renderer 广播桌宠状态变更（pet://status） */
++  PetStatusChanged: "zcode:pet-status-changed",
++  /** 功能 #28 桌宠：主渲染层把 sessions-index 边沿投影转发给桌宠（驱动流 1） */
++  PetReportRunEvent: "zcode:pet-report-run-event",
+   /** Renderer 日志转发到 main 进程统一存储 */
+   Log: "zcode:log",
+   /** Renderer → Main：同步当前窗口所有 tab 的 workspace 路径 */
+@@ -1138,6 +1151,22 @@ export interface PlatformChannelMap {
+     request: TaskNotificationPayload;
+     response: void;
+   };
++  [PlatformChannels.PetGetStatus]: {
++    request: void;
++    response: PetStatusPayload;
++  };
++  [PlatformChannels.PetUpdateConfig]: {
++    request: PetConfigPatch;
++    response: PetStatusPayload;
++  };
++  [PlatformChannels.PetStatusChanged]: {
++    request: PetStatusPayload;
++    response: void;
++  };
++  [PlatformChannels.PetReportRunEvent]: {
++    request: PetRunEventPayload;
++    response: void;
++  };
+   [PlatformChannels.TaskNotificationSound]: {
+     request: void;
+     response: void;
+diff --git a/packages/shared/src/index.ts b/packages/shared/src/index.ts
+index 69eff10f..b822a78b 100644
+--- a/packages/shared/src/index.ts
++++ b/packages/shared/src/index.ts
+@@ -84,6 +84,8 @@ export * from "./errors.js";
+ export * from "./rendererActionTrace.js";
+ export * from "./validation.js";
+ export * from "./api.js";
++// 功能 #28 桌宠：跨进程载荷契约（设置面/preload/主渲染层转发钩子消费）。
++export * from "./desktop-pet.js";
+ export * from "./zcode-protocol/index.js";
+ export * from "./account-provider-state.js";
+ // re-home：旧协议承重面的幸存文件（消费者继续走 barrel，零感知）
+diff --git a/packages/shared/src/platform.ts b/packages/shared/src/platform.ts
+index a2469424..80d29041 100644
+--- a/packages/shared/src/platform.ts
++++ b/packages/shared/src/platform.ts
+@@ -24,6 +24,12 @@ import type {
+   WebRemoteControlWorkspaceTarget,
+ } from "./web-remote-control.js";
+ import type { AppSettings, Locale } from "./protocol.js";
++// 功能 #28 桌宠：载荷契约（PetStatusPayload 等）。
++import type {
++  PetConfigPatch,
++  PetRunEventPayload,
++  PetStatusPayload,
++} from "./desktop-pet.js";
+ import type { ArmsCustomEventPayload, RendererTelemetryEventPayload } from "./telemetry.js";
+ import type {
+   RendererActionTraceBatchV1,
+@@ -284,6 +290,8 @@ export type SaveFileRequest =
+       data: ArrayBuffer;
+       sourceUrl?: never;
+       suggestedName: string;
++      /** 功能 #31 支持通道（RE-31 §3.4）：保存对话框默认落目录（可选；目录不存在时宿主忽略回退）。 */
++      defaultDir?: string;
+     }
+   | {
+       data?: never;
+@@ -950,6 +958,15 @@ export interface IPlatformService {
+    */
+   getCloseToTrayCapability?(): Promise<DesktopCloseToTrayCapability>;
+ 
++  /** 功能 #28 桌宠：查询全量状态（配置+运行态+几何）；仅桌面壳实现，Web 可忽略。 */
++  getPetStatus?(): Promise<PetStatusPayload>;
++  /** 功能 #28 桌宠：更新配置（设置面五控件），回吐全量状态。 */
++  updatePetConfig?(patch: PetConfigPatch): Promise<PetStatusPayload>;
++  /** 功能 #28 桌宠：订阅状态广播（pet://status），返回 disposer。 */
++  onPetStatus?(handler: (status: PetStatusPayload) => void): () => void;
++  /** 功能 #28 桌宠：主渲染层把 sessions-index 边沿投影转发给桌宠（驱动流 1）。 */
++  reportPetRunEvent?(event: PetRunEventPayload): void;
++
+   /** 快捷键设置页录制态开关；桌面端 main 据此暂时摘除可配置菜单 accelerator，Web 可忽略 */
+   setShortcutRecordingActive?(active: boolean): void;
+ 
+diff --git a/packages/shared/src/zcode-protocol-v4/command.ts b/packages/shared/src/zcode-protocol-v4/command.ts
+index 64f91aa4..3aeda976 100644
+--- a/packages/shared/src/zcode-protocol-v4/command.ts
++++ b/packages/shared/src/zcode-protocol-v4/command.ts
+@@ -132,6 +132,10 @@ export const commandPayloadSchemas = {
+       // 定时任务会话的后续用户输入也必须保持 turn-scoped 工具面隔离；不能借用
+       // automationId，否则会把普通用户输入误标成一次 automation 派发。
+       toolDisallowlist: z.array(z.string().min(1)).optional(),
++      // 功能 #6 材料上传解析（RE-6 §3 上下文注入）：消息携带的桥内材料附件 id
++      // （/api/attachments 内容寻址 att_*）。桥侧 sendText 合并进会话集合做跨回合
++      // 继承与回合注入；oc28 模型链路不消费本字段（材料上下文由桥侧装配）。
++      attachmentIds: z.array(z.string().min(1)).max(64).optional(),
+     })
+     .superRefine((payload, context) => {
+       if (payload.automationId && payload.offPeakTaskId) {

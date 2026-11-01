@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>R29 引擎验收合成页（driver.js@1.10.2 锁版探针专用，无真实业务）</title>
+<link rel="stylesheet" href="../../node_modules/driver.js/dist/driver.css">
+<style>
+  body{font-family:system-ui,sans-serif;margin:0;display:flex;height:100vh}
+  .side{width:200px;background:#f3f4f6;padding:12px;display:flex;flex-direction:column;gap:6px}
+  .side .logo{font-weight:700;margin-bottom:8px}
+  .nav-btn,.set-btn{text-align:left;padding:8px 10px;border:0;background:transparent;border-radius:6px;cursor:pointer}
+  .nav-btn:hover,.set-btn:hover{background:#e5e7eb}
+  .main{flex:1;padding:24px}
+</style>
+</head>
+<body>
+<aside class="side">
+  <div class="logo" data-tour="tour-overview">合成侧栏导航</div>
+  <button class="nav-btn" data-tour="tour-chat" onclick="window.__clicks=(window.__clicks||0)+1">新任务</button>
+  <button class="nav-btn" data-tour="tour-legal" onclick="window.__clicks=(window.__clicks||0)+1">法律工作台</button>
+  <button class="nav-btn" data-tour="tour-schedule" onclick="window.__clicks=(window.__clicks||0)+1">定时任务</button>
+  <button class="nav-btn" data-tour="tour-plugins" onclick="window.__clicks=(window.__clicks||0)+1">插件</button>
+  <button class="set-btn" data-tour="tour-settings" onclick="window.__clicks=(window.__clicks||0)+1">设置</button>
+</aside>
+<main class="main"><p>合成内容区（探针专用，无真实业务）。</p></main>
+<script src="../../node_modules/driver.js/dist/driver.js.iife.js"></script>
+<script>
+  window.__report = null;
+  window.__reportAll = [];
+  window.__doneClicks = 0; window.__closeClicks = 0; window.__destroyed = 0;
+  // 上报一次锁定（D5）：第一份上报生效，其后 destroy 的 skipped 被吞
+  function reporter(status){
+    if(window.__report===null){ window.__report=status; }
+    window.__reportAll.push(status);
+  }
+  window.makeTour = function(){
+    window.__report=null; window.__reportAll=[];
+    window.__doneClicks=0; window.__closeClicks=0; window.__destroyed=0; window.__clicks=0;
+    return window.driver.js.driver({
+      animate:true, smoothScroll:true, allowClose:true, allowKeyboardControl:true,
+      disableActiveInteraction:true, overlayOpacity:0.58, stagePadding:7, stageRadius:10,
+      popoverClass:'juscite-product-tour',
+      showProgress:true, progressText:'{{current}} / {{total}}',
+      nextBtnText:'下一步', prevBtnText:'上一步', doneBtnText:'完成',
+      onCloseClick:(el,step,{driver:d})=>{ window.__closeClicks++; reporter('skipped'); d.destroy(); },
+      onDoneClick:(el,step,{driver:d})=>{ window.__doneClicks++; reporter('completed'); d.destroy(); },
+      onDestroyed:()=>{ window.__destroyed++; reporter('skipped'); },
+      steps:[
+        {element:'[data-tour="tour-overview"]',popover:{title:'S1 起点',description:'D1',side:'right',align:'start'}},
+        {element:'[data-tour="tour-chat"]',popover:{title:'S2 对话',description:'D2',side:'right',align:'center'}},
+        {element:'[data-tour="tour-legal"]',popover:{title:'S3 法律工作台',description:'D3',side:'right',align:'center'}},
+        {element:'[data-tour="tour-schedule"]',popover:{title:'S4 定时任务',description:'D4',side:'right',align:'center'}},
+        {element:'[data-tour="tour-plugins"]',popover:{title:'S5 插件',description:'D5',side:'right',align:'center'}},
+        {element:'[data-tour="tour-settings"]',popover:{title:'S6 设置',description:'D6',side:'right',align:'end'}}
+      ]
+    });
+  };
+</script>
+</body>
+</html>

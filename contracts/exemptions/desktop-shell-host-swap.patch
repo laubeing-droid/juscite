@@ -1,0 +1,3396 @@
+diff --git a/packages/desktop/src/main/browserView/browserScreenshotSurfaceContracts.ts b/packages/desktop/src/main/browserView/browserScreenshotSurfaceContracts.ts
+index 0b3e260d..804e8707 100644
+--- a/packages/desktop/src/main/browserView/browserScreenshotSurfaceContracts.ts
++++ b/packages/desktop/src/main/browserView/browserScreenshotSurfaceContracts.ts
+@@ -2,9 +2,11 @@ import type {
+   BrowserViewportSize,
+   BrowserViewScreenshotSurfacePreparePayload,
+   BrowserViewScreenshotSurfaceReleasePayload,
+-  BrowserViewSurfaceScaleMode,
+ } from "@zcode/shared";
+ 
++// shared 主入口未再导出该字面量联合（platform.ts:172 同形）；本地声明保持结构兼容。
++export type BrowserViewSurfaceScaleMode = "current" | "unscaled";
++
+ const VIEWPORT_TOLERANCE_PX = 1;
+ 
+ export interface BrowserScreenshotActivityLease {
+diff --git a/packages/desktop/src/main/databaseStartupRelay.ts b/packages/desktop/src/main/databaseStartupRelay.ts
+index 7b2ffb74..ff9c2113 100644
+--- a/packages/desktop/src/main/databaseStartupRelay.ts
++++ b/packages/desktop/src/main/databaseStartupRelay.ts
+@@ -6,7 +6,6 @@ import {
+   databaseStartupControlSchema,
+   type DatabaseStartupState,
+ } from "@zcode/shared";
+-import { reportDatabaseStartupState } from "./databaseStartupTelemetry.js";
+ 
+ let localStorageReady = false;
+ let quit: (() => void) | undefined;
+@@ -49,7 +48,7 @@ export function bindDatabaseStartupRelay(
+     latest = state;
+     forward(state);
+     try {
+-      reportDatabaseStartupState(state);
++      
+     } catch {
+       /* 遥测故障不阻断启动。 */
+     }
+diff --git a/packages/desktop/src/main/desktopChromiumHardwareAccelerationBootstrap.ts b/packages/desktop/src/main/desktopChromiumHardwareAccelerationBootstrap.ts
+index 8e1e9a0d..bd10c430 100644
+--- a/packages/desktop/src/main/desktopChromiumHardwareAccelerationBootstrap.ts
++++ b/packages/desktop/src/main/desktopChromiumHardwareAccelerationBootstrap.ts
+@@ -1,15 +1,12 @@
+ import { existsSync, readFileSync } from "node:fs";
+-import { homedir } from "node:os";
+-import { join } from "node:path";
++import { resolveBootstrapSettingsFile } from "./desktopDataBaseDirBootstrap.js";
+ 
+ interface ChromiumHardwareAccelerationApp {
+   disableHardwareAcceleration(): void;
+ }
+ 
+-export function resolveChromiumHardwareAccelerationSettingsFile(
+-  homePath: string = homedir(),
+-): string {
+-  return join(homePath, ".zcode", "v2", "setting.json");
++export function resolveChromiumHardwareAccelerationSettingsFile(): string {
++  return resolveBootstrapSettingsFile();
+ }
+ 
+ export function extractBootstrapChromiumHardwareAccelerationEnabled(rawValue: unknown): boolean {
+diff --git a/packages/desktop/src/main/desktopCommandHandlers.ts b/packages/desktop/src/main/desktopCommandHandlers.ts
+index 6c5567dc..51936ca0 100644
+--- a/packages/desktop/src/main/desktopCommandHandlers.ts
++++ b/packages/desktop/src/main/desktopCommandHandlers.ts
+@@ -25,7 +25,6 @@ import { readFile } from "node:fs/promises";
+ import { join } from "node:path";
+ import { showAboutDialog } from "./about.js";
+ import { checkForUpdateMenuClick } from "./autoUpdater.js";
+-import { resolveCuaOsSupport } from "./cuaOsSupport.js";
+ import { syncWindowControlsOverlayForZoomLevel } from "./desktopWindowButtonPosition.js";
+ import {
+   DEFAULT_DESKTOP_WINDOW_HEIGHT,
+@@ -364,7 +363,7 @@ function showZCodeEndpointPromptWindow(options: {
+       resizable: false,
+       minimizable: false,
+       maximizable: false,
+-      title: "ZCode Endpoint",
++      title: "Juscite Endpoint",
+       webPreferences: {
+         contextIsolation: true,
+         nodeIntegration: false,
+@@ -661,7 +660,7 @@ export async function executeDesktopCommand(options: {
+       } catch (error) {
+         await showMessageBoxWithOptionalParent(targetWindow, {
+           type: "error",
+-          title: "ZCode Endpoint",
++          title: "Juscite Endpoint",
+           message: "Endpoint 无效",
+           detail: error instanceof Error ? error.message : String(error),
+         });
+@@ -687,6 +686,7 @@ export async function executeDesktopCommand(options: {
+       await clearCodingPlanWebviewStorage({ logger: options.logger });
+       return;
+     case DesktopCommandIds.GetCuaOsSupport:
+-      return resolveCuaOsSupport();
++      // 砍 CUA（v4 §1.3）：CUA 支持查询回不可用。
++      return { supported: false, reason: "cua-removed" as const };
+   }
+ }
+diff --git a/packages/desktop/src/main/desktopDataBaseDirBootstrap.ts b/packages/desktop/src/main/desktopDataBaseDirBootstrap.ts
+index 22c7f369..7848c679 100644
+--- a/packages/desktop/src/main/desktopDataBaseDirBootstrap.ts
++++ b/packages/desktop/src/main/desktopDataBaseDirBootstrap.ts
+@@ -3,8 +3,18 @@ import { homedir } from "node:os";
+ import { join } from "node:path";
+ import { setDataBaseDir } from "@zcode/services/node";
+ 
+-export function resolveBootstrapSettingsFile(homePath: string = homedir()): string {
+-  return join(homePath, ".zcode", "v2", "setting.json");
++/**
++ * 换宿主（v4 §1.3）：Juscite 的数据目录 = %APPDATA%\Juscite。
++ * settings 落 %APPDATA%\Juscite\config\setting.json（与桥 setting 面同根）；
++ * 未显式配置 dataBaseDir 时默认 %APPDATA%\Juscite\data（services 侧在其下再拼 .zcode/v2，
++ * 该内层段由 @zcode/services 收口，不在本包轨道内改动）。
++ */
++export function resolveJusciteAppDataDir(): string {
++  return process.env["APPDATA"] ?? join(homedir(), "AppData", "Roaming");
++}
++
++export function resolveBootstrapSettingsFile(): string {
++  return join(resolveJusciteAppDataDir(), "Juscite", "config", "setting.json");
+ }
+ 
+ export function extractBootstrapDataBaseDir(rawValue: unknown): string | null {
+@@ -21,9 +31,8 @@ export function extractBootstrapDataBaseDir(rawValue: unknown): string | null {
+   return trimmed.length > 0 ? trimmed : null;
+ }
+ 
+-function readBootstrapDataBaseDirFromDisk(
+-  settingsFile: string = resolveBootstrapSettingsFile(),
+-): string | null {
++function readBootstrapDataBaseDirFromDisk(): string | null {
++  const settingsFile = resolveBootstrapSettingsFile();
+   if (!existsSync(settingsFile)) {
+     return null;
+   }
+@@ -36,12 +45,11 @@ function readBootstrapDataBaseDirFromDisk(
+   }
+ }
+ 
+-export function applyEarlyDataBaseDirBootstrap(): string | null {
+-  const dataBaseDir = readBootstrapDataBaseDirFromDisk();
+-  if (dataBaseDir) {
+-    // 启动早期就把 dataBaseDir 注入进来，避免 logger / crashReporter 先按默认 HOME 建目录，
+-    // 导致后续再切换到自定义目录时，日志和 crash dump 落在两套路径里。
+-    setDataBaseDir(dataBaseDir);
+-  }
++export function applyEarlyDataBaseDirBootstrap(): string {
++  const dataBaseDir =
++    readBootstrapDataBaseDirFromDisk() ?? join(resolveJusciteAppDataDir(), "Juscite", "data");
++  // 启动早期就把 dataBaseDir 注入进来，避免 logger / crashReporter 先按默认 HOME 建目录，
++  // 导致后续再切换到自定义目录时，日志和 crash dump 落在两套路径里。
++  setDataBaseDir(dataBaseDir);
+   return dataBaseDir;
+ }
+diff --git a/packages/desktop/src/main/desktopFinderOpenFolderWorkflow.ts b/packages/desktop/src/main/desktopFinderOpenFolderWorkflow.ts
+index f6014ce5..04c874d9 100644
+--- a/packages/desktop/src/main/desktopFinderOpenFolderWorkflow.ts
++++ b/packages/desktop/src/main/desktopFinderOpenFolderWorkflow.ts
+@@ -4,12 +4,12 @@ import { join } from "node:path";
+ import { spawn } from "node:child_process";
+ import type { Locale } from "@zcode/shared";
+ 
+-const WORKFLOW_NAME = "Open in ZCode.workflow";
++const WORKFLOW_NAME = "Open in Juscite.workflow";
+ const WORKFLOW_BUNDLE_ID = "dev.zcode.app.finder-open-workflow";
+ const WORKFLOW_VERSION = "5";
+ const SERVICES_MENU_LABELS: Record<Locale, string> = {
+-  "zh-CN": "在ZCode中打开",
+-  "en-US": "Open in ZCode",
++  "zh-CN": "在Juscite中打开",
++  "en-US": "Open in Juscite",
+ };
+ 
+ const workflowScript = `first=""
+diff --git a/packages/desktop/src/main/desktopHostProcess.ts b/packages/desktop/src/main/desktopHostProcess.ts
+index b8bfd03c..960bd9ce 100644
+--- a/packages/desktop/src/main/desktopHostProcess.ts
++++ b/packages/desktop/src/main/desktopHostProcess.ts
+@@ -1,67 +1,19 @@
+-import { ingestToolExecResource } from "./desktopResourceTelemetry.js";
+-import { ingestMcpResourceSamples } from "./processResourceMcpTelemetrySource.js";
+-/* eslint-disable max-lines -- host process 统一处理 main↔host 生命周期、日志、ZCode Agent，拆分前先保持跨进程消息收口。 */
+-import {
+-  type HostAgentProcessErrorResponse,
+-  type HostAgentProcessExceptionResponse,
+-  type HostAgentProcessExitedResponse,
+-  type HostAgentProcessReadyResponse,
+-  type HostAgentProcessSpawnedResponse,
+-  type HostCuaOperationStateResponse,
+-  type HostMcpTelemetryResponse,
+-  type HostSessionCreateTelemetryResponse,
+-  type HostPluginTelemetryResponse,
+-  type RemoteTarget,
+-  type TaskRealtimeHostDeliveryKind,
+-  type WorkspacePurpose,
+-  formatZCodeHostProcessName,
+-  HostMessageTypes,
+-  hostResponseMessageSchema,
+-  HostResponseTypes,
+-  InternalChannels,
+-  LAUNCH_MARKS_QUERY_KEY,
+-  RUNTIME_ZCODE_DEBUG,
+-  serializeLaunchMarks,
+-  ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
+-} from "@zcode/shared";
+-import type {
+-  PluginSandboxHandle,
+-  PluginSandboxRegisterRequestPayload,
+-  PluginSandboxRegisterResultPayload,
+-} from "@zcode/shared/mcp-apps";
+-import type { UtilityProcess as ElectronUtilityProcess, MessagePortMain } from "electron";
+-import {
+-  app,
+-  BrowserWindow,
+-  utilityProcess as electronUtilityProcess,
+-  MessageChannelMain,
+-} from "electron";
+-import { randomUUID } from "node:crypto";
++/*
++ * 换宿主（v4 §1.3）：原 Electron utilityProcess 宿主（打包 @zcode/server）整链废弃，
++ * 改为应用级单例桥进程 —— `node <tsx> tools/bridge/bridge_host.mjs`（桥协议=ChannelServer
++ * WebSocket /ws，renderer 直连，不再走 MessagePortMain 服务端口）。
++ * oc28 serve 只做注册文件探测（%APPDATA%\Juscite\state\opencode\service-local.json），
++ * 未运行时弹提示、绝不自动拉起（spawn oc28 留待用户裁决）；桥进程本身照常拉起，
++ * 会话请求由桥 fail-closed。
++ */
++import { app, BrowserWindow, dialog } from "electron";
++import { spawn, type ChildProcess } from "node:child_process";
++import { existsSync, readFileSync } from "node:fs";
++import { homedir } from "node:os";
+ import { join } from "node:path";
+-import { BroadcastHub } from "./broadcastHub.js";
+-import { bindDatabaseStartupRelay } from "./databaseStartupRelay.js";
++import { LAUNCH_MARKS_QUERY_KEY, serializeLaunchMarks, type WorkspacePurpose } from "@zcode/shared";
+ import { getMainLaunchPartialMarks } from "./desktopLaunchMarks.js";
+-import { ingestHostNetworkObservations } from "./desktopNetworkTelemetry.js";
+-import {
+-  buildHostProcessEnv,
+-  hostModulePath,
+-  resolveBundledGlmBinaryPath,
+-} from "./desktopRuntimeEnv.js";
+-import { ingestHostNetworkCapture } from "./resourceManagerNetwork.js";
+-import { buildHostE2ECoverageEnv } from "./e2eCoverage.js";
+-import { createFeedbackLogArchiveFromExportLogs } from "./exportLogs.js";
+ import { createHostLogRelay } from "./hostLogRelay.js";
+-import { ingestCliResourceSample } from "./processResourceCliSource.js";
+-import { ingestHostSelfResourceSample } from "./processResourceSelfHeapSource.js";
+-import { resolveHostResourceUsageResult } from "./resourceManagerHostSampling.js";
+-import {
+-  registerHostAgentProcess,
+-  registerHostProcess,
+-  unregisterHostAgentProcess,
+-  unregisterHostProcess,
+-} from "./resourceManagerWindow.js";
+-import type { RemoteAssetDirs } from "./desktopRuntimeEnv.js";
+-import type { TaskRealtimeBus } from "./taskRealtimeBus.js";
+ 
+ export interface WindowBootstrapOptions {
+   restoreSession?: boolean;
+@@ -71,48 +23,219 @@ export interface WindowBootstrapOptions {
+   unavailableWorkspacePath?: string;
+   windowKind?: "main" | "update-status";
+   locale?: string;
++  /** 桥 WebSocket 地址（renderer 直连 Juscite 桥，替代原 utilityProcess 服务端口）。 */
++  bridgeWsUrl?: string;
+ }
+ 
++/** 兼容保留：上游 InitLocal 消息形状。桥进程不经此消息初始化，字段仅供调用方组装。 */
+ export interface HostInitMessage {
+-  type: typeof HostMessageTypes.InitLocal;
++  type?: string;
+   hostId?: string;
+-  databaseStartupId?: string;
+-  deliveryKind?: TaskRealtimeHostDeliveryKind;
+   deviceMid?: string;
+-  feedbackApiBase?: string;
+   workspacePath?: string;
+   workspaceIdentity?: string;
+-  agentWarmupTargets?: Array<{
+-    workspacePath: string;
+-    workspaceIdentity?: string;
+-  }>;
+-  agentSpawnFallbackCwd?: string;
+-  remoteAssets?: RemoteAssetDirs;
+-  /** Main 解析后的 ZCode Built-in Provider Config 路径；Host/Services 不感知 Electron 安装布局。 */
+-  zcodeBuiltinProviderConfigFilePath: string;
+-  /** Main 提前异步采集并过滤的本机 runtime 环境；只允许传给 InitLocal。 */
+-  runtimeProcessEnvPatch?: Record<string, string>;
++  [key: string]: unknown;
+ }
+ 
+-export interface SpawnHostProcessOptions {
+-  internalChannel?: typeof InternalChannels.ServicePort | typeof InternalChannels.ScopedServicePort;
+-  internalPayload?: unknown;
+-  registerBroadcast?: boolean;
+-  taskRealtime?: {
+-    workspaceKeys: Iterable<string>;
+-    deliveryKind?: TaskRealtimeHostDeliveryKind;
+-    onHostId?: (hostId: string) => void;
++export interface BridgeHostLogger {
++  info: (...args: unknown[]) => void;
++  warn: (...args: unknown[]) => void;
++  error: (...args: unknown[]) => void;
++}
++
++export interface BridgeHostHandle {
++  child: ChildProcess;
++  port: number;
++  wsUrl: string;
++}
++
++const DEFAULT_BRIDGE_PORT = 3030;
++
++let bridgeHandle: BridgeHostHandle | null = null;
++let bridgeSpawnGeneration = 0;
++
++export function resolveBridgePort(): number {
++  const raw = Number(process.env["JUSCITE_BRIDGE_PORT"] ?? DEFAULT_BRIDGE_PORT);
++  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_BRIDGE_PORT;
++}
++
++export function resolveBridgeWsUrl(): string {
++  return `ws://127.0.0.1:${resolveBridgePort()}/ws`;
++}
++
++/** 仓库根（dev 布局：packages/desktop → 上两级）。可用 JUSCITE_REPO_ROOT 覆盖。 */
++function resolveRepoRoot(): string {
++  return process.env["JUSCITE_REPO_ROOT"] ?? join(app.getAppPath(), "..", "..");
++}
++
++function resolveBridgePaths(): { bridgeDir: string; entry: string; tsxCli: string } {
++  // 打包态：桥随包物化在 resources/bridge（electron-builder.config.js extraResources ←
++  // scripts/materialize-bridge-bundle.mjs 自足目录）。不再假设仓库布局——r7 记档
++  // （78b34899）的「无仓库布局机器桥 spawn fail-closed」边界由此销项；随包要件缺失时
++  // 仍由 ensureBridgeHostProcess 的 existsSync 检查 fail-closed。
++  if (app.isPackaged) {
++    const bridgeRoot = join(process.resourcesPath, "bridge");
++    const bridgeDir = join(bridgeRoot, "tools", "bridge");
++    return {
++      bridgeDir,
++      entry: join(bridgeDir, "bridge_host.mjs"),
++      tsxCli: join(bridgeRoot, "node_modules", "tsx", "dist", "cli.mjs"),
++    };
++  }
++  const bridgeDir = join(resolveRepoRoot(), "tools", "bridge");
++  return {
++    bridgeDir,
++    entry: join(bridgeDir, "bridge_host.mjs"),
++    tsxCli: join(bridgeDir, "node_modules", "tsx", "dist", "cli.mjs"),
+   };
+-  onPortReady?: (port: MessagePortMain) => void;
+-  /** 共享 SSH/WSL Host 初始化时不创建特殊的首个 workspace RPC port。 */
+-  attachInitialServicePort?: boolean;
+ }
+ 
+-const exitedHostProcesses = new WeakSet<ElectronUtilityProcess>();
+-const disposingHostProcesses = new Set<ElectronUtilityProcess>();
++function resolveOc28RegistrationFile(): string {
++  const appData = process.env["APPDATA"] ?? join(homedir(), "AppData", "Roaming");
++  return join(appData, "Juscite", "state", "opencode", "service-local.json");
++}
++
++interface Oc28Registration {
++  url: string;
++  pid?: number;
++}
++
++function readOc28Registration(): Oc28Registration | null {
++  const file = resolveOc28RegistrationFile();
++  if (!existsSync(file)) return null;
++  try {
++    const parsed = JSON.parse(readFileSync(file, "utf-8")) as Record<string, unknown>;
++    if (typeof parsed["url"] !== "string" || !parsed["url"].trim()) return null;
++    return {
++      url: parsed["url"].trim(),
++      pid: typeof parsed["pid"] === "number" ? parsed["pid"] : undefined,
++    };
++  } catch {
++    return null;
++  }
++}
++
++/** 探测 oc28 serve 是否在跑（HTTP 探针；凭据不出注册文件、不落日志）。 */
++async function probeOc28Alive(registration: Oc28Registration): Promise<boolean> {
++  try {
++    const controller = new AbortController();
++    const timer = setTimeout(() => controller.abort(), 2_000);
++    try {
++      const response = await fetch(
++        registration.url.replace(/\/+$/, "") + "/api/info",
++        { method: "GET", signal: controller.signal },
++      );
++      // 401/403 也证明服务活着（鉴权层应答）。
++      return response.ok || response.status === 401 || response.status === 403;
++    } finally {
++      clearTimeout(timer);
++    }
++  } catch {
++    return false;
++  }
++}
++
++async function warnIfOc28Down(logger: BridgeHostLogger): Promise<void> {
++  const registration = readOc28Registration();
++  if (!registration) {
++    logger.warn(
++      "[bridge-host] oc28 注册文件缺失（" + resolveOc28RegistrationFile() + "）；会话请求将 fail-closed",
++    );
++    void dialog.showMessageBox({
++      type: "warning",
++      title: "Juscite：oc28 未注册",
++      message: "未找到 oc28 serve 注册文件。",
++      detail:
++        "预期位置：%APPDATA%\Juscite\state\opencode\service-local.json\n请先手动启动 oc28 serve 后再使用对话功能（Juscite 不会自动拉起 oc28）。",
++      buttons: ["知道了"],
++    });
++    return;
++  }
++  if (!(await probeOc28Alive(registration))) {
++    logger.warn("[bridge-host] oc28 serve 未响应（" + registration.url + "）；会话请求将 fail-closed");
++    void dialog.showMessageBox({
++      type: "warning",
++      title: "Juscite：oc28 serve 未运行",
++      message: "oc28 serve 当前不可达。",
++      detail:
++        "注册地址：" +
++        registration.url +
++        "\n请手动启动 oc28 serve 后再使用对话功能（Juscite 不会自动拉起 oc28）。",
++      buttons: ["知道了"],
++    });
++  }
++}
++
++export function getBridgeHostProcess(): ChildProcess | null {
++  return bridgeHandle?.child ?? null;
++}
++
++export function isBridgeHostAlive(): boolean {
++  return bridgeHandle != null && bridgeHandle.child.exitCode == null && !bridgeHandle.child.killed;
++}
++
++/** 幂等拉起桥进程；桥退出后清空句柄，下一次调用可重建。 */
++export function ensureBridgeHostProcess(logger: BridgeHostLogger): BridgeHostHandle {
++  if (isBridgeHostAlive() && bridgeHandle) {
++    return bridgeHandle;
++  }
++  const { bridgeDir, entry, tsxCli } = resolveBridgePaths();
++  const port = resolveBridgePort();
++  if (!existsSync(entry)) {
++    logger.error("[bridge-host] 桥入口缺失：" + entry + "（spawn 放弃）");
++    throw new Error("bridge host entry not found: " + entry);
++  }
++  if (!existsSync(tsxCli)) {
++    logger.error("[bridge-host] tsx 未安装（" + tsxCli + "）；请先在 tools/bridge 安装依赖（spawn 放弃）");
++    throw new Error("tsx cli not found: " + tsxCli);
++  }
++
++  const generation = ++bridgeSpawnGeneration;
++  const label = "bridge-" + generation;
++  // @zcode 工作区包 exports 指 TS 源，桥必须经 tsx 转译运行（M1/M2 已验证的启动方式）。
++  // ELECTRON_RUN_AS_NODE 让打包态复用随包 Electron 二进制当 Node 用，不依赖系统 PATH。
++  const child = spawn(process.execPath, [tsxCli, entry], {
++    cwd: bridgeDir,
++    env: {
++      ...process.env,
++      ELECTRON_RUN_AS_NODE: "1",
++      BRIDGE_PORT: String(port),
++      // 功能 #31 支持通道：诊断包 app_version 取真版本（RE-31 §3.1，不复刻竞品 B16 硬编码漂移）。
++      JUSCITE_APP_VERSION: app.getVersion(),
++    },
++    stdio: ["ignore", "pipe", "pipe"],
++    windowsHide: true,
++  });
++
++  const hostLogRelay = createHostLogRelay(label, logger);
++  child.stdout?.on("data", (data: Buffer) => hostLogRelay.onStdout(data.toString()));
++  child.stderr?.on("data", (data: Buffer) => hostLogRelay.onStderr(data.toString()));
++  child.once("exit", (code, signal) => {
++    logger.warn("[bridge-host] 桥进程退出（generation=" + generation + " code=" + code + " signal=" + signal + "）");
++    if (bridgeHandle && bridgeHandle.child === child) {
++      bridgeHandle = null;
++    }
++  });
++  child.once("error", (error) => {
++    logger.error("[bridge-host] 桥进程 spawn 失败：", error);
++    if (bridgeHandle && bridgeHandle.child === child) {
++      bridgeHandle = null;
++    }
++  });
++
++  logger.info("[bridge-host] spawned bridge (pid=" + (child.pid ?? "unknown") + ") on port " + port);
++  bridgeHandle = { child, port, wsUrl: resolveBridgeWsUrl() };
++  void warnIfOc28Down(logger);
++  return bridgeHandle;
++}
+ 
+-export function listDisposingHostProcesses(): ElectronUtilityProcess[] {
+-  return Array.from(disposingHostProcesses);
++export function disposeBridgeHostProcess(reason: string): void {
++  if (!bridgeHandle) return;
++  const child = bridgeHandle.child;
++  bridgeHandle = null;
++  if (child.exitCode == null && !child.killed) {
++    child.kill();
++  }
+ }
+ 
+ export function loadWindow(
+@@ -131,6 +254,7 @@ export function loadWindow(
+       unavailableWorkspacePath: bootstrap?.unavailableWorkspacePath,
+       windowKind: bootstrap?.windowKind,
+       locale: bootstrap?.locale,
++      bridgeWsUrl: bootstrap?.bridgeWsUrl ?? resolveBridgeWsUrl(),
+     }).filter((entry): entry is [string, string] => entry[1] != null),
+   );
+ 
+@@ -145,625 +269,14 @@ export function loadWindow(
+   // 生产包不能信任继承环境中的开发服务器地址，否则会被本机开发会话劫持为空白页。
+   if (!app.isPackaged && process.env["ELECTRON_RENDERER_URL"]) {
+     const base = process.env["ELECTRON_RENDERER_URL"];
+-    const url = new URL(page === "login" ? `${base}/login.html` : base);
++    const url = new URL(page === "login" ? base + "/login.html" : base);
+     for (const [key, value] of Object.entries(query)) {
+       url.searchParams.set(key, value);
+     }
+     return win.loadURL(url.toString());
+   } else {
+-    return win.loadFile(join(import.meta.dirname, `../renderer/${page}.html`), {
++    return win.loadFile(join(import.meta.dirname, "../renderer/" + page + ".html"), {
+       query,
+     });
+   }
+ }
+-
+-export function spawnHostProcess(
+-  win: BrowserWindow,
+-  label: string,
+-  initMessage: HostInitMessage,
+-  dependencies: {
+-    hostProcessLocalEnv: Record<string, string>;
+-    /** Main 进程已完成服务端灰度裁决；Host 只消费这个快照，不自行请求或分桶。 */
+-    desktopContextPromptEnabled?: () => boolean;
+-    logger: {
+-      info: (...args: unknown[]) => void;
+-      warn: (...args: unknown[]) => void;
+-    };
+-    broadcastHub: BroadcastHub;
+-    taskRealtimeBus?: TaskRealtimeBus;
+-    windowHostProcessMap: Map<number, ElectronUtilityProcess>;
+-    hostRunningTaskCountMap: Map<ElectronUtilityProcess, number>;
+-    onWorkspaceRunningTaskCountChanged?: (
+-      child: ElectronUtilityProcess,
+-      event: {
+-        workspacePath: string;
+-        workspaceIdentity?: string;
+-        runningTaskCount: number;
+-      },
+-    ) => void;
+-    onAgentProcessExited?: (event: HostAgentProcessExitedResponse) => void;
+-    onAgentProcessError?: (event: HostAgentProcessErrorResponse) => void;
+-    onAgentProcessException?: (event: HostAgentProcessExceptionResponse) => void;
+-    onAgentProcessReady?: (event: HostAgentProcessReadyResponse) => void;
+-    onAgentProcessSpawned?: (event: HostAgentProcessSpawnedResponse) => void;
+-    onMcpTelemetry?: (event: HostMcpTelemetryResponse) => void;
+-    onPluginTelemetry?: (event: HostPluginTelemetryResponse) => void;
+-    onSessionCreateTelemetry?: (event: HostSessionCreateTelemetryResponse) => void;
+-    onCuaOperationStateChanged?: (
+-      source: ElectronUtilityProcess,
+-      event: HostCuaOperationStateResponse,
+-    ) => void;
+-    onCuaOperationStateSourceExited?: (source: ElectronUtilityProcess) => void;
+-    /** host → main：定时任务派发结果，转交给 cron scheduler 结算调度状态机。 */
+-    onCronRunResult?: (result: {
+-      runId: string;
+-      ok: boolean;
+-      taskId?: string;
+-      sessionId?: string;
+-      error?: string;
+-      failureKind?: "transient" | "permanent";
+-    }) => void;
+-    /** host → main：闲时任务派发结果，转交给 scheduler 结算（与 cron 独立）。 */
+-    onOffPeakRunResult?: (result: {
+-      offPeakTaskId: string;
+-      ok: boolean;
+-      lifecycleManaged?: true;
+-      conversationId?: string;
+-      sessionId?: string;
+-      error?: string;
+-      failureKind?: "transient" | "permanent";
+-    }) => void;
+-    /** host 中 manual run 落库后请求 main 立即唤醒 scheduler。 */
+-    onCronSchedulerWakeRequested?: (automationId: string) => void;
+-    /** host 中闲时任务翻 schedulable 后请求 main 立即唤醒 scheduler。 */
+-    onOffPeakSchedulerWakeRequested?: (offPeakTaskId?: string) => void;
+-    // browser-use：main 用 WebContentsView+CDP 执行一条命令。实现由宿主注入；缺省则 backend_unavailable。
+-    handleBrowserExecuteRequest?: (params: {
+-      win: BrowserWindow;
+-      requestId: string;
+-      browserId?: string;
+-      browserGeneration?: number;
+-      sessionId: string;
+-      turnId?: string;
+-      workspaceKey?: string;
+-      workspacePath?: string;
+-      workspaceIdentity?: string;
+-      remoteSessionId?: string;
+-      clientMode?: "desktop-continuous" | "web-remote-replayable";
+-      sessionContext?: "live" | "cached";
+-      command: unknown;
+-    }) => Promise<{ ok: boolean; [k: string]: unknown }>;
+-    /** Host 已完成附件授权后，由 Main 将本地视频 realpath 加入精确协议授权集合。 */
+-    authorizeLocalMediaPreviewPath?: (path: string) => Promise<string>;
+-    /** Host 校验完插件 UI HTML 后交给 Main 沙箱注册表登记，返回句柄。 */
+-    registerPluginSandbox?: (
+-      input: PluginSandboxRegisterRequestPayload,
+-    ) => PluginSandboxHandle | Promise<PluginSandboxHandle>;
+-  },
+-  options?: SpawnHostProcessOptions,
+-): ElectronUtilityProcess {
+-  const hostId = randomUUID();
+-  const glmBinaryPath = resolveBundledGlmBinaryPath();
+-  const execArgv = [
+-    ...(RUNTIME_ZCODE_DEBUG ? [`--inspect-brk=${RUNTIME_ZCODE_DEBUG}`] : []),
+-    "--no-warnings",
+-  ];
+-  const child = electronUtilityProcess.fork(hostModulePath, [], {
+-    serviceName: formatZCodeHostProcessName(label),
+-    execArgv,
+-    env: {
+-      ...buildHostProcessEnv(dependencies.hostProcessLocalEnv),
+-      ...buildHostE2ECoverageEnv(),
+-      ZCODE_PROCESS_LABEL: label,
+-      // macOS-only: the Computer Use Helper launcher runs inside this forked host utilityProcess, whose
+-      // code-signing identity is a nested Electron helper (NOT dev.zcode.app). Publish THIS (main
+-      // Electron) process's pid — which IS dev.zcode.app — so helperLauncher passes it as
+-      // `--launcher-pid` and the Helper's signature/peer verification succeeds instead of
+-      // health-timing out. Env-name mirror of services' LAUNCHER_PID_ENV. Not set on
+-      // Windows/Linux (CUA is macOS-only; nothing reads it there) to keep the host env pristine.
+-      ...(process.platform === "darwin" ? { ZCODE_CUA_LAUNCHER_PID: String(process.pid) } : {}),
+-      ...(dependencies.desktopContextPromptEnabled
+-        ? {
+-            [ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV]: dependencies.desktopContextPromptEnabled()
+-              ? "1"
+-              : "0",
+-          }
+-        : {}),
+-    },
+-  });
+-
+-  dependencies.logger.info(
+-    `[spawnHostProcess] forked host process for (${label}), pid=${child.pid}`,
+-  );
+-  dependencies.logger.info(`[spawnHostProcess] host module path: ${hostModulePath}`);
+-  dependencies.logger.info(`[spawnHostProcess] glm binary path: ${glmBinaryPath ?? "<not found>"}`);
+-  dependencies.logger.info(
+-    `[spawnHostProcess] BIGMODEL_OAUTH_APP_SECRET source: ${process.env.BIGMODEL_OAUTH_APP_SECRET ? "process" : dependencies.hostProcessLocalEnv.BIGMODEL_OAUTH_APP_SECRET ? "dotenv" : "fallback"}`,
+-  );
+-
+-  // 远程连接与本地服务共享 window Host，进程级 stdout 没有请求身份。
+-  // 连接进度改由 HostResponseTypes.RemoteWorkspaceConnectionLog 按 requestId 上报。
+-  const hostLogRelay = createHostLogRelay(
+-    label,
+-    dependencies.logger as Parameters<typeof createHostLogRelay>[1],
+-  );
+-
+-  child.stderr?.on("data", (data: Buffer) => {
+-    hostLogRelay.onStderr(data.toString());
+-  });
+-  child.stdout?.on("data", (data: Buffer) => {
+-    hostLogRelay.onStdout(data.toString());
+-  });
+-
+-  const databaseStartupRelay = bindDatabaseStartupRelay(win, child, hostId);
+-  child.on("message", (message: unknown) => {
+-    const result = hostResponseMessageSchema.safeParse(message);
+-    if (!result.success) {
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.DatabaseStartupState) {
+-      databaseStartupRelay.receive(result.data.state);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.Log) {
+-      hostLogRelay.onStructuredLog(result.data);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.NetworkTelemetryBatch) {
+-      ingestHostNetworkObservations(result.data.observations);
+-      return;
+-    }
+-    if (result.data.type === HostResponseTypes.NetworkCaptureBatch) {
+-      ingestHostNetworkCapture(result.data.batch, child.pid ?? 0);
+-      return;
+-    }
+-    // CLI 自采的 60 秒样本：按 services 打的 lane 归入 cli_chat / cli_aux 角色。
+-    if (result.data.type === HostResponseTypes.AgentResourceSample) {
+-      ingestCliResourceSample(
+-        result.data.sample,
+-        result.data.runtimeSurface,
+-        result.data.environmentKey,
+-      );
+-      return;
+-    }
+-
+-    // Host 自采的 60 秒样本：main 只取 heap 作 host 角色事件的 heap 维度。
+-    if (result.data.type === HostResponseTypes.HostResourceSample) {
+-      ingestHostSelfResourceSample(result.data.sample);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.ResourceUsageSnapshotResult) {
+-      resolveHostResourceUsageResult(label, result.data);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.ToolExecResource) {
+-      ingestToolExecResource(result.data.sample, result.data.runtimeSurface);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.McpResourceSamples) {
+-      ingestMcpResourceSamples(
+-        result.data.samples,
+-        result.data.runtimeSurface,
+-        result.data.environmentKey,
+-      );
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.McpTelemetry) {
+-      dependencies.onMcpTelemetry?.(result.data);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.PluginTelemetry) {
+-      dependencies.onPluginTelemetry?.(result.data);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.SessionCreateTelemetry) {
+-      dependencies.onSessionCreateTelemetry?.(result.data);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.LocalMediaPreviewPathAuthorizeRequest) {
+-      const request = result.data;
+-      const authorize = dependencies.authorizeLocalMediaPreviewPath;
+-      if (!authorize) {
+-        child.postMessage({
+-          type: HostMessageTypes.LocalMediaPreviewPathAuthorizeResult,
+-          requestId: request.requestId,
+-          ok: false,
+-          error: "Local media preview path authorization is unavailable.",
+-        });
+-        return;
+-      }
+-      void authorize(request.path)
+-        .then((path) => {
+-          child.postMessage({
+-            type: HostMessageTypes.LocalMediaPreviewPathAuthorizeResult,
+-            requestId: request.requestId,
+-            ok: true,
+-            path,
+-          });
+-        })
+-        .catch((error) => {
+-          child.postMessage({
+-            type: HostMessageTypes.LocalMediaPreviewPathAuthorizeResult,
+-            requestId: request.requestId,
+-            ok: false,
+-            error: error instanceof Error ? error.message : String(error),
+-          });
+-        });
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.PluginSandboxRegisterRequest) {
+-      const request = result.data;
+-      const register = dependencies.registerPluginSandbox;
+-      const reply = (payload: PluginSandboxRegisterResultPayload) =>
+-        child.postMessage({ type: HostMessageTypes.PluginSandboxRegisterResult, ...payload });
+-      if (!register || win.isDestroyed() || request.ownerWebContentsId !== win.webContents.id) {
+-        reply({
+-          requestId: request.requestId,
+-          ok: false,
+-          error: "Plugin UI sandbox is unavailable.",
+-        });
+-        return;
+-      }
+-      void Promise.resolve()
+-        .then(() => register(request))
+-        .then((handle) => reply({ requestId: request.requestId, ok: true, ...handle }))
+-        .catch((error: unknown) =>
+-          reply({
+-            requestId: request.requestId,
+-            ok: false,
+-            error: error instanceof Error ? error.message : String(error),
+-          }),
+-        );
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.CuaOperationState) {
+-      // Main 只投影 Host 已经判定的 turn 状态，不在这里重复解析 session/tool 业务事件。
+-      dependencies.onCuaOperationStateChanged?.(child, result.data);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.FeedbackLogArchiveRequest) {
+-      const request = result.data;
+-      void createFeedbackLogArchiveFromExportLogs(request.sourceDir)
+-        .then((archive) => {
+-          child.postMessage({
+-            type: HostMessageTypes.FeedbackLogArchiveResult,
+-            requestId: request.requestId,
+-            ok: true,
+-            path: archive.path,
+-            size: archive.size,
+-          });
+-        })
+-        .catch((error) => {
+-          child.postMessage({
+-            type: HostMessageTypes.FeedbackLogArchiveResult,
+-            requestId: request.requestId,
+-            ok: false,
+-            error: error instanceof Error ? error.message : String(error),
+-          });
+-        });
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.BrowserExecuteRequest) {
+-      // browser-use：main 用 WebContentsView+CDP 执行命令（handleBrowserExecuteRequest）。
+-      // 缺省实现时返回 backend_unavailable，保证通道打通但不阻塞。
+-      const requestId = result.data.requestId;
+-      const handler = dependencies.handleBrowserExecuteRequest;
+-      const fallback = {
+-        ok: false as const,
+-        error: {
+-          code: "backend_unavailable",
+-          message: "browser executor not ready",
+-        },
+-        elapsedMs: 0,
+-      };
+-      void (
+-        handler
+-          ? handler({
+-              win,
+-              requestId,
+-              browserId: result.data.browserId,
+-              browserGeneration: result.data.browserGeneration,
+-              sessionId: result.data.sessionId,
+-              turnId: result.data.turnId,
+-              workspaceKey: result.data.workspaceKey,
+-              workspacePath: result.data.workspacePath,
+-              workspaceIdentity: result.data.workspaceIdentity,
+-              remoteSessionId: result.data.remoteSessionId,
+-              clientMode: result.data.clientMode,
+-              sessionContext: result.data.sessionContext,
+-              command: result.data.command,
+-            }).catch((error: unknown) => ({
+-              ok: false as const,
+-              error: {
+-                code: "execution_error",
+-                message: error instanceof Error ? error.message : String(error),
+-              },
+-              elapsedMs: 0,
+-            }))
+-          : Promise.resolve(fallback)
+-      ).then((commandResult) => {
+-        child.postMessage({
+-          type: HostMessageTypes.BrowserExecuteResult,
+-          requestId,
+-          result: commandResult,
+-        });
+-      });
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.AgentProcessSpawned) {
+-      registerHostAgentProcess(label, {
+-        pid: result.data.pid,
+-        provider: result.data.provider,
+-        workspacePath: result.data.workspacePath,
+-        command: result.data.command,
+-        args: result.data.args,
+-        startedAt: result.data.startedAt,
+-      });
+-      dependencies.onAgentProcessSpawned?.(result.data);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.AgentProcessReady) {
+-      dependencies.onAgentProcessReady?.(result.data);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.AgentProcessExited) {
+-      unregisterHostAgentProcess(label, result.data.pid);
+-      dependencies.onAgentProcessExited?.(result.data);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.AgentProcessError) {
+-      dependencies.onAgentProcessError?.(result.data);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.AgentProcessException) {
+-      dependencies.onAgentProcessException?.(result.data);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.CronRunResult) {
+-      dependencies.onCronRunResult?.({
+-        runId: result.data.runId,
+-        ok: result.data.ok,
+-        taskId: result.data.taskId,
+-        sessionId: result.data.sessionId,
+-        error: result.data.error,
+-        failureKind: result.data.failureKind,
+-      });
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.OffPeakRunResult) {
+-      dependencies.onOffPeakRunResult?.({
+-        offPeakTaskId: result.data.offPeakTaskId,
+-        ok: result.data.ok,
+-        lifecycleManaged: result.data.lifecycleManaged,
+-        conversationId: result.data.conversationId,
+-        sessionId: result.data.sessionId,
+-        error: result.data.error,
+-        failureKind: result.data.failureKind,
+-      });
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.CronSchedulerWakeRequest) {
+-      dependencies.onCronSchedulerWakeRequested?.(result.data.automationId);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.OffPeakSchedulerWakeRequest) {
+-      dependencies.onOffPeakSchedulerWakeRequested?.(result.data.offPeakTaskId);
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.AgentRunningTaskCountChanged) {
+-      if (result.data.runningTaskCount > 0) {
+-        dependencies.hostRunningTaskCountMap.set(child, result.data.runningTaskCount);
+-      } else {
+-        dependencies.hostRunningTaskCountMap.delete(child);
+-      }
+-      dependencies.logger.info(
+-        `[app-quit] host running agent sessions updated (${label}) count=${result.data.runningTaskCount}`,
+-      );
+-      return;
+-    }
+-
+-    if (result.data.type === HostResponseTypes.WorkspaceRunningTaskCountChanged) {
+-      dependencies.onWorkspaceRunningTaskCountChanged?.(child, {
+-        workspacePath: result.data.workspacePath,
+-        workspaceIdentity: result.data.workspaceIdentity,
+-        runningTaskCount: result.data.runningTaskCount,
+-      });
+-      return;
+-    }
+-  });
+-
+-  const shouldAttachRealtimeHost = options?.taskRealtime != null;
+-  const hostInitMessage: HostInitMessage = shouldAttachRealtimeHost
+-    ? {
+-        ...initMessage,
+-        databaseStartupId: databaseStartupRelay.startupId,
+-        hostId,
+-        deliveryKind: options?.taskRealtime?.deliveryKind,
+-      }
+-    : { ...initMessage, databaseStartupId: databaseStartupRelay.startupId };
+-
+-  if (options?.attachInitialServicePort === false) {
+-    child.postMessage(hostInitMessage);
+-  } else {
+-    const { port1, port2 } = new MessageChannelMain();
+-    child.postMessage(hostInitMessage, [port2]);
+-
+-    if (options?.onPortReady) {
+-      options.onPortReady(port1);
+-    } else {
+-      win.webContents.postMessage(
+-        options?.internalChannel ?? InternalChannels.ServicePort,
+-        options?.internalChannel === InternalChannels.ScopedServicePort
+-          ? (options.internalPayload ?? null)
+-          : { databaseStartupId: databaseStartupRelay.startupId },
+-        [port1],
+-      );
+-    }
+-  }
+-
+-  const windowId = win.webContents.id;
+-  const shouldRegisterBroadcast = options?.registerBroadcast ?? true;
+-  if (shouldRegisterBroadcast) {
+-    dependencies.broadcastHub.register(windowId, child);
+-  }
+-
+-  if (shouldAttachRealtimeHost && dependencies.taskRealtimeBus && options?.taskRealtime) {
+-    dependencies.taskRealtimeBus.registerHost({
+-      hostId,
+-      windowId: win.id,
+-      child,
+-      workspaceKeys: options.taskRealtime.workspaceKeys,
+-      deliveryKind: options.taskRealtime.deliveryKind,
+-    });
+-    options.taskRealtime.onHostId?.(hostId);
+-  }
+-
+-  registerHostProcess(label, child);
+-
+-  child.on("exit", (code) => {
+-    exitedHostProcesses.add(child);
+-    // Host exit 是 fail-hidden 权威边界；不能依赖即将退出的 Host 再补发 inactive。
+-    dependencies.onCuaOperationStateSourceExited?.(child);
+-    hostLogRelay.flushRawLogs();
+-    dependencies.logger.info(`[spawnHostProcess] host process (${label}) exited with code ${code}`);
+-    dependencies.hostRunningTaskCountMap.delete(child);
+-    if (shouldRegisterBroadcast) {
+-      dependencies.broadcastHub.unregister(windowId);
+-    }
+-    unregisterHostProcess(label);
+-    for (const [wcId, process] of dependencies.windowHostProcessMap) {
+-      if (process === child) {
+-        dependencies.windowHostProcessMap.delete(wcId);
+-        break;
+-      }
+-    }
+-  });
+-
+-  return child;
+-}
+-
+-export function disposeHostProcess(
+-  child: ElectronUtilityProcess,
+-  label: string,
+-  disposingHostProcessTimers: WeakMap<ElectronUtilityProcess, ReturnType<typeof setTimeout>>,
+-  logger: {
+-    info: (...args: unknown[]) => void;
+-    warn: (...args: unknown[]) => void;
+-  },
+-  forceKillDelayMs = 300,
+-) {
+-  if (disposingHostProcessTimers.has(child)) {
+-    return;
+-  }
+-  disposingHostProcesses.add(child);
+-
+-  logger.info(
+-    `[disposeHostProcess] disposing host process (${label}), pid=${child.pid ?? "unknown"}`,
+-  );
+-
+-  try {
+-    child.postMessage({ type: HostMessageTypes.Dispose });
+-  } catch (error) {
+-    logger.warn(`[disposeHostProcess] failed to post dispose to (${label}):`, error);
+-  }
+-
+-  // host 收到 Dispose 后需要等待 agent 进程树的 SIGTERM/SIGKILL 兜底完成。
+-  // 如果 main 仍按 150/300ms 强杀 host，host 会先退出，zcode-cli/app-server 子进程就可能被 init 接管成孤儿。
+-  const effectiveForceKillDelayMs = Math.max(forceKillDelayMs, 3_500);
+-  const killTimer = setTimeout(() => {
+-    disposingHostProcessTimers.delete(child);
+-    try {
+-      child.kill();
+-    } catch (error) {
+-      logger.warn(`[disposeHostProcess] failed to kill host process (${label}):`, error);
+-    }
+-  }, effectiveForceKillDelayMs);
+-
+-  disposingHostProcessTimers.set(child, killTimer);
+-  child.once("exit", () => {
+-    exitedHostProcesses.add(child);
+-    disposingHostProcesses.delete(child);
+-    clearTimeout(killTimer);
+-    disposingHostProcessTimers.delete(child);
+-  });
+-}
+-export function disposeHostProcessAndWait(
+-  child: ElectronUtilityProcess,
+-  label: string,
+-  disposingHostProcessTimers: WeakMap<ElectronUtilityProcess, ReturnType<typeof setTimeout>>,
+-  logger: {
+-    info: (...args: unknown[]) => void;
+-    warn: (...args: unknown[]) => void;
+-  },
+-  options: {
+-    forceKillDelayMs?: number;
+-    waitTimeoutMs?: number;
+-  } = {},
+-): Promise<void> {
+-  // Electron UtilityProcess 不是 Node ChildProcess，没有 exitCode 字段。
+-  // 右键 Dock 退出会走 before-quit -> disposeHostProcessAndWait；旧判断把运行中的 host
+-  // 的 undefined exitCode 当成“已退出”。这里改为记录 exit 事件，避免第一次退出漏发 Dispose。
+-  if (exitedHostProcesses.has(child)) {
+-    return Promise.resolve();
+-  }
+-
+-  const waitTimeoutMs = Math.max(options.waitTimeoutMs ?? 0, 0);
+-
+-  return new Promise((resolve) => {
+-    let settled = false;
+-    let waitTimeout: ReturnType<typeof setTimeout> | null = null;
+-
+-    const settle = () => {
+-      if (settled) {
+-        return;
+-      }
+-      settled = true;
+-      if (waitTimeout) {
+-        clearTimeout(waitTimeout);
+-        waitTimeout = null;
+-      }
+-      resolve();
+-    };
+-
+-    child.once("exit", () => {
+-      exitedHostProcesses.add(child);
+-      settle();
+-    });
+-
+-    if (waitTimeoutMs > 0) {
+-      waitTimeout = setTimeout(() => {
+-        logger.warn(
+-          `[disposeHostProcessAndWait] host process exit wait timed out (${label}), pid=${child.pid ?? "unknown"}`,
+-        );
+-        settle();
+-      }, waitTimeoutMs);
+-      waitTimeout.unref?.();
+-    }
+-
+-    disposeHostProcess(child, label, disposingHostProcessTimers, logger, options.forceKillDelayMs);
+-  });
+-}
+diff --git a/packages/desktop/src/main/desktopMainIpcPlatform.ts b/packages/desktop/src/main/desktopMainIpcPlatform.ts
+index 3d77b025..9821327f 100644
+--- a/packages/desktop/src/main/desktopMainIpcPlatform.ts
++++ b/packages/desktop/src/main/desktopMainIpcPlatform.ts
+@@ -1,5 +1,6 @@
+ import { decorateRequestSecurityLogArgs } from "./request-security-edition/index.js";
+ /* eslint-disable max-lines -- 桌面平台 IPC 集中装配，拆散会让权限边界更难审计；行数随平台能力增长。 */
++import { z } from "zod";
+ import { BrowserWindow, dialog, ipcMain, nativeTheme } from "electron";
+ import { readZCodeStdioTapDevState } from "@zcode/services/node";
+ import {
+@@ -12,6 +13,7 @@ import {
+   rendererLogPayloadSchema,
+   stringArraySchema,
+   webRemoteControlWorkspaceTargetsSchema,
++  type AppSettings,
+   type DesktopCommandId,
+   type ApplicationIconRequest,
+   type Locale,
+@@ -22,8 +24,8 @@ import {
+   type CreateTempTextAttachmentRequest,
+   type MaterializeWorkflowArtifactFileRequest,
+   type UpdateStatePayload,
++  type WebRemoteControlTaskTarget,
+   type WebRemoteControlWorkspaceTarget,
+-  type WindowControlsOverlayReadyPayload,
+ } from "@zcode/shared";
+ import { getInstalledEditors } from "./editors.js";
+ import { getApplicationIcon } from "./applicationIcons.js";
+@@ -43,7 +45,6 @@ import { resolveDesktopZoomLevelFromFactor } from "./desktopZoom.js";
+ import { resolveDesktopWindowChromeState } from "./desktopWindowChromeState.js";
+ import { handleWindowUnreadCountSync } from "./desktopWindowLifecycle.js";
+ import { captureWindowScreenshot, openPathInFileManager } from "./desktopMainIpcHelpers.js";
+-import { registerCuaPermissionIpcHandlers } from "./desktopCuaPermissionIpc.js";
+ import {
+   registerDesktopBrowserIpcHandlers,
+   type AttachBrowserGuest,
+@@ -51,17 +52,10 @@ import {
+   type UpdateBrowserGuestViewport,
+   type BrowserViewResidencyIpcHandlers,
+ } from "./desktopBrowserViewIpc.js";
+-import {
+-  loadCliMcpFromUserDirectory,
+-  migrateLegacyCommonMcp,
+-  saveCliMcpToUserDirectory,
+-} from "./mcpUserDirectory/index.js";
+ import { createTempTextAttachment } from "./tempTextAttachment.js";
+ import { materializeWorkflowArtifactFile } from "./workflowArtifactFile.js";
+ import { registerDesktopSaveFileIpcHandler } from "./desktopSaveFile.js";
+ import { registerDesktopPrintToPdfIpcHandler } from "./desktopPrintToPdf.js";
+-import { registerDesktopCommandIpcHandler } from "./desktopCommandIpc.js";
+-import { registerCuaPipActiveSessionIpc } from "./desktopCuaPipIpc.js";
+ 
+ export function registerPlatformIpcHandlers(options: {
+   fetchHelpConfig?: () => Promise<unknown>;
+@@ -83,17 +77,30 @@ export function registerPlatformIpcHandlers(options: {
+     senderWindow?: BrowserWindow | null,
+   ) => Promise<unknown>;
+   acknowledgePostUpdateReleaseNotes: (version: string) => Promise<void>;
+-  syncActiveTaskSession: (windowId: number, sessionId: string | null) => void;
+-  syncTaskRealtimeWorkspaceKeys: (windowId: number, workspaceKeys: Iterable<string>) => void;
++  syncActiveTaskSession?: (windowId: number, sessionId: string | null) => void;
++  syncTaskRealtimeWorkspaceKeys?: (windowId: number, workspaceKeys: Iterable<string>) => void;
++  restorePreviouslyEnabledWebRemoteControl?: (
++    windowId: number,
++    contexts: Array<{ workspacePath: string }>,
++  ) => void;
+   getUpdateState: () => UpdateStatePayload;
+   openUpdateStatusWindow: () => void;
+-  syncWebRemoteControlWorkspaces: (
++  syncWebRemoteControlWorkspaces?: (
+     windowId: number,
+     workspaces: WebRemoteControlWorkspaceTarget[],
+   ) => void;
++  syncWebRemoteControlTasks?: (windowId: number, tasks: WebRemoteControlTaskTarget[]) => void;
+   getDesktopSessionActivity: () => {
+     runningAgentSessionCount: number;
+   };
++  /** 功能 #28 桌宠：设置面读写与运行事件转发；模块初始化失败时不传（面自动降级）。 */
++  petModule?: {
++    getStatus: () => import("@zcode/shared").PetStatusPayload;
++    updateConfig: (
++      patch: import("@zcode/shared").PetConfigPatch,
++    ) => import("@zcode/shared").PetStatusPayload;
++    reportRunEvent: (event: import("@zcode/shared").PetRunEventPayload) => void;
++  };
+   getAutoUpdatePreferences: () => Promise<{
+     autoDownloadAndInstallUpdates: boolean;
+   }>;
+@@ -124,13 +131,6 @@ export function registerPlatformIpcHandlers(options: {
+     return result.filePaths[0];
+   });
+ 
+-  ipcMain.handle(PlatformChannels.SelectDirectories, async () => {
+-    const result = await dialog.showOpenDialog({
+-      properties: ["openDirectory", "createDirectory", "multiSelections"],
+-    });
+-    return result.canceled ? [] : result.filePaths;
+-  });
+-
+   ipcMain.handle(PlatformChannels.SelectFile, async () => {
+     const result = await dialog.showOpenDialog({
+       properties: ["openFile"],
+@@ -194,7 +194,7 @@ export function registerPlatformIpcHandlers(options: {
+         senderWin.on("closed", () => options.windowWorkspaceMap.delete(senderWin.id));
+       }
+       pathSet.add(validatedPath);
+-      options.syncTaskRealtimeWorkspaceKeys(senderWin.id, pathSet);
++      options.syncTaskRealtimeWorkspaceKeys?.(senderWin.id, pathSet);
+     }
+     return { activated: false };
+   });
+@@ -206,6 +206,46 @@ export function registerPlatformIpcHandlers(options: {
+   ipcMain.handle(PlatformChannels.GetCloseToTrayCapability, () =>
+     options.refreshCloseToTrayCapability(),
+   );
++  // 功能 #28 桌宠：设置面读写 + 主渲染层运行事件转发（驱动流 1）。
++  ipcMain.handle(PlatformChannels.PetGetStatus, () => {
++    if (!options.petModule) throw new Error("pet module unavailable");
++    return options.petModule.getStatus();
++  });
++  ipcMain.handle(PlatformChannels.PetUpdateConfig, (_event, patch: unknown) => {
++    if (!options.petModule) throw new Error("pet module unavailable");
++    // 白名单五字段，其余丢弃（fail-closed 不透传）。
++    const source = typeof patch === "object" && patch !== null ? (patch as Record<string, unknown>) : {};
++    const clean: import("@zcode/shared").PetConfigPatch = {};
++    if (typeof source.enabled === "boolean") clean.enabled = source.enabled;
++    if (typeof source.alwaysOnTop === "boolean") clean.alwaysOnTop = source.alwaysOnTop;
++    if (typeof source.rememberPosition === "boolean") clean.rememberPosition = source.rememberPosition;
++    if (typeof source.sizePercent === "number") clean.sizePercent = source.sizePercent;
++    if (typeof source.throwEnabled === "boolean") clean.throwEnabled = source.throwEnabled;
++    return options.petModule.updateConfig(clean);
++  });
++  ipcMain.on(PlatformChannels.PetReportRunEvent, (_event, payload: unknown) => {
++    const source = typeof payload === "object" && payload !== null ? (payload as Record<string, unknown>) : {};
++    const kind = source.kind;
++    if (kind !== "running" && kind !== "terminal" && kind !== "pending" && kind !== "idle") return;
++    if (kind === "terminal") {
++      const outcome = source.outcome;
++      if (outcome !== "completed" && outcome !== "error" && outcome !== "interrupted") return;
++      options.petModule?.reportRunEvent({
++        kind,
++        outcome,
++        ...(typeof source.sessionTitle === "string" && source.sessionTitle.trim() !== ""
++          ? { sessionTitle: source.sessionTitle }
++          : {}),
++      });
++      return;
++    }
++    options.petModule?.reportRunEvent({
++      kind,
++      ...(typeof source.sessionTitle === "string" && source.sessionTitle.trim() !== ""
++        ? { sessionTitle: source.sessionTitle }
++        : {}),
++    });
++  });
+   ipcMain.on(PlatformChannels.SetResourceUsageSamplingActive, (event, active: unknown) => {
+     if (typeof active === "boolean") setResourceUsageSamplingActive(event.sender.id, active);
+   });
+@@ -216,34 +256,6 @@ export function registerPlatformIpcHandlers(options: {
+     openResourceManager();
+   });
+ 
+-  ipcMain.handle(
+-    PlatformChannels.LoadMcpFromUserDirectory,
+-    async (_event, payload?: LoadCliMcpFromUserDirectoryRequest) => {
+-      return loadCliMcpFromUserDirectory(payload);
+-    },
+-  );
+-
+-  ipcMain.handle(
+-    PlatformChannels.SaveMcpToUserDirectory,
+-    async (_event, payload: SaveCliMcpToUserDirectoryRequest) => {
+-      try {
+-        await saveCliMcpToUserDirectory(payload);
+-        return { success: true };
+-      } catch (error) {
+-        const message = error instanceof Error ? error.message : String(error);
+-        options.logger.warn("[mcp-user-directory] save failed", message);
+-        return { success: false, error: message };
+-      }
+-    },
+-  );
+-
+-  ipcMain.handle(
+-    PlatformChannels.MigrateLegacyCommonMcp,
+-    async (_event, payload?: MigrateLegacyCommonMcpRequest) => {
+-      return migrateLegacyCommonMcp(payload);
+-    },
+-  );
+-
+   ipcMain.handle(PlatformChannels.SetTitleBarTheme, (event, theme: string) => {
+     const senderWindow = BrowserWindow.fromWebContents(event.sender);
+     if (!senderWindow) {
+@@ -280,8 +292,11 @@ export function registerPlatformIpcHandlers(options: {
+     const win = BrowserWindow.fromWebContents(event.sender);
+     if (win) {
+       options.windowWorkspaceMap.set(win.id, new Set(result.data));
+-      options.syncTaskRealtimeWorkspaceKeys(win.id, result.data);
+-      // 远控恢复统一由 SyncWebRemoteControlWorkspaces 的完整快照驱动。
++      options.syncTaskRealtimeWorkspaceKeys?.(win.id, result.data);
++      options.restorePreviouslyEnabledWebRemoteControl?.(
++        win.id,
++        result.data.map((workspacePath) => ({ workspacePath })),
++      );
+     }
+   });
+ 
+@@ -300,7 +315,44 @@ export function registerPlatformIpcHandlers(options: {
+       return;
+     }
+ 
+-    options.syncWebRemoteControlWorkspaces(win.id, result.data);
++    options.syncWebRemoteControlWorkspaces?.(win.id, result.data);
++  });
++
++  // 3.16.2 shared 仅余 interface WebRemoteControlTaskTarget（V1 远控 zod schema 已移除）；
++// 本地最小验形 schema 等价替代（字段=interface 白名单，safeParse 通过即透传可选面板）。
++const webRemoteControlTaskTargetsSchema = z.array(
++  z.object({
++    taskId: z.string(),
++    hostId: z.string().optional(),
++    title: z.string(),
++    workspacePath: z.string(),
++    workspaceIdentity: z.string().optional(),
++    remoteSessionId: z.string().optional(),
++    workspaceLabel: z.string(),
++    workspaceKind: z.enum(["local", "remote"]),
++    createdAt: z.number(),
++    updatedAt: z.number(),
++    provider: z.unknown().optional(),
++    unreadAt: z.number().optional(),
++  }),
++);
++
++ipcMain.on(PlatformChannels.SyncWebRemoteControlTasks, (event, payload: unknown) => {
++    const result = webRemoteControlTaskTargetsSchema.safeParse(payload);
++    if (!result.success) {
++      options.logger.warn(
++        "[sync-web-remote-control-tasks] invalid payload:",
++        formatZodError(result.error),
++      );
++      return;
++    }
++
++    const win = BrowserWindow.fromWebContents(event.sender);
++    if (!win) {
++      return;
++    }
++
++    options.syncWebRemoteControlTasks?.(win.id, result.data);
+   });
+ 
+   ipcMain.on(PlatformChannels.SyncWindowUnreadCount, (event, payload: unknown) => {
+@@ -311,13 +363,9 @@ export function registerPlatformIpcHandlers(options: {
+       options.logger,
+     );
+   });
+-  registerCuaPipActiveSessionIpc({
+-    syncActiveTaskSession: options.syncActiveTaskSession,
+-    warn: (message) => options.logger.warn(message),
+-  });
+   ipcMain.on(
+     PlatformChannels.WindowControlsOverlayReady,
+-    (event, payload: WindowControlsOverlayReadyPayload) => {
++    (event, payload: { zoomLevel: number }) => {
+       const senderWindow = BrowserWindow.fromWebContents(event.sender);
+       if (!senderWindow || !Number.isFinite(payload.zoomLevel)) {
+         return;
+@@ -371,11 +419,6 @@ export function registerPlatformIpcHandlers(options: {
+     openPathInFileManager(rawPath, options.logger),
+   );
+ 
+-  registerCuaPermissionIpcHandlers({
+-    logger: options.logger,
+-    currentApplicationLocale: options.currentApplicationLocale,
+-  });
+-
+   ipcMain.handle(PlatformChannels.CanOpenCommunity, async (_event, locale: unknown) => {
+     const result = localeSchema.safeParse(locale);
+     if (!result.success) {
+@@ -433,9 +476,7 @@ export function registerPlatformIpcHandlers(options: {
+     const senderWindow = BrowserWindow.fromWebContents(event.sender);
+     return resolveDesktopWindowChromeState(senderWindow?.isMaximized() ?? false);
+   });
+-  ipcMain.handle(PlatformChannels.GetInstalledEditors, (_event, filePath?: string) =>
+-    getInstalledEditors(typeof filePath === "string" ? filePath : undefined),
+-  );
++  ipcMain.handle(PlatformChannels.GetInstalledEditors, () => getInstalledEditors());
+   ipcMain.handle(
+     PlatformChannels.GetApplicationIcon,
+     (_event, request: string | ApplicationIconRequest) => getApplicationIcon(request),
+@@ -452,8 +493,15 @@ export function registerPlatformIpcHandlers(options: {
+       openInEditor(payload.editorId, payload.path, payload.options),
+   );
+ 
+-  registerDesktopCommandIpcHandler({
+-    executeDesktopCommand: options.executeDesktopCommand,
+-    logger: options.logger,
++  ipcMain.handle(PlatformChannels.ExecuteDesktopCommand, async (event, command: string) => {
++    const senderWindow = BrowserWindow.fromWebContents(event.sender);
++    const isKnownCommand = (Object.values(DesktopCommandIds) as string[]).includes(command);
++    if (!isKnownCommand) {
++      options.logger.warn("[desktop-command] invalid command:", command);
++      return;
++    }
++
++    // 返回值直通 renderer 的 executeDesktopCommand promise（GetCuaOsSupport 依赖此行为）。
++    return await options.executeDesktopCommand(command as DesktopCommandId, senderWindow);
+   });
+ }
+diff --git a/packages/desktop/src/main/desktopRuntimeEnv.ts b/packages/desktop/src/main/desktopRuntimeEnv.ts
+index 467f780e..90ed5e61 100644
+--- a/packages/desktop/src/main/desktopRuntimeEnv.ts
++++ b/packages/desktop/src/main/desktopRuntimeEnv.ts
+@@ -2,9 +2,10 @@
+ import { existsSync, readFileSync } from "node:fs";
+ import { homedir } from "node:os";
+ import { join, resolve, win32 } from "node:path";
+-import type { ConnectOptions } from "@zcode/server/remote";
+ import { listSSHConfigAliasesFromLocalConfig } from "@zcode/services/node";
+-import { DEV_HELPER_APP_NAME, HELPER_APP_NAME } from "@zcode/zcode-cua/broker/helperConstants";
++// 砍 CUA（v4 §1.3）：helper 常量随 zcode-cua 依赖解除改为本地字面量（仅用于路径拼接，无行为耦合）。
++const HELPER_APP_NAME = "ZCode Computer Use Helper.app";
++const DEV_HELPER_APP_NAME = "ZCode Computer Use Helper (Dev).app";
+ import {
+   ZCODE_APP_VERSION_ENV,
+   ZCODE_BUILD_COMMIT_ID_ENV,
+@@ -23,7 +24,6 @@ import {
+   normalizeDynamicWorkflowMode,
+   readZCodeAgentTelemetryEnv,
+   sanitizeZCodeRuntimeEnv,
+-  type SourceServerArtifactPolicy,
+   type ZCodeRuntimeEnv,
+ } from "@zcode/shared";
+ import { resolvePlatformKeyForPackagedApp } from "../../scripts/target-platform.mjs";
+@@ -59,12 +59,15 @@ function isTruthyRuntimeEnvOverride(name: string): boolean {
+   return value === "1" || value === "true" || value === "yes" || value === "on";
+ }
+ 
+-// e2e 运行的是生产构建，默认会和本机正式版 ZCode 共用 app name / userData，
++// e2e 运行的是生产构建，默认会和本机已装正式版共用 app name / userData，
+ // 触发 Electron 单实例锁后只激活已有窗口，Chromedriver 无法接管测试进程。
+ // 这里允许测试显式隔离运行时身份，正常桌面/远控路径保持原来的默认值。
++// Juscite 换牌（步骤5·品牌单）：打包态应用名随安装物身份改 Juscite——app.setName、
++// 窗口/托盘题名与 userData 目录（%APPDATA%\Juscite，与桥侧数据域同根）全部对齐；
++// dev 态保留 "ZCode Dev" 不动（本地开发与安装包互不污染，dev Electron bundle 同名）。
+ export const runtimeApplicationName =
+   readRuntimeEnvOverride("ZCODE_DESKTOP_APPLICATION_NAME") ??
+-  (isLocalDevelopmentRuntime ? "ZCode Dev" : isPreviewPackagedRuntime ? "ZCode Preview" : "ZCode");
++  (isLocalDevelopmentRuntime ? "ZCode Dev" : isPreviewPackagedRuntime ? "Juscite Preview" : "Juscite");
+ // Electron 的 app.getPath("home") 不一定跟随测试进程里的 HOME 覆盖。
+ // e2e 默认工作区依赖 home 路径，因此提供显式覆盖，避免测试写到开发者真实 ~/ZCodeProject。
+ export const runtimeHomePath = readRuntimeEnvOverride("ZCODE_DESKTOP_HOME_DIR");
+@@ -89,27 +92,26 @@ export function getCredentialsDir() {
+   return getAppConfigDir();
+ }
+ 
+-export type RemoteAssetDirs = Pick<
+-  ConnectOptions,
+-  "mockCdnDir" | "remoteCdnBaseUrl" | "remoteCdnBaseUrls" | "remoteCacheDir"
+-> & {
+-  sourceServerArtifactPolicy?: SourceServerArtifactPolicy;
+-};
++export interface RemoteAssetDirs {
++  mockCdnDir?: string;
++  remoteCdnBaseUrl?: string;
++  remoteCdnBaseUrls: string[];
++  remoteCacheDir: string;
++}
+ type LocalRuntimeEnv = Record<string, string | undefined>;
+ 
++// 砍 @zcode/server（换宿主 v4 §1.3）：docker/wsl 清单随 server 包解除，
++// 这里 fail-closed 返回空（远端连接 M6 走桥时再接真实现）。
+ export async function isDockerDaemonAvailable(): Promise<boolean> {
+-  const { isDockerAvailable } = await import("@zcode/server/remote");
+-  return isDockerAvailable();
++  return false;
+ }
+ 
+-export async function listAvailableWSLDistros() {
+-  const { listWSLDistros } = await import("@zcode/server/remote");
+-  return listWSLDistros();
++export async function listAvailableWSLDistros(): Promise<Array<{ name: string; isDefault: boolean }>> {
++  return [];
+ }
+ 
+-export async function listAvailableDockerContainers() {
+-  const { listDockerContainers } = await import("@zcode/server/remote");
+-  return listDockerContainers();
++export async function listAvailableDockerContainers(): Promise<Array<{ id: string; name: string }>> {
++  return [];
+ }
+ 
+ export async function listSSHConfigAliases() {
+@@ -349,9 +351,6 @@ export function resolveRemoteAssetDirs(
+   const developmentMockCdnDir = resolveAvailableDevelopmentMockCdnDir();
+   return {
+     ...(developmentMockCdnDir ? { mockCdnDir: developmentMockCdnDir } : {}),
+-    // Bug 原因：ZCODE_ENV 表示测试/生产产品环境，dev:desktop 也可能取 production；
+-    // 同版本开发制品刷新必须由未打包 Electron 这一运行形态显式授权。
+-    sourceServerArtifactPolicy: "development-content-addressed",
+     remoteCdnBaseUrl,
+     remoteCdnBaseUrls,
+     remoteCacheDir: resolveRemoteAssetCacheDir(localEnv),
+diff --git a/packages/desktop/src/main/desktopSaveFile.ts b/packages/desktop/src/main/desktopSaveFile.ts
+index 3a8e410d..f2692381 100644
+--- a/packages/desktop/src/main/desktopSaveFile.ts
++++ b/packages/desktop/src/main/desktopSaveFile.ts
+@@ -1,3 +1,4 @@
++import { existsSync } from "node:fs";
+ import { copyFile, mkdtemp, open, rm, writeFile } from "node:fs/promises";
+ import { lookup } from "node:dns/promises";
+ import type { LookupAddress } from "node:dns";
+@@ -60,9 +61,7 @@ function parseRemoteImageUrl(value: unknown): URL | null {
+   }
+ }
+ 
+-async function resolvePublicRemoteUrl(
+-  url: URL,
+-): Promise<LookupAddress[]> {
++async function resolvePublicRemoteUrl(url: URL): Promise<LookupAddress[]> {
+   const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+   if (hostname === "localhost" || hostname.endsWith(".localhost")) {
+     throw new SaveFileError("remote_address_not_allowed");
+@@ -101,7 +100,7 @@ async function fetchPublicRemoteUrl(
+         callback(new Error("download_failed"), "");
+         return;
+       }
+-      callback(null, address.address, address.family);
++      callback(null, [{ address: address.address, family: address.family }]);
+     };
+     // DNS 校验结果必须绑定到连接阶段；dispatcher 禁止底层再次解析域名，
+     // 从而关闭“预检查公网、实际连接私网”的 DNS rebinding 窗口。
+@@ -195,20 +194,26 @@ export function registerDesktopSaveFileIpcHandler(logger: { warn: (...args: unkn
+       }
+       const suggestedName = basename(payload.suggestedName.trim()).slice(0, 120);
+       const sourceUrl = parseRemoteImageUrl(payload.sourceUrl);
+-      const hasData = payload.data instanceof ArrayBuffer;
+-      const data = hasData ? payload.data : undefined;
++      const dataBuffer = payload.data instanceof ArrayBuffer ? payload.data : undefined;
++      const hasData = dataBuffer !== undefined;
+       if (!suggestedName || (sourceUrl === null && !hasData)) {
+         return { success: false, error: "invalid_file_payload" };
+       }
+-      if (data && data.byteLength === 0) {
++      if (hasData && dataBuffer.byteLength === 0) {
+         return { success: false, error: "invalid_file_payload" };
+       }
+-      if (data && data.byteLength > MAX_SAVE_FILE_BYTES) {
++      if (hasData && dataBuffer.byteLength > MAX_SAVE_FILE_BYTES) {
+         return { success: false, error: "file_too_large" };
+       }
+ 
+       const senderWindow = BrowserWindow.fromWebContents(event.sender);
+-      const dialogOptions = { defaultPath: suggestedName };
++      // 功能 #31 支持通道（RE-31 §3.4）：诊断包导出默认落 %APPDATA%\Juscite\support（defaultDir；
++      // 仅当该目录真实存在才用作对话框默认目录，其余调用方不受扰）。
++      const defaultDir = typeof (payload as { defaultDir?: string }).defaultDir === "string"
++        ? (payload as { defaultDir?: string }).defaultDir as string : "";
++      const dialogOptions = {
++        defaultPath: defaultDir && existsSync(defaultDir) ? join(defaultDir, suggestedName) : suggestedName,
++      };
+       const result = senderWindow
+         ? await dialog.showSaveDialog(senderWindow, dialogOptions)
+         : await dialog.showSaveDialog(dialogOptions);
+@@ -219,8 +224,8 @@ export function registerDesktopSaveFileIpcHandler(logger: { warn: (...args: unkn
+       try {
+         if (sourceUrl) {
+           await downloadRemoteFile(sourceUrl, result.filePath);
+-        } else if (data) {
+-          await writeFile(result.filePath, new Uint8Array(data));
++        } else if (hasData) {
++          await writeFile(result.filePath, new Uint8Array(dataBuffer));
+         }
+         return { success: true, path: result.filePath };
+       } catch (error) {
+diff --git a/packages/desktop/src/main/desktopWindowLifecycle.ts b/packages/desktop/src/main/desktopWindowLifecycle.ts
+index aadae7a0..0b17b24e 100644
+--- a/packages/desktop/src/main/desktopWindowLifecycle.ts
++++ b/packages/desktop/src/main/desktopWindowLifecycle.ts
+@@ -1,22 +1,12 @@
+-import { getDatabaseStartupPortPayload } from "./databaseStartupRelay.js";
+-import { randomUUID } from "node:crypto";
+-import { release as readPlatformRelease } from "node:os";
+-import { app, BrowserWindow, Menu, MessageChannelMain, nativeImage } from "electron";
+-import type { UtilityProcess as ElectronUtilityProcess } from "electron";
+-import { HostMessageTypes, InternalChannels, PlatformChannels, type Locale } from "@zcode/shared";
+-import { scheduleArmsBrowserPerfLoadNudge } from "./armsBrowserPerfLoadNudge.js";
++import { app, BrowserWindow, Menu } from "electron";
++import { type Locale } from "@zcode/shared";
++import { PlatformChannels } from "@zcode/shared";
+ import { createBrowserWindow } from "./desktopWindowChrome.js";
+-import type { HostInitMessage, WindowBootstrapOptions } from "./desktopHostProcess.js";
+-import type { StartupWorkspaceWarmupTarget } from "./startupWorkspace.js";
+-import type { RemoteAssetDirs } from "./desktopRuntimeEnv.js";
++import { ensureBridgeHostProcess, type WindowBootstrapOptions } from "./desktopHostProcess.js";
+ import { handleDarwinWindowCloseRequest } from "./desktopDarwinCloseBehavior.js";
+-import { supportsNativeWindowsRoundedCorners } from "./desktopWindowChromeState.js";
+-import { applyDesktopTrayUnreadBadge } from "./desktopTray.js";
+ import {
+-  createWindowsTaskbarOverlayApplier,
+-  maxWindowUnreadCounts,
+   parseWindowUnreadCount,
+-  renderTaskbarStatusDotPixels,
++  maxWindowUnreadCounts,
+   syncUnreadBadgeForPlatform,
+ } from "./unreadBadge.js";
+ import { attachDesktopWindowSizePersistence, type DesktopWindowSize } from "./desktopWindowSize.js";
+@@ -25,58 +15,26 @@ import {
+   unregisterMainApplicationWindow,
+ } from "./resourceManagerWindow.js";
+ 
+-const DEFAULT_RUNTIME_PROCESS_ENV_WAIT_TIMEOUT_MS = 4_500;
+-
++/**
++ * 换宿主（v4 §1.3）：每个窗口不再 spawn 独立 utilityProcess 宿主，也不再经
++ * MessagePortMain 投递服务端口。应用级单例桥进程（tools/bridge/bridge_host.mjs）
++ * 在首个窗口 dom-ready 前幂等拉起，桥 WS 地址随窗口 query 注入，renderer 直连。
++ */
+ export function createWindow(options: {
+   iconPath: string;
+   preloadPath: string;
+   logger: { info: (...args: unknown[]) => void; warn: (...args: unknown[]) => void };
+   forceQuitRef: { current: boolean };
+   handleBeforeClose?: (win: BrowserWindow, label: string) => boolean;
+-  windowHostProcessMap: Map<number, ElectronUtilityProcess>;
+-  spawnHostProcess: (
+-    win: BrowserWindow,
+-    label: string,
+-    // Main 在包装层统一注入 zcodeBuiltinProviderConfigFilePath（Electron 安装布局只有 Main 知道），
+-    // 窗口生命周期只负责组装其余 InitLocal 字段。
+-    initMessage: Omit<HostInitMessage, "zcodeBuiltinProviderConfigFilePath">,
+-  ) => ElectronUtilityProcess;
+-  disposeHostProcess: (
+-    child: ElectronUtilityProcess,
+-    label: string,
+-    forceKillDelayMs?: number,
+-  ) => void;
+   syncAutoUpdaterStateToWindow: (win: BrowserWindow) => void;
+   syncReadyUpdateToWindow: (win: BrowserWindow) => void;
+   syncPostUpdateReleaseNotesToWindow: (win: BrowserWindow) => void;
+-  webRemoteControlManager: { disposeWindow(windowId: number): Promise<void> };
+-  disposeRemoteWorkspaceSessionsForWindow: (windowId: number, reason: string) => void;
+-  reattachRemoteWorkspaceSessionsForWindow: (win: BrowserWindow, reason: string) => void;
+   bootstrap?: WindowBootstrapOptions;
+-  agentWarmupTargets?: readonly StartupWorkspaceWarmupTarget[];
+-  agentSpawnFallbackCwd: string;
+   deviceMid: string;
+-  remoteAssets?: RemoteAssetDirs;
+   initialDesktopZoomLevel?: number;
+   initialWindowSize?: DesktopWindowSize;
+   currentApplicationLocale?: () => Locale;
+   persistWindowSize?: (state: DesktopWindowSize) => Promise<void>;
+-  /** Main 模块初始化期已开始的异步环境采集；通常在 renderer dom-ready 前完成。 */
+-  runtimeProcessEnvPatchPromise?: Promise<Record<string, string>>;
+-  /** 不执行 shell 即可计算的完整降级 patch；预热失败/超时时仍要注入 Local Host。 */
+-  runtimeProcessEnvFallbackPatch: Record<string, string>;
+-  /** 仅供启动门禁和测试注入；超过该时间必须 fail-open 创建 Local Host。 */
+-  runtimeProcessEnvWaitTimeoutMs?: number;
+-  /**
+-   * 首个 Local Host 创建前的有界灰度裁决门。
+-   *
+-   * 缺省（undefined）时完全不触发 await，dom-ready handler 同步执行——保证既有调用方
+-   * 与测试零回归。仅 desktop main 注入：在 spawnLocalHost 之前等待一次 rollout 裁决，
+-   * 避免冷启动快照 { enabled:false } 被烤进首 Host env 后无法被异步成功结果覆盖。
+-   */
+-  awaitFirstHostSpawnDecision?: () => Promise<void>;
+-  /** Local Host map insertion completed; presentation facts can now be replayed safely. */
+-  onHostProcessReady?: (windowKey: number) => void;
+   resolveBrowserViewOwner?: Parameters<typeof createBrowserWindow>[0]["resolveBrowserViewOwner"];
+ }) {
+   const win = createBrowserWindow({
+@@ -126,16 +84,9 @@ export function createWindow(options: {
+   }
+ 
+   const wcId = win.webContents.id;
+-  const browserWindowId = win.id;
+-  // 资源遥测据此把主窗口 renderer 归 renderer_main；辅助窗口与 DevTools 归 chromium_other。
++  // 资源采样把主窗口 renderer 归 renderer_main；辅助窗口与 DevTools 归 chromium_other。
+   registerMainApplicationWindow(wcId);
+-  let domReadyGeneration = 0;
+-  let cancelRuntimeProcessEnvWait: (() => void) | null = null;
+-  scheduleArmsBrowserPerfLoadNudge(win.webContents);
+-  win.webContents.on("dom-ready", async () => {
+-    cancelRuntimeProcessEnvWait?.();
+-    cancelRuntimeProcessEnvWait = null;
+-    const currentDomReadyGeneration = ++domReadyGeneration;
++  win.webContents.on("dom-ready", () => {
+     options.logger.info(`[createWindow] dom-ready fired (${label})`);
+ 
+     if (process.platform === "win32" && !win.isDestroyed()) {
+@@ -143,147 +94,24 @@ export function createWindow(options: {
+       win.focus();
+     }
+ 
+-    const oldChild = options.windowHostProcessMap.get(wcId);
+-    // renderer 刷新（reload）
+-    // 曾经无条件杀掉旧 host 进程再重建——host 连带 CLI agent 一起死，运行中的会话直接消失，
+-    // 这正是「会话身份易失」病根。host/CLI 的生命周期属于窗口而非
+-    // renderer 加载周期：reload 只需给存活的 host 补挂一条新 RPC MessagePort
+-    // （复用 web 远控的 AttachServicePort 通道），renderer 重新订阅即可恢复投影。
+-    // 旧端口的 ChannelServer 会随 renderer 上下文销毁触发 close 自行回收。
+-    if (oldChild && oldChild.pid !== undefined) {
+-      try {
+-        const startupPayload = getDatabaseStartupPortPayload(oldChild);
+-        if (!startupPayload) throw new Error("Previous Host startup binding is unavailable");
+-        const { port1, port2 } = new MessageChannelMain();
+-        oldChild.postMessage(
+-          {
+-            type: HostMessageTypes.AttachServicePort,
+-            requestId: randomUUID(),
+-            attachmentId: randomUUID(),
+-            clientMode: "desktop-continuous",
+-            scope: { kind: "local" },
+-          },
+-          [port2],
+-        );
+-        win.webContents.postMessage(InternalChannels.ServicePort, startupPayload, [port1]);
+-        options.logger.info(
+-          `[createWindow] renderer reloaded, reattached to existing host (${label}), pid=${oldChild.pid}`,
+-        );
+-        options.syncAutoUpdaterStateToWindow(win);
+-        options.syncReadyUpdateToWindow(win);
+-        options.syncPostUpdateReleaseNotesToWindow(win);
+-        options.reattachRemoteWorkspaceSessionsForWindow(win, `${label}:renderer-reload`);
+-        return;
+-      } catch (error) {
+-        options.logger.warn(
+-          `[createWindow] reattach to existing host failed (${label}), falling back to respawn:`,
+-          error,
+-        );
+-      }
+-    }
+-    if (oldChild) {
+-      options.logger.info(
+-        `[createWindow] killing previous host process for (${label}), pid=${oldChild.pid ?? "unknown"}`,
+-      );
+-      options.disposeHostProcess(oldChild, `${label}:reload`, 150);
+-    }
+-
+-    // 首个 Local Host 创建前的有界灰度裁决门。用 `if` 守卫而非 `await cb?.()`——
+-    // cb 缺省时不触发任何 await，async handler 同步跑完，保证既有调用方与测试零回归。
+-    // 仅在需要 spawn 新 Host 的路径上等待（reattach 早退路径已在上方 return，不触发）。
+-    if (options.awaitFirstHostSpawnDecision) {
+-      await options.awaitFirstHostSpawnDecision();
+-    }
+-
+-    const spawnLocalHost = (runtimeProcessEnvPatch: Record<string, string>) => {
+-      if (currentDomReadyGeneration !== domReadyGeneration || win.isDestroyed()) {
+-        return;
+-      }
+-      const primaryWarmupTarget = options.agentWarmupTargets?.[0];
+-      const child = options.spawnHostProcess(win, label, {
+-        type: HostMessageTypes.InitLocal,
+-        deviceMid: options.deviceMid,
+-        workspacePath: primaryWarmupTarget?.workspacePath,
+-        workspaceIdentity: primaryWarmupTarget?.workspaceIdentity,
+-        ...(options.agentWarmupTargets && options.agentWarmupTargets.length > 0
+-          ? { agentWarmupTargets: [...options.agentWarmupTargets] }
+-          : {}),
+-        runtimeProcessEnvPatch,
+-        // 同一窗口会后台索引所有已恢复 workspace，不只索引启动时的 active workspace。
+-        // fallback 必须跟随 local Host 生命周期常驻，否则非 active 历史目录被删除后会用失效 cwd 反复 spawn。
+-        agentSpawnFallbackCwd: options.agentSpawnFallbackCwd,
+-        remoteAssets: options.remoteAssets,
+-        // Host 的 X-Client-Language 以 Main 的实时界面语言为准；与后续变更消息同端口按序到达。
+-        ...(options.currentApplicationLocale ? { locale: options.currentApplicationLocale() } : {}),
++    // 幂等拉起应用级桥进程（renderer 用 query 里的 bridgeWsUrl 直连）。
++    try {
++      ensureBridgeHostProcess({
++        info: options.logger.info,
++        warn: options.logger.warn,
++        error: (...args: unknown[]) => options.logger.warn("[bridge-host]", ...args),
+       });
+-      options.windowHostProcessMap.set(wcId, child);
+-      options.onHostProcessReady?.(wcId);
+-      options.syncAutoUpdaterStateToWindow(win);
+-      options.syncReadyUpdateToWindow(win);
+-      options.syncPostUpdateReleaseNotesToWindow(win);
+-      options.reattachRemoteWorkspaceSessionsForWindow(win, `${label}:renderer-ready`);
+-    };
+-
+-    if (!options.runtimeProcessEnvPatchPromise) {
+-      spawnLocalHost(options.runtimeProcessEnvFallbackPatch);
+-      return;
++    } catch (error) {
++      options.logger.warn(`[createWindow] 桥进程拉起失败 (${label})：`, error);
+     }
+-    let settled = false;
+-    const waitTimeoutMs =
+-      options.runtimeProcessEnvWaitTimeoutMs ?? DEFAULT_RUNTIME_PROCESS_ENV_WAIT_TIMEOUT_MS;
+-    let timeout: ReturnType<typeof setTimeout> | null = null;
+-    const cancelWait = () => {
+-      if (settled) {
+-        return;
+-      }
+-      settled = true;
+-      if (timeout) {
+-        clearTimeout(timeout);
+-      }
+-    };
+-    const completeWait = (runtimeProcessEnvPatch: Record<string, string>) => {
+-      if (settled) {
+-        return;
+-      }
+-      settled = true;
+-      if (timeout) {
+-        clearTimeout(timeout);
+-      }
+-      if (cancelRuntimeProcessEnvWait === cancelWait) {
+-        cancelRuntimeProcessEnvWait = null;
+-      }
+-      spawnLocalHost(runtimeProcessEnvPatch);
+-    };
+-    cancelRuntimeProcessEnvWait = cancelWait;
+-    timeout = setTimeout(() => {
+-      options.logger.warn(
+-        `[createWindow] runtime env prewarm exceeded ${waitTimeoutMs}ms after dom-ready (${label}), using shell-free fallback`,
+-      );
+-      completeWait(options.runtimeProcessEnvFallbackPatch);
+-    }, waitTimeoutMs);
+-    void options.runtimeProcessEnvPatchPromise.then(completeWait, (error) => {
+-      options.logger.warn(
+-        `[createWindow] runtime env prewarm failed (${label}), using shell-free fallback:`,
+-        error,
+-      );
+-      // 旧 rejection 分支传 undefined，Host 随后又同步执行同一个 login shell，
+-      // 可能把 Main 的白屏转移成 Host 卡死。Main 路径始终传入预计算 fallback patch。
+-      completeWait(options.runtimeProcessEnvFallbackPatch);
+-    });
++    options.syncAutoUpdaterStateToWindow(win);
++    options.syncReadyUpdateToWindow(win);
++    options.syncPostUpdateReleaseNotesToWindow(win);
+   });
+ 
+   win.on("closed", () => {
+     unregisterMainApplicationWindow(wcId);
+-    cancelRuntimeProcessEnvWait?.();
+-    cancelRuntimeProcessEnvWait = null;
+-    options.logger.info(`[createWindow] window closed, killing host process (${label})`);
+-    const child = options.windowHostProcessMap.get(wcId);
+-    if (child) {
+-      options.disposeHostProcess(child, `${label}:window-closed`);
+-      options.windowHostProcessMap.delete(wcId);
+-    }
+-    void options.webRemoteControlManager.disposeWindow(browserWindowId);
+-    options.disposeRemoteWorkspaceSessionsForWindow(wcId, `${label}:window-closed`);
++    options.logger.info(`[createWindow] window closed (${label})`);
+   });
+ 
+   return win;
+@@ -328,50 +156,16 @@ export function focusWorkspaceInExistingWindow(
+   return { activated: false };
+ }
+ 
+-// Windows 任务栏 overlay 的 electron 侧装配：像素渲染在 unreadBadge.ts（纯逻辑，可单测），
+-// 这里只负责 BrowserWindow 枚举与 nativeImage 构造。spec 见 docs/desktop/windows-taskbar-unread-badge.md
+-const windowsTaskbarOverlayLayout = supportsNativeWindowsRoundedCorners(
+-  process.platform,
+-  readPlatformRelease(),
+-)
+-  ? "windows-11"
+-  : "windows-10";
+-
+-const applyWindowsTaskbarOverlay = createWindowsTaskbarOverlayApplier({
+-  getAllWindows: () => BrowserWindow.getAllWindows(),
+-  // Windows 固定把 overlay 显示为 16×16。直接传硬边 32px 圆再让 Shell 缩放会发糊、
+-  // 边缘像缺口；这里提供原生 1x(16px) + 2x(32px) 纯红抗锯齿表示。
+-  // label 只用于无障碍 description，屏幕阅读器仍播报具体数量。
+-  createBadgeImage: () => {
+-    const image = nativeImage.createEmpty();
+-    image.addRepresentation({
+-      scaleFactor: 1,
+-      width: 16,
+-      height: 16,
+-      buffer: Buffer.from(renderTaskbarStatusDotPixels(1, windowsTaskbarOverlayLayout)),
+-    });
+-    image.addRepresentation({
+-      scaleFactor: 2,
+-      width: 32,
+-      height: 32,
+-      buffer: Buffer.from(renderTaskbarStatusDotPixels(2, windowsTaskbarOverlayLayout)),
+-    });
+-    return image;
+-  },
+-});
+-
+ export function syncApplicationUnreadBadge(windowUnreadCountMap: Map<number, number>) {
+-  const totalUnreadCount = maxWindowUnreadCounts(windowUnreadCountMap);
+   syncUnreadBadgeForPlatform({
+     platform: process.platform,
+-    totalUnreadCount,
++    totalUnreadCount: maxWindowUnreadCounts(windowUnreadCountMap),
+     setBadgeCount: (count) => {
+       app.setBadgeCount(count);
+     },
+-    applyOverlay: applyWindowsTaskbarOverlay,
++    // 窗口 overlay 徽章装饰面（上游 Windows 任务栏角标图）不在 Juscite 壳范围：no-op，Dock 计数语义不变。
++    applyOverlay: () => {},
+   });
+-  // 托盘角标：Windows/Linux 托盘右上角小徽章（macOS 无托盘，由 Dock 角标承担）。
+-  applyDesktopTrayUnreadBadge(totalUnreadCount);
+ }
+ 
+ export function handleWindowUnreadCountSync(
+diff --git a/packages/desktop/src/main/desktopWindowsOpenFolderContextMenu.ts b/packages/desktop/src/main/desktopWindowsOpenFolderContextMenu.ts
+index 90e01ca3..be03b8a6 100644
+--- a/packages/desktop/src/main/desktopWindowsOpenFolderContextMenu.ts
++++ b/packages/desktop/src/main/desktopWindowsOpenFolderContextMenu.ts
+@@ -6,8 +6,8 @@ const MENU_KEY_NAME = "ZCode.OpenInZCode";
+ const DIRECTORY_MENU_KEY = `HKCU\\Software\\Classes\\Directory\\shell\\${MENU_KEY_NAME}`;
+ const DRIVE_MENU_KEY = `HKCU\\Software\\Classes\\Drive\\shell\\${MENU_KEY_NAME}`;
+ const MENU_LABELS: Record<Locale, string> = {
+-  "zh-CN": "在ZCode中打开",
+-  "en-US": "Open in ZCode",
++  "zh-CN": "在Juscite中打开",
++  "en-US": "Open in Juscite",
+ };
+ 
+ type Logger = {
+diff --git a/packages/desktop/src/main/index.ts b/packages/desktop/src/main/index.ts
+index f335711c..62db0240 100644
+--- a/packages/desktop/src/main/index.ts
++++ b/packages/desktop/src/main/index.ts
+@@ -1,22 +1,13 @@
+ import { installRequestSecurityDiagnostics } from "./request-security-edition/index.js";
+-import { createLocalTtftExporter } from "./localTtftExporter.js";
+ /* eslint-disable max-lines */
+ import "./desktopEarlyDataBaseDirBootstrap.js";
+ import "./desktopEarlyChromiumHardwareAccelerationBootstrap.js";
+-import { powerMonitor, powerSaveBlocker } from "electron";
+-import { crashCapturePaths } from "./appCrashCaptureBootstrap.js";
+-import { armsInitPromise } from "./appARMSBootstrap.js";
++import { powerSaveBlocker } from "electron";
+ import {
+   onLocalDatabaseStartupReady,
+   configureDatabaseStartupQuit,
+ } from "./databaseStartupRelay.js";
+-import armsRum from "@arms/rum-electron";
+-import { createArmsUserIdentitySync } from "./armsUserIdentity.js";
+ import { ensureDesktopDeviceMidSync } from "./desktopDeviceMid.js";
+-import {
+-  createDesktopContextPromptRollout,
+-  createElectronDesktopContextPromptConfigFetcher,
+-} from "./desktopContextPromptRollout.js";
+ import { buildBrowserViewCloseTabNotification } from "./browserView/browserCloseTabNotification.js";
+ import { BrowserGuestManager } from "./browserView/browserGuestManager.js";
+ import { createElectronBrowserWebmRecorder } from "./browserView/electronBrowserWebmRecorder.js";
+@@ -38,42 +29,23 @@ import {
+   BrowserWindow,
+   dialog,
+   ipcMain,
+-  MessageChannelMain,
+   nativeImage,
+-  net,
+   protocol,
+   session,
+-  shell,
+   webContents,
+ } from "electron";
+-import { randomUUID } from "node:crypto";
+-import type { UtilityProcess as ElectronUtilityProcess } from "electron";
+ import { spawn } from "node:child_process";
+ import { join, resolve } from "node:path";
+ import { homedir, hostname } from "node:os";
+ import {
+-  createCredentialService,
+   createSettingService,
+-  createTelemetryCore,
+-  createTelemetryMarketingParamsLoader,
+-  createTelemetryUserIdLoader,
+-  createTelemetryAuthorizationLoader,
+-  buildRuntimeProcessEnvPatch,
+-  captureLoginShellEnvSnapshot,
+   getConversationWorkspaceDir,
+-  getDataBaseDir,
+-  getZCodeDataRootDir,
+-  normalizeRuntimeProcessEnv,
+   setDataBaseDir,
+-  migrateApplicationStorage,
+-  resolveDefaultZCodeAgentCommand,
+-  startupStorage,
+ } from "@zcode/services/node";
+ import {
+   desktopMenuMessageIds,
+   type Locale,
+   type AppSettings,
+-  type appSettingsPatchSchema,
+   PlatformChannels,
+   ZCODE_ENV,
+   ZCODE_PRODUCT_FLAVOR,
+@@ -83,18 +55,12 @@ import {
+   TEST_ZCODE_ENDPOINT_ORIGIN,
+   ZCODE_VERSION,
+   buildZCodeEndpointUrls,
+-  resolveWebRemoteControlRelayWsUrl,
+   resolveZCodeEndpointOrigin,
+   shouldEnableE2ETestBridge,
+   type UpdateStatePayload,
+-  type TelemetryEventPayload,
+-  HostMessageTypes,
+-  InternalChannels,
+ } from "@zcode/shared";
+-import { logger, webRemoteControlRelayLogger } from "./logger.js";
++import { logger } from "./logger.js";
+ import { markMainLaunchAppReady } from "./desktopLaunchMarks.js";
+-import { createCuaPipFocusRouter, resolveCuaPipWindowKey } from "./cuaPipFocusRouter.js";
+-import { createDesktopTelemetryFetch } from "./desktopTelemetryFetch.js";
+ import {
+   acknowledgePostUpdateReleaseNotes,
+   getAutoUpdaterState,
+@@ -107,34 +73,16 @@ import {
+   syncPostUpdateReleaseNotesToWindow,
+   syncReadyUpdateToWindow,
+ } from "./autoUpdater.js";
+-import { BroadcastHub } from "./broadcastHub.js";
+-import { TaskRealtimeBus } from "./taskRealtimeBus.js";
+ import { createAppLaunchGate } from "./appLaunchGate.js";
+ import { createAppLaunchCoordinator } from "./appLaunchCoordinator.js";
+-import { createAppTelemetryRuntime } from "./appTelemetryRuntime.js";
+-import { createRendererActionTraceBroker } from "./rendererActionTraceBroker.js";
+-import { createRendererActionTraceExporter } from "./rendererActionTraceExporter.js";
+-import { registerRendererActionTraceIpc } from "./rendererActionTraceIpc.js";
+-import { createRendererActionTraceRollout } from "./rendererActionTraceRollout.js";
+ import {
+   resolveAppShutdownPolicy,
+   selectAppShutdownPolicy,
+   type AppShutdownKind,
+ } from "./appShutdownPolicy.js";
+ import { createPrimaryWindowCoordinator } from "./primaryWindowCoordinator.js";
+-import { createTempTextAttachment } from "./tempTextAttachment.js";
+ import { flushMainE2ECoverage } from "./e2eCoverage.js";
+ import { resolveStartupWindowBootstrap, type StartupWindowBootstrap } from "./startupWorkspace.js";
+-import {
+-  createStartupDeepLinkConsumptionGate,
+-  type ExplicitStartupWorkspaceRequest,
+-  resolveExplicitStartupWorkspaceBootstrap,
+-} from "./startupWorkspaceDeepLinkGate.js";
+-import { createWebRemoteControlManager } from "./webRemoteControlManager.js";
+-import { createWebRemoteControlDeviceStorage } from "#src/main/web-remote-relay/index.js";
+-import { createWebRemoteControlFeatureGate } from "./webRemoteControlFeatureGate.js";
+-import { reconnectWebRemoteControlWorkspaceInRenderer } from "./webRemoteControlRendererReconnect.js";
+-import { sendWebRemoteControlStatusChangedToWindow } from "./webRemoteControlStatusEvents.js";
+ import { executeDesktopCommand } from "./desktopCommandHandlers.js";
+ import { clampDesktopZoomLevel, resolveDesktopZoomLevelFromFactor } from "./desktopZoom.js";
+ import {
+@@ -155,7 +103,6 @@ import {
+   resolveCloseToTrayRuntimeValue,
+   resolveCloseToTraySupported,
+ } from "./desktopTraySupport.js";
+-import { createWindowsCuaOperationIndicator } from "./windowsCuaOperationIndicator.js";
+ import {
+   configureDockMenu,
+   createWindow,
+@@ -167,15 +114,9 @@ import {
+ import { resolveZCodeBuiltinProviderConfigFilePath } from "./desktopProviderConfig.js";
+ import {
+   getCredentialsDir,
+-  isDockerDaemonAvailable,
+-  listSSHConfigAliases,
+-  listAvailableDockerContainers,
+-  listAvailableWSLDistros,
+   loadHostProcessEnvFromLocalFiles,
+   resolveBundledGlmBinaryPath,
+-  resolveRemoteAssetDirs,
+   resolveZCodeEndpointEnvBaseOrigin,
+-  desktopRuntimeEnv,
+   runtimeApplicationName,
+   runtimeHomePath,
+   runtimeSessionDataPath,
+@@ -183,81 +124,24 @@ import {
+   shouldUseElectronDefaultUserDataPath,
+ } from "./desktopRuntimeEnv.js";
+ import {
+-  disposeHostProcess,
+-  disposeHostProcessAndWait,
+-  listDisposingHostProcesses,
++  disposeBridgeHostProcess,
++  ensureBridgeHostProcess,
++  getBridgeHostProcess,
++  isBridgeHostAlive,
+   loadWindow,
+-  spawnHostProcess,
+ } from "./desktopHostProcess.js";
++// 功能 #28 桌宠：桌面壳内独立透明窗口（RE-28 §3.0 形态）。
++import { createPetModule, type PetModule } from "./desktop/pet/window.js";
++import { resolveBootstrapSettingsFile } from "./desktopDataBaseDirBootstrap.js";
+ import { spawnCronScheduler, type CronSchedulerHandle } from "./desktopCronScheduler.js";
+-import {
+-  clearOAuthRoutesForWindow,
+-  handleDeepLink,
+-  handleOpenWorkspacePath,
+-  registerDeepLinkProtocol,
+-  resolveExternalWorkspaceOpenDialogCopy,
+-} from "./desktopOAuthDeepLink.js";
+-import { handleSecondInstanceWorkspaceRequest } from "./desktopSecondInstanceDeepLink.js";
+ import { installFinderOpenFolderWorkflow } from "./desktopFinderOpenFolderWorkflow.js";
+ import { installWindowsOpenFolderContextMenu } from "./desktopWindowsOpenFolderContextMenu.js";
+-import {
+-  createDeepLinkSingleInstanceData,
+-  extractWorkspaceOpenPath,
+-  extractDeepLinkUrlFromArgs,
+-  extractOpenWorkspacePathFromArgs,
+-  isWorkspaceOpenUrl,
+-} from "./desktopDeepLinkUrl.js";
+-import { createRemoteWorkspaceSessionManager } from "./desktopRemoteSessions.js";
+-import {
+-  reportRemoteConnectionStateChangedToArms,
+-  reportRemoteDisconnectToArms,
+-  stopRemoteUsageArmsPeriodicSampling,
+-} from "./desktopRemoteUsageArmsTelemetry.js";
+-import { resolveCanonicalWslTarget } from "./desktopWslTargetResolver.js";
+ import {
+   listRegisteredHostAgentProcessIds,
+   setBrowserUseGuestWebContentsIdsProvider,
+ } from "./resourceManagerWindow.js";
+-import { createWebRemoteControlSharedHostAttachments } from "./webRemoteControlSharedHostAttachments.js";
+ import { createDesktopHelpConfigReader } from "./desktopHelpConfig.js";
+ import { registerPlatformIpcHandlers } from "./desktopMainIpcPlatform.js";
+-import {
+-  loadCliMcpFromUserDirectory,
+-  migrateLegacyCommonMcp,
+-  saveCliMcpToUserDirectory,
+-} from "./mcpUserDirectory/index.js";
+-import { registerRemoteIpcHandlers } from "./desktopMainIpcRemote.js";
+-import {
+-  configureDesktopStabilityTelemetry,
+-  getStabilityLifecycleScene,
+-  notifyStabilityAppExit,
+-  notifyStabilityLifecycle,
+-  reportAgentProcessExitToArms,
+-  reportAgentProcessReadyToArms,
+-  reportAgentProcessStartToArms,
+-  reportAgentProcessSpawnErrorToArms,
+-  reportAgentProcessExceptionToArms,
+-  registerDesktopStabilityMonitors,
+-  registerStabilityMainWindow,
+-  scheduleReportPerfAppStartAfterMainViewReady,
+-} from "./desktopStabilityTelemetry.js";
+-import {
+-  configureDesktopResourceTelemetry,
+-  registerDesktopResourceTelemetry,
+-  resolveResourceUsageScene,
+-  stopDesktopResourceTelemetry,
+-} from "./desktopResourceTelemetry.js";
+-import { registerRendererHeapSampleIpc } from "./processResourceRendererHeapSource.js";
+-import {
+-  registerDesktopZCodeDataSizeTelemetry,
+-  stopDesktopZCodeDataSizeTelemetry,
+-} from "./desktopZCodeDataSizeTelemetry.js";
+-import { configureDesktopMcpTelemetry, reportMcpTelemetryToArms } from "./desktopMcpTelemetry.js";
+-import {
+-  configureDesktopNetworkTelemetry,
+-  registerDesktopNetworkTelemetry,
+-  stopDesktopNetworkTelemetry,
+-} from "./desktopNetworkTelemetry.js";
+ import { applyDesktopChromiumNetworkPolicies } from "./desktopNetworkPolicy.js";
+ import { applyEmbeddedBrowserPermissionPolicy } from "./embeddedBrowserPermissionPolicy.js";
+ import { createEmbeddedBrowserSitePermissionStore } from "./embeddedBrowserSitePermissionStore.js";
+@@ -265,7 +149,6 @@ import {
+   createEmbeddedBrowserPermissionUiBridge,
+   setActiveEmbeddedBrowserPermissionUiBridge,
+ } from "./embeddedBrowserPermissionUiBridge.js";
+-import { mapZCodeEnvToArmsRumEnv } from "@zcode/shared";
+ import {
+   findWindowsProcessesReferencingResourceMarkers,
+   probeWindowsPackagedResourceWritable,
+@@ -570,17 +453,13 @@ async function runBrowserCommandOnView(params: {
+ let currentDesktopZoomLevel = 0;
+ let currentDesktopWindowSize: DesktopWindowSize | undefined;
+ const preloadPath = join(import.meta.dirname, "../preload/index.cjs");
+-const settingsFile = join(homedir(), ".zcode", "v2", "setting.json");
++const settingsFile = resolveBootstrapSettingsFile();
+ let activeAppShutdownPolicy = resolveAppShutdownPolicy("normal", process.platform);
+ let activeAppShutdownKind: AppShutdownKind | null = null;
+ const WINDOWS_AGENT_FORCE_KILL_TIMEOUT_MS = 2_000;
+ 
+-const broadcastHub = new BroadcastHub();
+-const taskRealtimeBus = new TaskRealtimeBus({ logger });
+ // 内存诊断计数器：desktopResourceTelemetry 每 60s collect
+ // 一次写主日志。will-download 监听数用于观察关窗后 defaultSession 是否残留监听。
+-mainMemoryDiagnosticsRegistry.register("taskBus", () => taskRealtimeBus.collectMemoryDiagnostics());
+-mainMemoryDiagnosticsRegistry.register("broadcast", () => broadcastHub.collectMemoryDiagnostics());
+ mainMemoryDiagnosticsRegistry.register("guest", () =>
+   browserGuestManager.collectMemoryDiagnostics(),
+ );
+@@ -589,90 +468,12 @@ mainMemoryDiagnosticsRegistry.register("app", () => ({
+   willDownloadListeners: session.defaultSession.listenerCount("will-download"),
+ }));
+ const hostProcessLocalEnv = loadHostProcessEnvFromLocalFiles();
+-interface RuntimeProcessEnvPreparation {
+-  patchPromise: Promise<Record<string, string>>;
+-  fallbackPatch: Record<string, string>;
+-}
+-
+-let runtimeProcessEnvPrewarmSequence = 0;
+-function createRuntimeProcessEnvPreparation(): RuntimeProcessEnvPreparation {
+-  const prewarmId = ++runtimeProcessEnvPrewarmSequence;
+-  const startedAt = Date.now();
+-  // Windows process.env 保留 Path 的原始大小写，展开到普通对象后不再大小写不敏感。
+-  // dotenv 先合并、真实进程环境后合并，再统一成唯一 PATH，保持旧 Host 继承的优先级语义。
+-  const baseEnv = normalizeRuntimeProcessEnv(
+-    {
+-      ...hostProcessLocalEnv,
+-      ...process.env,
+-    },
+-    process.platform,
+-  );
+-  const fallbackPatch = buildRuntimeProcessEnvPatch(baseEnv, null, {
+-    platform: process.platform,
+-  });
+-  const patchPromise = captureLoginShellEnvSnapshot({
+-    baseEnv,
+-    platform: process.platform,
+-  }).then(
+-    (snapshot) => {
+-      const patch = buildRuntimeProcessEnvPatch(baseEnv, snapshot, {
+-        platform: process.platform,
+-      });
+-      if (process.platform !== "win32" && !snapshot) {
+-        logger.warn(
+-          `[startup] login shell env unavailable id=${prewarmId}; using shell-free fallback after ${Date.now() - startedAt}ms`,
+-        );
+-        return patch;
+-      }
+-      logger.info(
+-        `[startup] runtime process env prepared asynchronously id=${prewarmId} in ${Date.now() - startedAt}ms`,
+-      );
+-      return patch;
+-    },
+-    (error) => {
+-      logger.warn(
+-        `[startup] runtime process env prewarm failed id=${prewarmId}; using shell-free fallback`,
+-        error,
+-      );
+-      return fallbackPatch;
+-    },
+-  );
+-  return { patchPromise, fallbackPatch };
+-}
+-
+-// 首窗在 Main import 时就开始采集；后续窗口各自刷新，避免永久复用进程启动时的 shell snapshot。
+-let initialRuntimeProcessEnvPreparation: RuntimeProcessEnvPreparation | null =
+-  createRuntimeProcessEnvPreparation();
+-function takeRuntimeProcessEnvPreparation(): RuntimeProcessEnvPreparation {
+-  const initialPreparation = initialRuntimeProcessEnvPreparation;
+-  if (initialPreparation) {
+-    initialRuntimeProcessEnvPreparation = null;
+-    return initialPreparation;
+-  }
+-  return createRuntimeProcessEnvPreparation();
+-}
+ const forceQuitRef = { current: false };
+ const explicitQuitRef = { current: false };
+ let appQuitPreparationInFlight: Promise<void> | null = null;
+ let hasPreparedAppQuit = false;
+ const windowWorkspaceMap = new Map<number, Set<string>>();
+-const windowTaskRealtimeHostIdMap = new Map<number, string>();
+ const windowUnreadCountMap = new Map<number, number>();
+-const windowHostProcessMap = new Map<number, ElectronUtilityProcess>();
+-const cuaPipFocusRouter = createCuaPipFocusRouter({
+-  send: (windowId, event) => {
+-    windowHostProcessMap.get(windowId)?.postMessage({
+-      type: HostMessageTypes.CuaPipFocusChanged,
+-      event,
+-    });
+-  },
+-});
+-const hostRunningTaskCountMap = new Map<ElectronUtilityProcess, number>();
+-const windowsCuaOperationIndicator = createWindowsCuaOperationIndicator({
+-  platform: process.platform,
+-  getLocale: () => currentApplicationLocale,
+-  logger,
+-});
+ 
+ // 常驻 cron scheduler 进程句柄；app ready 后拉起，退出前销毁。
+ let cronScheduler: CronSchedulerHandle | null = null;
+@@ -695,17 +496,10 @@ function wakeOffPeakScheduler(offPeakTaskId?: string): void {
+   cronScheduler?.wake(`offpeak:${offPeakTaskId ?? "sync"}`);
+ }
+ // 选一个本地 host 执行派发：本期本地 workspace 由任一本地窗口 host 的 createTask 按 path 拉起/复用 agent。
+-function resolveCronDispatchHost(): ElectronUtilityProcess | null {
+-  const first = windowHostProcessMap.values().next();
+-  return first.done ? null : first.value;
++function resolveCronDispatchHost(): null {
++  // 换宿主：cron 派发目标随 utilityProcess 宿主废弃；待桥 cron 映射（v4 §2）接入。
++  return null;
+ }
+-const disposingHostProcessTimers = new WeakMap<
+-  ElectronUtilityProcess,
+-  ReturnType<typeof setTimeout>
+->();
+-const webRemoteControlManagerRef = {
+-  current: null as ReturnType<typeof createWebRemoteControlManager> | null,
+-};
+ let updateStatusWindow: BrowserWindow | null = null;
+ const UPDATE_STATUS_WINDOW_WIDTH = 512;
+ const UPDATE_STATUS_WINDOW_COMPACT_HEIGHT = 205;
+@@ -713,10 +507,8 @@ const UPDATE_STATUS_WINDOW_PROGRESS_HEIGHT = 224;
+ const UPDATE_STATUS_WINDOW_READY_HEIGHT = UPDATE_STATUS_WINDOW_PROGRESS_HEIGHT - 54;
+ const UPDATE_STATUS_WINDOW_TRAFFIC_LIGHT_POSITION = { x: 10, y: 10 } as const;
+ const mainSettingService = createSettingService();
+-const webRemoteControlCredentialService = createCredentialService();
+ const appLaunchGate = createAppLaunchGate();
+ const appLaunchCoordinator = createAppLaunchCoordinator(appLaunchGate);
+-const appTelemetryCredentialService = createCredentialService();
+ async function resolveCurrentZCodeEndpointOrigin() {
+   return resolveZCodeEndpointOrigin({
+     env: ZCODE_ENV,
+@@ -724,321 +516,21 @@ async function resolveCurrentZCodeEndpointOrigin() {
+     overrideOrigin: (await mainSettingService.get()).zcodeEndpointOrigin,
+   });
+ }
+-let desktopContextPromptRollout: ReturnType<typeof createDesktopContextPromptRollout> | undefined;
+-function resolveDesktopContextPromptEnabledForHost(): boolean {
+-  const rollout = desktopContextPromptRollout;
+-  if (!rollout) {
+-    return false;
+-  }
+-  // Host 创建时顺便触发过期刷新，但只读取当前快照；网络请求不能阻塞 Local/Remote Host。
+-  void rollout.refresh();
+-  return rollout.getSnapshot().enabled;
+-}
+-
+-// 首个 Host 创建前的有界灰度裁决门。Host/Agent 的 presentation surface 在进程启动时
+-// 冻结（services/node.ts 顶层 const + CLI --surface），而灰度请求是旁路、不阻塞 Host。若首个
+-// Host fork 早于请求 resolve，成功结果（enabled:true）对已冻结的 Host/Agent 无可达生效路径。
+-// 这里给"成功结果"一条有界的生效路径：首 Host fork 前 await 一次裁决（≤2s），失败/超时仍按当前
+-// 快照继续（desktopContextPrompt fail-open）。first-only 永久
+-// latch——后续 Host fork await 已 resolve 的 promise（近乎 0ms），且各 resolve*ForHost()
+-// 同步读取已被刷新的 live 快照。
+-const DESKTOP_FIRST_HOST_SPAWN_DECISION_TIMEOUT_MS = 2_000;
+-let firstHostSpawnDecisionPromise: Promise<void> | null = null;
+-function awaitFirstHostSpawnDecision(): Promise<void> {
+-  if (firstHostSpawnDecisionPromise) {
+-    return firstHostSpawnDecisionPromise;
+-  }
+-  firstHostSpawnDecisionPromise = (async () => {
+-    const rollout = desktopContextPromptRollout;
+-    if (!rollout) {
+-      return;
+-    }
+-    try {
+-      const decision = await rollout.awaitFirstDecision(
+-        DESKTOP_FIRST_HOST_SPAWN_DECISION_TIMEOUT_MS,
+-      );
+-      logger.info("[desktop-context-prompt] first host spawn decision resolved", {
+-        enabled: decision.enabled,
+-        configVersion: decision.configVersion,
+-      });
+-    } catch (error) {
+-      // awaitFirstDecision 永不 reject（refresh 内部已 catch + timeout 回退快照），此处仅兜底。
+-      logger.warn("[desktop-context-prompt] first host spawn decision failed, fail-open", {
+-        error,
+-      });
+-    }
+-  })();
+-  return firstHostSpawnDecisionPromise;
+-}
+-const appTelemetryCore = createTelemetryCore({
+-  loadUserId: createTelemetryUserIdLoader(appTelemetryCredentialService),
+-  loadAuthorization: createTelemetryAuthorizationLoader(appTelemetryCredentialService),
+-  loadMarketingParams: createTelemetryMarketingParamsLoader(appTelemetryCredentialService),
+-  resolveZCodeEndpointOrigin: resolveCurrentZCodeEndpointOrigin,
+-  fetchImpl: createDesktopTelemetryFetch({
+-    fetch: (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init),
+-  }),
+-});
+-const appTelemetryRuntime = createAppTelemetryRuntime({
+-  telemetryCore: appTelemetryCore,
+-  appLaunchCoordinator,
+-});
+-
+-function reportRemoteUsageEventForRenderer(rendererId: number, event: TelemetryEventPayload): void {
+-  const context =
+-    appTelemetryRuntime.getRendererContext(rendererId) ??
+-    appTelemetryRuntime.getLatestRendererContext();
+-  if (!context) {
+-    logger.warn("[remote-usage-telemetry] renderer context unavailable", {
+-      elementName: event.elementName,
+-      rendererId,
+-    });
+-    return;
+-  }
+-  // 最终失败由 TelemetryCore 统一记录一条脱敏告警；这里仅隔离远程连接主链路。
+-  void appTelemetryCore.reportEvent({ context, ...event }).catch(() => {});
+-}
+-
+-function syncAppTelemetryInteractiveState(): void {
+-  appTelemetryRuntime.setInteractive(
+-    getApplicationWindowsExcludingCuaIndicator().some(
+-      (win) => !win.isDestroyed() && win.isVisible() && win.isFocused(),
+-    ),
+-  );
+-  // 登出/切号发生在 host 子进程，主进程无即时信号；窗口聚焦时兜底刷新 ARMS user.name
+-  void armsUserIdentitySync.refresh();
+-}
+-
+-app.on("browser-window-focus", (_event, win) => {
+-  syncAppTelemetryInteractiveState();
++app.on("browser-window-focus", () => {
+   rebuildMenu();
+-  // 设置/更新等无 Host 的 ZCode 窗口也算前台：router 会先把旧 workspace Host 清成 null，
+-  // 再把无 Host 的新窗口事实静默丢弃，避免旧会话 PiP 继续显示。
+-  cuaPipFocusRouter.focusWindow(resolveCuaPipWindowKey(win));
+-});
+-app.on("browser-window-blur", (_event, win) => {
+-  syncAppTelemetryInteractiveState();
+-  cuaPipFocusRouter.blurWindow(resolveCuaPipWindowKey(win));
+-});
+-app.on("browser-window-created", (_event, win) => {
+-  const windowKey = resolveCuaPipWindowKey(win);
+-  win.once("closed", () => cuaPipFocusRouter.removeWindow(windowKey));
+ });
+ 
+-const remoteSessionManager = createRemoteWorkspaceSessionManager({
+-  logger,
+-  windowHostProcessMap,
+-  resolveRemoteAssetDirs: () =>
+-    resolveRemoteAssetDirs({ locale: currentApplicationLocale }, hostProcessLocalEnv),
+-  resolveWslTarget: resolveCanonicalWslTarget,
+-  reportRemoteConnectionStateChanged: reportRemoteConnectionStateChangedToArms,
+-  reportRemoteDisconnect: reportRemoteDisconnectToArms,
+-  webRemoteControlManagerRef,
+-});
+-
+-// 复用既有只读账号入口；HTTP 由 main 的 Node fetch 执行，不触发 host OAuth 登出。
+-const loadRemoteControlUserId = createTelemetryUserIdLoader(webRemoteControlCredentialService);
+-const loadRemoteControlAuthorization = createTelemetryAuthorizationLoader(
+-  webRemoteControlCredentialService,
+-);
+-const webRemoteControlSharedHostAttachments = createWebRemoteControlSharedHostAttachments({
+-  windowHostProcessMap,
+-  attachRemoteWorkspaceSessionHost: remoteSessionManager.attachRemoteWorkspaceSessionHost,
+-  logger,
+-});
+ const deviceMid = ensureDesktopDeviceMidSync();
+ // 帮助配置是公开读取，不能复用下面附带账号鉴权的灰度响应缓存。
+ const readHelpConfig = createDesktopHelpConfigReader({
+   appVersion: ZCODE_VERSION || app.getVersion(),
+   deviceMid,
+-  getClientLanguage: () => currentApplicationLocale,
+   resolveEndpointOrigin: resolveCurrentZCodeEndpointOrigin,
+ });
+ // 同一个 /api/v1/client/configs fetcher 供两个灰度 rollout 共用（请求参数与鉴权完全一致，
+ // 各自独立缓存/去重，服务端按 data.configs.<key> 区分功能）。
+-const electronClientConfigsFetcher = createElectronDesktopContextPromptConfigFetcher({
+-  appVersion: ZCODE_VERSION || app.getVersion(),
+-  deviceMid,
+-  getClientLanguage: () => currentApplicationLocale,
+-  resolveEndpointOrigin: resolveCurrentZCodeEndpointOrigin,
+-});
+-desktopContextPromptRollout = createDesktopContextPromptRollout({
+-  fetchConfig: electronClientConfigsFetcher,
+-  logger,
+-});
+-const rendererActionTraceRollout = createRendererActionTraceRollout({
+-  fetchConfig: electronClientConfigsFetcher,
+-  logger,
+-});
+-const localTtftExporter = createLocalTtftExporter({
+-  env: { ...hostProcessLocalEnv, ...process.env },
+-  version: ZCODE_VERSION || app.getVersion(),
+-  logger,
+-});
+-ipcMain.on(PlatformChannels.ReportLocalTtftBatch, (_event, batch: unknown) =>
+-  localTtftExporter.enqueue(batch),
+-);
+-const rendererActionTraceBroker = createRendererActionTraceBroker({
+-  exporter: createRendererActionTraceExporter({
+-    ...hostProcessLocalEnv,
+-    ...process.env,
+-  }),
+-  logger,
+-});
+-let disposeRendererActionTraceIpc: (() => void) | undefined;
+-const armsUserIdentitySync = createArmsUserIdentitySync({
+-  deviceMid,
+-  setUser: (user) => armsRum.setConfig("user", user),
+-});
+-const webRemoteControlAppVersion = ZCODE_VERSION || app.getVersion();
+-const defaultZCodeEndpointUrls = buildZCodeEndpointUrls(DEFAULT_ZCODE_ENDPOINT_ORIGIN, {
+-  appVersion: webRemoteControlAppVersion,
+-});
+-const webRemoteControlRelayWsEnvOverride =
+-  process.env["ZCODE_WEB_REMOTE_CONTROL_RELAY_WS_URL"]?.trim();
+-const webRemoteControlUrlEnvOverride = process.env["ZCODE_WEB_REMOTE_CONTROL_URL"]?.trim();
+-
+-function extractOpenWorkspacePathFromDeepLinkUrl(url: string): string | null {
+-  try {
+-    const parsedUrl = new URL(url);
+-    return isWorkspaceOpenUrl(parsedUrl) ? extractWorkspaceOpenPath(parsedUrl) : null;
+-  } catch {
+-    return null;
+-  }
+-}
+-
+-const startupOpenWorkspaceArgPath = extractOpenWorkspacePathFromArgs(process.argv);
+-const startupProtocolUrl = extractDeepLinkUrlFromArgs(process.argv);
+-const startupDeepLinkWorkspacePath = startupOpenWorkspaceArgPath
+-  ? null
+-  : extractOpenWorkspacePathFromDeepLinkUrl(startupProtocolUrl ?? "");
+-const startupDeepLinkConsumptionGate = createStartupDeepLinkConsumptionGate(startupProtocolUrl);
+-let startupOpenWorkspaceRequest: ExplicitStartupWorkspaceRequest | null =
+-  startupOpenWorkspaceArgPath
+-    ? { path: startupOpenWorkspaceArgPath, source: "open-workspace-arg" }
+-    : startupDeepLinkWorkspacePath
+-      ? { path: startupDeepLinkWorkspacePath, source: "deep-link" }
+-      : null;
+-
+-const webRemoteControlManager = createWebRemoteControlManager({
+-  getEndpointUrls: async () => {
+-    const derived = buildZCodeEndpointUrls(await resolveCurrentZCodeEndpointOrigin(), {
+-      appVersion: webRemoteControlAppVersion,
+-    });
+-    return {
+-      ...derived,
+-      relayWsUrl: resolveWebRemoteControlRelayWsUrl({
+-        endpointOrigin: derived.origin,
+-        overrideUrl: webRemoteControlRelayWsEnvOverride,
+-      }),
+-      remoteUrl: webRemoteControlUrlEnvOverride || derived.remoteUrl,
+-    };
+-  },
+-  relayWsUrl: resolveWebRemoteControlRelayWsUrl({
+-    endpointOrigin: DEFAULT_ZCODE_ENDPOINT_ORIGIN,
+-    overrideUrl: webRemoteControlRelayWsEnvOverride,
+-  }),
+-  mobileRemoteControlUrl: webRemoteControlUrlEnvOverride || defaultZCodeEndpointUrls.remoteUrl,
+-  deviceMid,
+-  deviceName: hostname(),
+-  appVersion: webRemoteControlAppVersion,
+-  getLogin: async () => {
+-    const userId = await loadRemoteControlUserId();
+-    const authorization = await loadRemoteControlAuthorization(userId);
+-    return authorization ? { userId, jwt: authorization.slice("Bearer ".length) } : undefined;
+-  },
+-  deviceStorage: createWebRemoteControlDeviceStorage({
+-    deleteLegacyCredential: () =>
+-      webRemoteControlCredentialService.delete("web-remote-control:external-relay:pass_hash"),
+-    loadSettings: () => mainSettingService.get(),
+-    patchSettings: (patch) => mainSettingService.update(patch),
+-  }),
+-  startupRestoreStorageProvider: {
+-    load: async () => (await mainSettingService.get()).webRemoteControlLastEnabledContext,
+-    save: async (context) => {
+-      await mainSettingService.update({
+-        webRemoteControlLastEnabledContext: {
+-          workspacePath: context.workspacePath,
+-          workspaceIdentity: context.workspaceIdentity,
+-          initialTaskId: context.initialTaskId,
+-        },
+-      });
+-    },
+-    clear: async () => {
+-      await mainSettingService.update({
+-        webRemoteControlLastEnabledContext: undefined,
+-      });
+-    },
+-  },
+-  featureGate: createWebRemoteControlFeatureGate(),
+-  logger,
+-  relayMessageLogger: webRemoteControlRelayLogger,
+-  platformHandlers: {
+-    isDockerAvailable: () => isDockerDaemonAvailable(),
+-    listWSLDistros: () => listAvailableWSLDistros(),
+-    listDockerContainers: () => listAvailableDockerContainers(),
+-    listSSHConfigAliases: () => listSSHConfigAliases(),
+-    createTempTextAttachment: (payload) => createTempTextAttachment(payload),
+-    loadMcpFromUserDirectory: (payload) => loadCliMcpFromUserDirectory(payload),
+-    saveMcpToUserDirectory: async (payload) => {
+-      try {
+-        await saveCliMcpToUserDirectory(payload);
+-        return { success: true };
+-      } catch (error) {
+-        const message = error instanceof Error ? error.message : String(error);
+-        logger.warn("[web-remote-control] MCP save failed", message);
+-        return { success: false, error: message };
+-      }
+-    },
+-    migrateLegacyCommonMcp: (payload) => migrateLegacyCommonMcp(payload),
+-  },
+-  reconnectWorkspace: reconnectWebRemoteControlWorkspaceInRenderer,
+-  prepareProjectWorkspace: async (windowId, project, requestId) => {
+-    const win = BrowserWindow.fromId(windowId);
+-    if (!win || win.isDestroyed()) throw new Error("项目导航窗口已关闭");
+-    return remoteSessionManager.prepareProjectWorkspace(win, project, requestId);
+-  },
+-  cancelProjectPreparation: (windowId, requestId) => {
+-    const win = BrowserWindow.fromId(windowId);
+-    if (win && !win.isDestroyed())
+-      remoteSessionManager.cancelPendingRemoteWorkspaceSessionsForWindow(
+-        win.webContents.id,
+-        "mobile-navigation-superseded",
+-        requestId,
+-      );
+-  },
+-  reportRendererTelemetryEvent: (event) => {
+-    void appTelemetryCore.reportEvent(event).catch(() => {});
+-  },
+-  reportRemoteUsageEvent: (windowId, event) => {
+-    const win = BrowserWindow.fromId(windowId);
+-    if (!win || win.webContents.isDestroyed()) {
+-      return;
+-    }
+-    reportRemoteUsageEventForRenderer(win.webContents.id, event);
+-  },
+-  onStatusChanged: (windowId, status) => {
+-    sendWebRemoteControlStatusChangedToWindow(BrowserWindow.fromId(windowId), status);
+-  },
+-  attachWorkspaceHost: webRemoteControlSharedHostAttachments.attachWorkspaceHost,
+-  releaseWorkspaceHostAttachment: webRemoteControlSharedHostAttachments.releaseAttachment,
+-  disposeWorkspaceHostAttachmentsForWindow: (windowId) =>
+-    webRemoteControlSharedHostAttachments.disposeWindow(windowId),
+-  disposeWorkspaceHostAttachmentsForRemoteSession: (remoteSessionId) =>
+-    webRemoteControlSharedHostAttachments.disposeRemoteSession(remoteSessionId),
+-});
+-webRemoteControlManagerRef.current = webRemoteControlManager;
+-
+ let forceUpdateMainWindowCreationBlocked = false;
+ 
+-function resolveExternalWorkspaceConfirmationCopy() {
+-  const effectiveLocale =
+-    currentApplicationLocale === DEFAULT_LOCALE && app.isReady()
+-      ? resolveSystemApplicationLocale()
+-      : currentApplicationLocale;
+-  return resolveExternalWorkspaceOpenDialogCopy(effectiveLocale);
+-}
+-
+ function focusForceUpdateGateWindow() {
+   const gateWindow = getApplicationWindowsExcludingCuaIndicator()[0];
+   if (!gateWindow) {
+@@ -1057,19 +549,6 @@ function focusForceUpdateGateWindow() {
+ const primaryWindowCoordinator = createPrimaryWindowCoordinator({
+   listWindows: getApplicationWindowsExcludingCuaIndicator,
+   resolveStartupWindowBootstrap: () => {
+-    if (startupOpenWorkspaceRequest) {
+-      const request = startupOpenWorkspaceRequest;
+-      startupOpenWorkspaceRequest = null;
+-      startupDeepLinkConsumptionGate.markStartupRequestConsumed(request);
+-      const explicitBootstrap = resolveExplicitStartupWorkspaceBootstrap(request, {
+-        confirmationCopy: resolveExternalWorkspaceConfirmationCopy(),
+-        logger,
+-      });
+-      if (explicitBootstrap) {
+-        return Promise.resolve(explicitBootstrap);
+-      }
+-    }
+-
+     return resolveStartupWindowBootstrap({
+       settingsFile,
+       // dataBaseDir 可能在 bootstrap 设置阶段被覆盖，必须在真正解析启动工作区时再取值。
+@@ -1116,7 +595,7 @@ function syncCloseToTrayOnWindows(value: unknown) {
+   logger.info(`[settings] closeToTrayOnWindows=${value}`);
+ }
+ 
+-function syncImmediateAppSettings(patch: ReturnType<typeof appSettingsPatchSchema.parse>) {
++function syncImmediateAppSettings(patch: Partial<AppSettings>) {
+   syncCloseToTrayOnWindows(patch.closeToTrayOnWindows);
+ 
+   if (typeof patch.keepAwakeWhileRunning === "boolean") {
+@@ -1188,44 +667,17 @@ async function prepareAppQuit(reason: string, kind: AppShutdownKind = "normal"):
+   }
+ 
+   markForceQuit(reason);
+-  windowsCuaOperationIndicator.dispose();
+   browserScreenshotSurfaceCoordinator.dispose();
+-  // Bug 根因：资源样本改为 5 分钟窗口后，退出仍直接 stop 会清空未满窗口的数据。
+-  // 退出时只排空已存在的角色 / Agent 内存窗口，不启动新采样、目录扫描或外部探针。
+-  stopDesktopResourceTelemetry({ flushPendingWindows: true });
+-  stopDesktopZCodeDataSizeTelemetry();
+-  stopDesktopNetworkTelemetry();
+-  stopRemoteUsageArmsPeriodicSampling();
+-  disposeRendererActionTraceIpc?.();
+-  disposeRendererActionTraceIpc = undefined;
+-  notifyStabilityAppExit(
+-    getStabilityLifecycleScene() === "update_install" ? "update_install" : "app_quit",
+-    logger,
+-    { exitCode: 0, exitKind: "normal" },
+-  );
+ 
+   const cronSchedulerToDispose = cronScheduler;
+   cronScheduler = null;
+ 
+-  const hostProcesses = [
+-    ...new Set([...windowHostProcessMap.values(), ...listDisposingHostProcesses()]),
+-  ];
++  // 换宿主：退出屏障只剩 cron scheduler 底座 + 桥进程回收。
+   logger.info(
+-    `[app-quit] waiting for host process cleanup (${reason}), kind=${activeAppShutdownKind}, hosts=${hostProcesses.length}, forceKillDelayMs=${activeAppShutdownPolicy.forceKillDelayMs}, waitTimeoutMs=${activeAppShutdownPolicy.waitTimeoutMs}`,
++    `[app-quit] waiting for bridge host cleanup (${reason}), kind=${activeAppShutdownKind}`,
+   );
+ 
+   appQuitPreparationInFlight = Promise.all([
+-    // 退出屏障结束后再启动窗口尺寸写入，可能在 app.exit 前留下 setting.json.lock。
+-    // 尺寸已在 resize 防抖或最大化状态变化时保存，退出屏障不再创建新的尺寸写入。
+-    // 修复原因：Main 过去不会等待仍在发送的 /event/report，正常退出也会直接丢事件。
+-    // 与其它 owner 并行进入既有屏障，最多等待 2 秒，避免 telemetry 串行放大退出预算。
+-    appTelemetryCore.flushPendingReports({ timeoutMs: 2_000 }),
+-    localTtftExporter.shutdown(),
+-    rendererActionTraceBroker.shutdown().catch((error) => {
+-      logger.warn(`[app-quit] renderer action trace shutdown failed (${reason}):`, error);
+-    }),
+-    // 旧流程先等待 Cron 的 1.5s deadline，再启动 Host timer，导致声明的
+-    // 4.5s/9s 退出总预算被串行放大。两类 owner 无关闭依赖，统一并行进入同一屏障。
+     (async () => {
+       try {
+         await cronSchedulerToDispose?.dispose();
+@@ -1233,21 +685,9 @@ async function prepareAppQuit(reason: string, kind: AppShutdownKind = "normal"):
+         logger.warn(`[app-quit] cron scheduler dispose failed (${reason}):`, error);
+       }
+     })(),
+-    // remote session、attachment 和 transport 都由窗口 Host 持有；这里先清理
+-    // Main 的请求关联，再由下方每窗口唯一 Host 的 shutdown barrier 释放真实连接与 Agent。
+-    remoteSessionManager.disposeAllAndWaitForAppShutdown(reason),
+-    ...hostProcesses.map((child, index) =>
+-      disposeHostProcessAndWait(
+-        child,
+-        `${reason}-${index + 1}`,
+-        disposingHostProcessTimers,
+-        logger,
+-        {
+-          forceKillDelayMs: activeAppShutdownPolicy.forceKillDelayMs,
+-          waitTimeoutMs: activeAppShutdownPolicy.waitTimeoutMs,
+-        },
+-      ),
+-    ),
++    (async () => {
++      disposeBridgeHostProcess(reason);
++    })(),
+   ])
+     .then(() => {
+       logger.info(`[app-quit] host process cleanup completed (${reason})`);
+@@ -1294,7 +734,8 @@ function exitPreparedApp(reason: string): never | void {
+ }
+ 
+ function getRunningAgentSessionCount() {
+-  return [...hostRunningTaskCountMap.values()].reduce((total, count) => total + count, 0);
++  // 换宿主：运行中任务计数随 utilityProcess 宿主废弃；桥侧计数随 v4 §2 桥映射接入。
++  return 0;
+ }
+ 
+ function delay(ms: number): Promise<void> {
+@@ -1561,9 +1002,6 @@ async function resolveZCodeEndpointSelection(): Promise<"production" | "test" |
+ 
+ async function handleZCodeEndpointChanged() {
+   rebuildMenu();
+-  for (const win of getApplicationWindowsExcludingCuaIndicator()) {
+-    await webRemoteControlManagerRef.current?.suspend(win.id, "endpoint-changed");
+-  }
+ }
+ 
+ /** 快捷键设置页录制态（renderer 经 SetShortcutRecordingActive 同步）；true 时菜单摘除可配置 accelerator。 */
+@@ -1628,9 +1066,7 @@ function resolveFocusedDesktopZoomLevel(): number {
+ }
+ 
+ function getApplicationWindowsExcludingCuaIndicator(): BrowserWindow[] {
+-  return BrowserWindow.getAllWindows().filter(
+-    (win) => !win.isDestroyed() && !windowsCuaOperationIndicator.ownsWindow(win),
+-  );
++  return BrowserWindow.getAllWindows().filter((win) => !win.isDestroyed());
+ }
+ 
+ function getMainApplicationWindows(): BrowserWindow[] {
+@@ -1848,7 +1284,6 @@ function openUpdateStatusWindow() {
+ }
+ 
+ function createWindowInstance(startupBootstrap: StartupWindowBootstrap = {}) {
+-  const runtimeProcessEnvPreparation = takeRuntimeProcessEnvPreparation();
+   const win = createWindow({
+     iconPath,
+     preloadPath,
+@@ -1878,163 +1313,45 @@ function createWindowInstance(startupBootstrap: StartupWindowBootstrap = {}) {
+         },
+         hideWindow: () => win.hide(),
+       }),
+-    windowHostProcessMap,
+-    onHostProcessReady: (windowKey) => cuaPipFocusRouter.refreshWindow(windowKey),
+-    awaitFirstHostSpawnDecision,
+-    spawnHostProcess: (win, label, initMessage) =>
+-      spawnHostProcess(
+-        win,
+-        label,
+-        {
+-          ...initMessage,
+-          zcodeBuiltinProviderConfigFilePath: resolveZCodeBuiltinProviderConfigFilePath(),
+-        },
+-        {
+-          hostProcessLocalEnv,
+-          desktopContextPromptEnabled: resolveDesktopContextPromptEnabledForHost,
+-          logger,
+-          broadcastHub,
+-          taskRealtimeBus,
+-          windowHostProcessMap,
+-          hostRunningTaskCountMap,
+-          onCuaOperationStateChanged: (source, event) =>
+-            windowsCuaOperationIndicator.handleState(source, event),
+-          onCuaOperationStateSourceExited: (source) =>
+-            windowsCuaOperationIndicator.clearSource(source),
+-          onAgentProcessExited: (event) => reportAgentProcessExitToArms(event, logger),
+-          onAgentProcessError: (event) => reportAgentProcessSpawnErrorToArms(event, logger),
+-          onAgentProcessException: (event) => reportAgentProcessExceptionToArms(event, logger),
+-          onAgentProcessReady: (event) => reportAgentProcessReadyToArms(event, logger),
+-          onAgentProcessSpawned: (event) => reportAgentProcessStartToArms(event, logger),
+-          onMcpTelemetry: (message) =>
+-            reportMcpTelemetryToArms(message.event, message.runtimeSurface),
+-          onPluginTelemetry: (message) => {
+-            void appTelemetryCore.reportEvent(message.event).catch(() => {});
+-          },
+-          onSessionCreateTelemetry: (message) => {
+-            void appTelemetryCore.reportEvent(message.event).catch(() => {});
+-          },
+-          onCronRunResult: forwardCronRunResult,
+-          onOffPeakRunResult: forwardOffPeakRunResult,
+-          onCronSchedulerWakeRequested: wakeCronScheduler,
+-          onOffPeakSchedulerWakeRequested: wakeOffPeakScheduler,
+-          authorizeLocalMediaPreviewPath: localMediaPreviewPathRegistry.authorize,
+-          registerPluginSandbox: (input) => {
+-            const host = getPluginSandboxHost();
+-            if (!host) throw new Error("Plugin UI sandbox host is not installed.");
+-            const { requestId: _requestId, ...registerInput } = input;
+-            return host.registerFromHost(registerInput);
+-          },
+-          // browser-use：main 用 WebContentsView+CDP 执行命令（替换 T4 占位）。
+-          handleBrowserExecuteRequest: ({ win: browserWin, ...request }) =>
+-            runBrowserCommandOnView({ win: browserWin, ...request }),
+-        },
+-        {
+-          taskRealtime: {
+-            workspaceKeys: windowWorkspaceMap.get(win.id) ?? [],
+-            onHostId: (hostId) => {
+-              windowTaskRealtimeHostIdMap.set(win.id, hostId);
+-            },
+-          },
+-        },
+-      ),
+-    disposeHostProcess: (child, label, forceKillDelayMs) =>
+-      disposeHostProcess(
+-        child,
+-        label,
+-        disposingHostProcessTimers,
+-        logger,
+-        label.includes("window-closed")
+-          ? activeAppShutdownPolicy.forceKillDelayMs
+-          : forceKillDelayMs,
+-      ),
+     syncAutoUpdaterStateToWindow,
+     syncReadyUpdateToWindow,
+     syncPostUpdateReleaseNotesToWindow,
+-    webRemoteControlManager,
+-    disposeRemoteWorkspaceSessionsForWindow:
+-      remoteSessionManager.disposeRemoteWorkspaceSessionsForWindow,
+-    reattachRemoteWorkspaceSessionsForWindow:
+-      remoteSessionManager.reattachRemoteWorkspaceSessionsForWindow,
+     bootstrap: {
+       restoreSession: startupBootstrap.restoreSession,
+       initialWorkspacePath: startupBootstrap.initialWorkspacePath,
+       initialWorkspacePurpose: startupBootstrap.initialWorkspacePurpose,
+       unavailableWorkspacePath: startupBootstrap.unavailableWorkspacePath,
+     },
+-    agentWarmupTargets: startupBootstrap.agentWarmupTargets,
+-    // startupBootstrap 只标记 active workspace 是否不可用，但 local Host 会为所有
+-    // 已恢复 workspace 建立后台索引。始终注入 canonical fallback，才能覆盖非 active 历史目录已删除的情况。
+-    agentSpawnFallbackCwd: getConversationWorkspaceDir(),
+     deviceMid,
+-    remoteAssets: resolveRemoteAssetDirs({ locale: currentApplicationLocale }, hostProcessLocalEnv),
+-    runtimeProcessEnvPatchPromise: runtimeProcessEnvPreparation.patchPromise,
+-    runtimeProcessEnvFallbackPatch: runtimeProcessEnvPreparation.fallbackPatch,
+     initialDesktopZoomLevel: currentDesktopZoomLevel,
+     initialWindowSize: currentDesktopWindowSize,
+     currentApplicationLocale: () => currentApplicationLocale,
+-    resolveBrowserViewOwner: (webContentsId) =>
+-      browserGuestManager.getTabOwnerByWebContentsId(webContentsId) ?? undefined,
++    resolveBrowserViewOwner: (webContentsId) => {
++      const owner = browserGuestManager.getTabOwnerByWebContentsId(webContentsId);
++      if (!owner) return undefined;
++      return {
++        workspaceKey: owner.workspaceKey,
++        ...(owner.remoteSessionId ? { remoteSessionId: owner.remoteSessionId } : {}),
++        sessionId: owner.sessionId,
++        browserId: owner.browserId,
++        browserGeneration: owner.browserGeneration,
++        tabId: owner.tabId,
++      };
++    },
+     persistWindowSize: async (state) => {
+       currentDesktopWindowSize = state;
+       await mainSettingService.update({ desktopWindowSize: state });
+     },
+   });
+-  registerStabilityMainWindow(win);
+   return win;
+ }
+ 
+-registerDeepLinkProtocol(logger, { iconPath: linuxDesktopIntegrationIconPath });
+-app.on("open-url", (event, url) => {
+-  event.preventDefault();
+-  const workspacePath = extractOpenWorkspacePathFromDeepLinkUrl(url);
+-  if (workspacePath && forceUpdateMainWindowCreationBlocked) {
+-    logger.warn("[force-update] 已忽略强制升级期间的 open-url workspace 请求");
+-    focusForceUpdateGateWindow();
+-    return;
+-  }
+-  if (workspacePath && getApplicationWindowsExcludingCuaIndicator().length === 0) {
+-    // macOS 冷启动 Finder Service 会先触发 open-url，再创建首窗。
+-    // 把目标目录按 deep link 来源记录，首窗 bootstrap 前仍要走确认 gate。
+-    startupOpenWorkspaceRequest = { path: workspacePath, source: "deep-link" };
+-    if (app.isReady()) {
+-      void primaryWindowCoordinator.ensurePrimaryWindow("open-url-workspace");
+-    }
+-    return;
+-  }
+-  handleDeepLink(url, logger, {
+-    confirmationCopy: resolveExternalWorkspaceConfirmationCopy(),
+-    resolveApplicationWindow: () => getApplicationWindowsExcludingCuaIndicator()[0] ?? null,
+-  });
+-});
+-const gotTheLock = app.requestSingleInstanceLock(createDeepLinkSingleInstanceData(process.argv));
++// 砍 OAuth/深链（v4 §1.3）：单实例锁仅保留聚焦既有窗口语义。
++const gotTheLock = app.requestSingleInstanceLock();
+ if (!gotTheLock) {
+   app.quit();
+ }
+-app.on("second-instance", (_event, argv, _workingDirectory, additionalData) => {
+-  if (
+-    handleSecondInstanceWorkspaceRequest({
+-      additionalData,
+-      argv,
+-      focusForceUpdateGateWindow,
+-      forceUpdateBlocked: forceUpdateMainWindowCreationBlocked,
+-      handleDeepLink: (url, options) => handleDeepLink(url, logger, options),
+-      handleOpenWorkspacePath: (path, options) =>
+-        handleOpenWorkspacePath(path, logger, {
+-          allowWithoutReadyWindow: true,
+-          ...options,
+-          resolveApplicationWindow:
+-            options?.resolveApplicationWindow ??
+-            (() => getApplicationWindowsExcludingCuaIndicator()[0] ?? null),
+-        }),
+-      resolveApplicationWindow: () => getApplicationWindowsExcludingCuaIndicator()[0] ?? null,
+-      logger,
+-      workspaceConfirmationCopy: resolveExternalWorkspaceConfirmationCopy(),
+-    })
+-  ) {
+-    return;
+-  }
+-
++app.on("second-instance", () => {
+   const win = getApplicationWindowsExcludingCuaIndicator()[0];
+   if (win) {
+     if (win.isMinimized()) {
+@@ -2155,10 +1472,6 @@ app.whenReady().then(async () => {
+   if (!loadedBootstrapLocale) {
+     currentApplicationLocale = resolveSystemApplicationLocale();
+   }
+-  // Electron 的 net.request 只能在 app ready 后使用；灰度请求仍是旁路预热，不阻塞首个 Host。
+-  // 预热曾在读取持久化语言之前启动，X-Client-Language 会带默认语言并进入 1 小时缓存；
+-  // 必须在 currentApplicationLocale 确定之后再启动。
+-  void desktopContextPromptRollout?.refresh();
+   installFinderOpenFolderWorkflow({
+     platform: process.platform,
+     locale: currentApplicationLocale,
+@@ -2208,7 +1521,6 @@ app.whenReady().then(async () => {
+   void initAutoUpdater({
+     enabled: ZCODE_PRODUCT_FLAVOR === "production" && ZCODE_AUTO_UPDATE_ENABLED,
+     onBeforeQuitAndInstall: async () => {
+-      notifyStabilityLifecycle("update_install");
+       await prepareAppQuit("auto-update quitAndInstall", "update-install");
+       if (process.platform === "win32") {
+         await prepareWindowsProcessesForUpdateInstall();
+@@ -2265,10 +1577,6 @@ app.whenReady().then(async () => {
+     const capability = await closeToTrayCapabilityMonitor.refresh();
+     if (capability.supported) {
+       desktopTrayReady = createDesktopTray({ ...desktopTrayOptions, platform: "linux" }) !== null;
+-      // 托盘补建成功时回放当前未读数：创建前已有的未读不能等到下一次计数变化才出现在红点上。
+-      if (desktopTrayReady) {
+-        syncApplicationUnreadBadge(windowUnreadCountMap);
+-      }
+     }
+   };
+   if (process.platform === "linux") {
+@@ -2277,6 +1585,30 @@ app.whenReady().then(async () => {
+     });
+   }
+ 
++  // 功能 #28 桌宠：模块随壳启动（enabled=false 不预创建窗口，B28）。
++  let petModule: PetModule | null = null;
++  try {
++    petModule = createPetModule({
++      userDataDir: app.getPath("userData"),
++      logger,
++      isBridgeAlive: isBridgeHostAlive,
++      ensurePrimaryWindow: (reason) => {
++        void primaryWindowCoordinator.ensurePrimaryWindow(reason);
++      },
++      broadcastToRenderers: (channel, payload) => {
++        for (const win of getApplicationWindowsExcludingCuaIndicator()) {
++          win.webContents.send(channel, payload);
++        }
++      },
++    });
++    app.once("will-quit", () => {
++      petModule?.dispose();
++      petModule = null;
++    });
++  } catch (error) {
++    logger.warn("[pet] module init failed; desktop pet disabled this run:", error);
++  }
++
+   registerPlatformIpcHandlers({
+     fetchHelpConfig: readHelpConfig,
+     logger,
+@@ -2288,8 +1620,8 @@ app.whenReady().then(async () => {
+       }
+       return result;
+     },
+-    updateBrowserGuestViewport: (tabId, viewport, windowId) =>
+-      browserGuestManager.updateViewportFromRenderer(tabId, viewport, windowId),
++    updateBrowserGuestViewport: (tabId, viewport, windowId, desktopZoomFactor) =>
++      browserGuestManager.updateViewportFromRenderer(tabId, viewport, windowId, desktopZoomFactor),
+     reportBrowserScreenshotSurfaceReady: (windowId, senderWebContentsId, payload) => {
+       logger.debug("[browser-screenshot-surface] renderer ready", {
+         windowId,
+@@ -2318,11 +1650,6 @@ app.whenReady().then(async () => {
+     },
+     applyApplicationLocale: async (locale) => {
+       currentApplicationLocale = locale;
+-      // Host 的 ZCode endpoint 请求以此为实时语言；setting.json 写入可能滞后或失败，不能作为来源。
+-      for (const child of windowHostProcessMap.values()) {
+-        child.postMessage({ type: HostMessageTypes.ApplicationLocaleChanged, locale });
+-      }
+-      windowsCuaOperationIndicator.refreshContent();
+       rebuildMenu();
+       for (const win of getApplicationWindowsExcludingCuaIndicator()) {
+         if (!win.isDestroyed()) {
+@@ -2363,14 +1690,7 @@ app.whenReady().then(async () => {
+     executeDesktopCommand: executeDesktopCommandForApp,
+     acknowledgePostUpdateReleaseNotes: (version) =>
+       acknowledgePostUpdateReleaseNotes(version, mainSettingService),
+-    syncActiveTaskSession: (windowId, sessionId) =>
+-      cuaPipFocusRouter.updateActiveSession(windowId, sessionId),
+-    syncTaskRealtimeWorkspaceKeys: (windowId, workspaceKeys) => {
+-      const hostId = windowTaskRealtimeHostIdMap.get(windowId);
+-      if (hostId) {
+-        taskRealtimeBus.updateHostWorkspaceKeys(hostId, workspaceKeys);
+-      }
+-    },
++
+     getUpdateState: getAutoUpdaterState,
+     openUpdateStatusWindow,
+     getAutoUpdatePreferences,
+@@ -2378,11 +1698,15 @@ app.whenReady().then(async () => {
+     getDesktopSessionActivity: () => ({
+       runningAgentSessionCount: getRunningAgentSessionCount(),
+     }),
+-    syncWebRemoteControlWorkspaces: (windowId, workspaces) => {
+-      webRemoteControlManager.syncAvailableWorkspaces(windowId, workspaces);
+-      void webRemoteControlManager.restorePreviouslyEnabled(windowId, workspaces);
+-    },
+-    syncAppSettings: syncImmediateAppSettings,
++    // 功能 #28 桌宠：设置面读写与运行事件转发（模块初始化失败时为 null，面自动降级）。
++    petModule: petModule
++      ? {
++          getStatus: () => petModule!.getStatus(),
++          updateConfig: (patch) => petModule!.updateConfig(patch),
++          reportRunEvent: (event) => petModule!.reportRunEvent(event),
++        }
++      : undefined,
++    syncAppSettings: (patch) => syncImmediateAppSettings(patch as Partial<AppSettings>),
+     // 设置页置灰查询：monitor 带 stale 缓存，装完 AppIndicator 扩展重开设置页即可刷新。
+     // 设置页置灰查询：先确保托盘实例就绪（用户装扩展后首次查询会补建），再返回合并了
+     // trayReady 的最终能力，避免设置页显示可开启但关窗实际走确认退出的不一致（CR-01）。
+@@ -2402,116 +1726,6 @@ app.whenReady().then(async () => {
+     deviceMid,
+   });
+ 
+-  disposeRendererActionTraceIpc = registerRendererActionTraceIpc({
+-    rollout: rendererActionTraceRollout,
+-    broker: rendererActionTraceBroker,
+-    env: process.env,
+-    logger,
+-  });
+-
+-  registerRemoteIpcHandlers({
+-    logger,
+-    appTelemetryRuntime,
+-    onOAuthCallbackHandledSideEffect: () => {
+-      void armsUserIdentitySync.refresh();
+-    },
+-    appTelemetryCore,
+-    reportRemoteUsageEvent: reportRemoteUsageEventForRenderer,
+-    armsCustomContext: {
+-      deviceMid,
+-      platform: process.platform,
+-      appVersion: ZCODE_VERSION,
+-      armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
+-    },
+-    finalArmsCustomEventE2EEnabled: shouldEnableE2ETestBridge(process.env),
+-    webRemoteControlManager,
+-    createRemoteWorkspaceSession: remoteSessionManager.createRemoteWorkspaceSession,
+-    getRemoteConnectionStats: remoteSessionManager.getRemoteConnectionStats,
+-    disposeRemoteWorkspaceSession: remoteSessionManager.disposeRemoteWorkspaceSession,
+-    cancelPendingRemoteWorkspaceSessionsForWindow:
+-      remoteSessionManager.cancelPendingRemoteWorkspaceSessionsForWindow,
+-    bindRemoteWorkspaceSessionContext: remoteSessionManager.bindRemoteWorkspaceSessionContext,
+-    confirmRendererAttachmentReady: remoteSessionManager.confirmRendererAttachmentReady,
+-    attachSourceSettings: (sender, sourceServerId) => {
+-      const child = windowHostProcessMap.get(sender.id);
+-      if (!child) throw new Error("Desktop Window Host is unavailable");
+-      const { port1, port2 } = new MessageChannelMain();
+-      const attachmentId = `source-settings-${randomUUID()}`;
+-      child.postMessage(
+-        {
+-          type: HostMessageTypes.AttachServicePort,
+-          requestId: randomUUID(),
+-          attachmentId,
+-          clientMode: "desktop-continuous",
+-          scope: { kind: "source-settings", sourceServerId },
+-        },
+-        [port2],
+-      );
+-      sender.postMessage(
+-        InternalChannels.SourceSettingsServicePort,
+-        { attachmentId, sourceServerId },
+-        [port1],
+-      );
+-      return { attachmentId };
+-    },
+-    isDockerDaemonAvailable,
+-    listAvailableWSLDistros,
+-    listAvailableDockerContainers,
+-    listSSHConfigAliases,
+-  });
+-
+-  // 等待 ARMS 完成 init（含渲染进程注入监听），避免首窗 dom-ready 早于 SDK 注册导致无上报
+-  await armsInitPromise;
+-
+-  // ARMS init 完成后首次写入 user.name（落 device_mid）
+-  void armsUserIdentitySync.refresh();
+-
+-  configureDesktopStabilityTelemetry({
+-    deviceMid,
+-    platform: process.platform,
+-    appVersion: ZCODE_VERSION,
+-    armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
+-  });
+-  configureDesktopResourceTelemetry({
+-    deviceMid,
+-    platform: process.platform,
+-    appVersion: ZCODE_VERSION,
+-    armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
+-  });
+-  configureDesktopMcpTelemetry({
+-    deviceMid,
+-    appVersion: ZCODE_VERSION,
+-    armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
+-  });
+-  configureDesktopNetworkTelemetry({
+-    deviceMid,
+-    platform: process.platform,
+-    appVersion: ZCODE_VERSION,
+-    armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
+-  });
+-  registerDesktopStabilityMonitors(logger, crashCapturePaths);
+-  registerDesktopResourceTelemetry(logger);
+-  // 主窗口 renderer 的 60 秒 heap 样本入口；随 App 生命周期常驻，只注册一次。
+-  registerRendererHeapSampleIpc();
+-  const defaultDataBaseDir = process.env.HOME?.trim() || homedir();
+-  registerDesktopZCodeDataSizeTelemetry({
+-    context: {
+-      appVersion: ZCODE_VERSION,
+-      armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
+-      dataRootKind:
+-        resolve(getDataBaseDir()) === resolve(defaultDataBaseDir) ? "default" : "custom",
+-      deviceMid,
+-      platform: process.platform,
+-    },
+-    getSystemIdleTimeSeconds: () => powerMonitor.getSystemIdleTime(),
+-    isAppBackground: () => resolveResourceUsageScene() === "background",
+-    isZCodeBusy: () => getRunningAgentSessionCount() > 0,
+-    logger,
+-    rootPath: getZCodeDataRootDir(),
+-    stateFile: join(app.getPath("userData"), "zcode-data-size-telemetry.json"),
+-  });
+-  registerDesktopNetworkTelemetry(logger);
+-
+   // 本地未打包 dev 构建（app.isPackaged === false）必须跳过远端强制升级 gate。
+   // 原因：force-update gate 只看 ZCODE_ENV === "production"，但 dev 构建（如 dev:desktop:cua
+   // 连真实后端测 computer use）虽指向 production 后端，版本号却滞后于线上 release（feature
+@@ -2543,9 +1757,6 @@ app.whenReady().then(async () => {
+   await primaryWindowCoordinator.ensurePrimaryWindow("app-ready");
+ 
+   const primaryWindow = getApplicationWindowsExcludingCuaIndicator()[0];
+-  if (primaryWindow) {
+-    scheduleReportPerfAppStartAfterMainViewReady(primaryWindow.webContents, logger);
+-  }
+ 
+   // 启动后检测 CPU 架构是否匹配（如 Apple 芯片误装 x64 版本经 Rosetta 转译运行），
+   // 命中后异步弹框提示安装原生架构版本，不阻塞主界面。
+@@ -2558,13 +1769,6 @@ app.whenReady().then(async () => {
+     logger.warn("[architecture] 架构检测弹框失败:", error);
+   });
+ 
+-  const protocolUrl = extractDeepLinkUrlFromArgs(process.argv);
+-  if (protocolUrl && startupDeepLinkConsumptionGate.shouldHandleReadyProtocolUrl(protocolUrl)) {
+-    handleDeepLink(protocolUrl, logger, {
+-      confirmationCopy: resolveExternalWorkspaceConfirmationCopy(),
+-      resolveApplicationWindow: () => getApplicationWindowsExcludingCuaIndicator()[0] ?? null,
+-    });
+-  }
+ });
+ 
+ app.on("browser-window-created", (_, win) => {
+@@ -2573,14 +1777,12 @@ app.on("browser-window-created", (_, win) => {
+     browserScreenshotSurfaceCoordinator.handleWindowDestroyed(win.id);
+     browserGuestManager.closeWindow(win.id);
+     windowWorkspaceMap.delete(win.id);
+-    windowTaskRealtimeHostIdMap.delete(win.id);
+     if (windowUnreadCountMap.delete(win.id)) {
+       syncApplicationUnreadBadge(windowUnreadCountMap);
+     }
+     // Electron 进入 closed 回调时，win.webContents 可能已经被销毁。
+     // 之前这里现取 win.webContents.id，会在关窗收尾阶段抛出 "Object has been destroyed"。
+     // 改为在窗口创建时缓存 webContents id，确保清理 OAuth 路由时不再访问已销毁对象。
+-    clearOAuthRoutesForWindow(windowWebContentsId);
+     // 录制中关窗/崩溃时 renderer 不会发复位 IPC，这里按发起 webContents 复位录制态，
+     // 防止菜单 accelerator 被永久摘除。
+     resetShortcutRecordingForWebContents(windowWebContentsId);
+diff --git a/packages/desktop/src/main/openInEditor.ts b/packages/desktop/src/main/openInEditor.ts
+index 5af130fb..8fbbb977 100644
+--- a/packages/desktop/src/main/openInEditor.ts
++++ b/packages/desktop/src/main/openInEditor.ts
+@@ -4,7 +4,29 @@ import { execFile, spawn } from "node:child_process";
+ import { statSync } from "node:fs";
+ import { shell } from "electron";
+ import type { OpenInEditorOptions, OpenInEditorRemoteTarget } from "@zcode/shared";
+-import { listWSLDistros } from "@zcode/server/remote/wsl-detect.js";
++// 砍 @zcode/server（v4 §1.3）：本地 wsl.exe 探测替代 server 包实现（仅默认 distro 兜底）。
++async function listWSLDistros(): Promise<Array<{ name: string; isDefault: boolean }>> {
++  const { execFile } = await import("node:child_process");
++  return await new Promise((resolveList) => {
++    execFile("wsl.exe", ["--list", "--verbose"], { windowsHide: true }, (error, stdout) => {
++      if (error) {
++        resolveList([]);
++        return;
++      }
++      const text = Buffer.from(stdout, "utf16le").toString("utf-8");
++      const lines = text.split(/\r?\n/).slice(1);
++      const distros = lines
++        .map((line) => line.trim())
++        .filter((line) => line.length > 0)
++        .map((line) => ({
++          name: line.replace(/^\*\s+/, "").split(/\s{2,}/)[0] ?? "",
++          isDefault: line.startsWith("*"),
++        }))
++        .filter((distro) => distro.name.length > 0);
++      resolveList(distros);
++    });
++  });
++}
+ import { getEditorDefsForCurrentPlatform, resolveEditorDefAppPath } from "./editors.js";
+ import { logger } from "./logger.js";
+ import {
+diff --git a/packages/desktop/src/main/pluginSandbox/host.ts b/packages/desktop/src/main/pluginSandbox/host.ts
+index 7e718f29..29811ba1 100644
+--- a/packages/desktop/src/main/pluginSandbox/host.ts
++++ b/packages/desktop/src/main/pluginSandbox/host.ts
+@@ -160,7 +160,7 @@ export function installPluginSandboxHost(input: {
+     registry,
+     async prompt({ record, permissions: pending }) {
+       const text = formatPluginSandboxPermissionDialogText(
+-        { serverName: record.serverName ?? "ZCode Gen UI", permissions: pending },
++        { serverName: record.serverName ?? "Juscite Gen UI", permissions: pending },
+         resolveLocale(),
+       );
+       const owner = electronWebContents.fromId(record.ownerWebContentsId);
+diff --git a/packages/desktop/src/main/pluginSandbox/permissionGate.ts b/packages/desktop/src/main/pluginSandbox/permissionGate.ts
+index d44fc4d0..f0c2a40b 100644
+--- a/packages/desktop/src/main/pluginSandbox/permissionGate.ts
++++ b/packages/desktop/src/main/pluginSandbox/permissionGate.ts
+@@ -109,7 +109,7 @@ export function createPluginSandboxPermissionGate(deps: {
+               allowed = allowed && valid();
+               deps.logger?.info?.("[plugin-sandbox] permission prompt settled", {
+                 sandboxId: record.sandboxId,
+-                serverName: record.serverName ?? "ZCode Gen UI",
++                serverName: record.serverName ?? "Juscite Gen UI",
+                 permissions: pending,
+                 allowed,
+               });
+diff --git a/packages/desktop/src/main/pluginSandbox/permissions.ts b/packages/desktop/src/main/pluginSandbox/permissions.ts
+index 21583fe8..5b41b0df 100644
+--- a/packages/desktop/src/main/pluginSandbox/permissions.ts
++++ b/packages/desktop/src/main/pluginSandbox/permissions.ts
+@@ -115,7 +115,7 @@ export function formatPluginSandboxPermissionDialogText(
+       title: "应用权限请求",
+       message: `「${input.serverName}」的应用请求使用${list}`,
+       detail:
+-        "该页面运行在 ZCode 的沙箱中。允许后，本次运行期间这个 MCP server 的应用可继续使用这些权限；重启桌面端后会再次询问。",
++        "该页面运行在 Juscite 的沙箱中。允许后，本次运行期间这个 MCP server 的应用可继续使用这些权限；重启桌面端后会再次询问。",
+       allowButton: "允许",
+       denyButton: "拒绝",
+     };
+@@ -125,7 +125,7 @@ export function formatPluginSandboxPermissionDialogText(
+     title: "App permission request",
+     message: `The "${input.serverName}" app wants to use your ${list}`,
+     detail:
+-      "This page runs in the ZCode sandbox. If you allow it, apps from this MCP server can keep using these permissions until ZCode restarts.",
++      "This page runs in the Juscite sandbox. If you allow it, apps from this MCP server can keep using these permissions until Juscite restarts.",
+     allowButton: "Allow",
+     denyButton: "Deny",
+   };
+diff --git a/packages/desktop/src/main/resourceManagerStorage.ts b/packages/desktop/src/main/resourceManagerStorage.ts
+index 825589ef..04c52d08 100644
+--- a/packages/desktop/src/main/resourceManagerStorage.ts
++++ b/packages/desktop/src/main/resourceManagerStorage.ts
+@@ -13,8 +13,9 @@ import {
+   createStorageRootsResolver,
+   createStorageService,
+   getDataBaseDir,
+-  type IStorageService,
+ } from "@zcode/services/node";
++
++type IStorageService = ReturnType<typeof createStorageService>;
+ import { logger } from "./logger.js";
+ import { createStorageScanWorkerRunner } from "./storageScanWorkerClient.js";
+ 
+diff --git a/packages/desktop/src/main/storageScanWorker.ts b/packages/desktop/src/main/storageScanWorker.ts
+index 7400d174..fba84dc8 100644
+--- a/packages/desktop/src/main/storageScanWorker.ts
++++ b/packages/desktop/src/main/storageScanWorker.ts
+@@ -4,7 +4,7 @@
+  * 遍历、分类、聚合逻辑全部来自 @zcode/services（单一扫描路径）。
+  */
+ import { isMainThread, parentPort, workerData } from "node:worker_threads";
+-import type { StorageRootSpec } from "@zcode/services";
++import type { StorageRootSpec } from "@zcode/shared";
+ import { runStorageScan } from "@zcode/services/node";
+ import {
+   isStorageScanWorkerCommand,
+diff --git a/packages/desktop/src/main/storageScanWorkerProtocol.ts b/packages/desktop/src/main/storageScanWorkerProtocol.ts
+index 749d251f..1f44390b 100644
+--- a/packages/desktop/src/main/storageScanWorkerProtocol.ts
++++ b/packages/desktop/src/main/storageScanWorkerProtocol.ts
+@@ -1,4 +1,4 @@
+-import type { StorageRootSpec } from "@zcode/services";
++import type { StorageRootSpec } from "@zcode/shared";
+ import type { StorageScanProgress } from "@zcode/services/node";
+ 
+ export interface StorageScanWorkerData {

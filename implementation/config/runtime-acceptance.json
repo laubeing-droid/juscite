@@ -1,0 +1,16 @@
+{
+  "runtime_version": "2.0.28",
+  "not_opencode_configuration": true,
+  "purpose": "Acceptance requirements, not invented CLI configuration keys",
+  "required": {
+    "separate_service_registration": "JusBench/opencode/service-jusbench.json",
+    "separate_data_state_config_cache": true,
+    "authentication": true,
+    "exact_version_on_initial_and_reconnect": true,
+    "event_persistence": "Set events.persist=true at the verified service composition; actual CLI config binding must be checked before release",
+    "database": "Verify native service persistence using restart and committed-history readback; SDK default memory is not acceptable",
+    "legal_assets_required_for_s0": false,
+    "s0_not_full_v7_acceptance": true
+  },
+  "runtime_validation": "NOT_RUN"
+}

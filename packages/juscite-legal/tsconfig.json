@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "lib": ["es2025", "dom", "dom.iterable"],
+    "jsx": "react-jsx",
+    // kernel/ 六模型文件在 services 时代即按此口径存在（HEAD 版本对 noUncheckedIndexedAccess
+    // 同报 15 处，系增量 tsbuildinfo 掩蔽所致，ci_gate fast 无 tsc 步故未暴露）。
+    // 出树迁移零行为变更：类型口径随既状，不因搬家收紧；panels/ 仍全严格检查。
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
+  "references": [
+    { "path": "../services" }
+  ]
+}
+

@@ -1,0 +1,14 @@
+packages:
+  - packages/*
+  - tools/mock_host
+  - tools/bridge
+supportedArchitectures:
+  os:
+    - current
+    - darwin
+    - linux
+    - win32
+  cpu:
+    - current
+    - x64
+    - arm64

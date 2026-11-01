@@ -1,0 +1,423 @@
+diff --git a/packages/client/src/globals.d.ts b/packages/client/src/globals.d.ts
+index 55047b90..488cbf29 100644
+--- a/packages/client/src/globals.d.ts
++++ b/packages/client/src/globals.d.ts
+@@ -163,6 +163,16 @@ declare global {
+       syncAppSettings?(patch: Partial<AppSettings>): void;
+       /** 查询关闭驻留托盘能力（Linux 置灰判断；spec：docs/desktop/linux-close-to-tray.md） */
+       getCloseToTrayCapability?(): Promise<import("@zcode/shared").DesktopCloseToTrayCapability>;
++      /** 功能 #28 桌宠：查询全量状态（配置+运行态+几何） */
++      getPetStatus?(): Promise<import("@zcode/shared").PetStatusPayload>;
++      /** 功能 #28 桌宠：更新配置（设置面五控件），回吐全量状态 */
++      updatePetConfig?(
++        patch: import("@zcode/shared").PetConfigPatch,
++      ): Promise<import("@zcode/shared").PetStatusPayload>;
++      /** 功能 #28 桌宠：订阅状态广播（pet://status），返回 disposer */
++      onPetStatus?(handler: (status: import("@zcode/shared").PetStatusPayload) => void): () => void;
++      /** 功能 #28 桌宠：主渲染层把 sessions-index 边沿投影转发给桌宠（驱动流 1） */
++      reportPetRunEvent?(event: import("@zcode/shared").PetRunEventPayload): void;
+       /** 注册 main 进程要求聚焦指定 workspace tab 的回调，返回 disposer */
+       onFocusTab(handler: (path: string) => void): () => void;
+       /** 注册 main 进程触发新建 tab 的回调，返回 disposer */
+diff --git a/packages/services/src/skills/skills.ts b/packages/services/src/skills/skills.ts
+index c1326b14..1a911bea 100644
+--- a/packages/services/src/skills/skills.ts
++++ b/packages/services/src/skills/skills.ts
+@@ -43,6 +43,15 @@ export interface ISkillsService {
+     workspaceIdentity?: string;
+     skillId: string;
+   }): Promise<void>;
++  /**
++   * 功能 #21 技能 zip 安装（RE-21；fork 扩展可选方法——上游 ZCode 无此方法）。
++   * 兼容双格式：cat/agent-skills 形（SKILL.md YAML frontmatter）与 SkillHub 形
++   * （skill.json / SKILL.md，根级或单层子目录）。
++   */
++  installSkillArchive?(params: {
++    archiveBase64: string;
++    filename?: string;
++  }): Promise<{ name: string; format: string; path: string }>;
+ }
+ 
+ export const ISkillsService = createServiceDescriptor<ISkillsService>(ServiceChannels.Skills);
+diff --git a/packages/services/src/zcode-agent/zcodeAgent.ts b/packages/services/src/zcode-agent/zcodeAgent.ts
+index ea141344..cfae7545 100644
+--- a/packages/services/src/zcode-agent/zcodeAgent.ts
++++ b/packages/services/src/zcode-agent/zcodeAgent.ts
+@@ -618,6 +618,330 @@ export interface ZCodeAgentStorageStartupSnapshot {
+ }
+ 
+ export interface IZCodeAgentService {
++  /**
++   * 功能 #15 案内文档全文搜（RE-15；fork 扩展可选方法——上游 ZCode 无此方法，
++   * 合成桥以 SQLite FTS5 实现，mock host 等其它实现方可不提供）。
++   */
++  searchSessionDocuments?(params: {
++    workspacePath: string;
++    workspaceIdentity?: string;
++    sessionId: string;
++    query: string;
++    limit?: number;
++  }): Promise<{
++    mode: "fts" | "like" | "empty";
++    results: Array<{ chunkId: string; kind: string; sourceLabel: string; text: string; createdAt: number }>;
++  }>;
++  /**
++   * 功能 #25 文档对比（施工单-03 任务四；fork 扩展可选方法——上游 ZCode 无此方法，
++   * 合成桥以 materials/ 目录为材料通道、确定性行 diff 产增/删/改清单，其它实现方可不提供）。
++   */
++  listWorkspaceDocuments?(params: {
++    workspacePath: string;
++  }): Promise<{
++    dir: string;
++    documents: Array<{ name: string; kind: "text" | "word"; size: number; updatedAt: number }>;
++  }>;
++  compareDocuments?(params: {
++    workspacePath: string;
++    leftName: string;
++    rightName: string;
++  }): Promise<{
++    left: { name: string; text: string };
++    right: { name: string; text: string };
++    hunks: Array<{
++      type: "add" | "del" | "mod";
++      aStart: number; aCount: number;
++      bStart: number; bCount: number;
++      oldText: string; newText: string;
++    }>;
++    stats: { added: number; deleted: number; modified: number; unchangedOld: number; unchangedNew: number };
++  }>;
++  /**
++   * 功能 #11 Word 红线改稿（施工单-03 任务一；fork 扩展可选方法——上游 ZCode 无此方法，
++   * 合成桥以 oc28 会话通道出稿、SQLite 留存记录与决定，其它实现方可不提供）。
++   */
++  redlineRevise?(params: {
++    workspacePath: string;
++    materialName: string;
++    instruction: string;
++  }): Promise<{ revisionId: string; status: "revising" }>;
++  redlineGet?(params: {
++    workspacePath: string;
++    revisionId: string;
++  }): Promise<{
++    revision: {
++      revisionId: string;
++      materialName: string;
++      instruction: string;
++      status: "revising" | "ready" | "failed" | "finalized";
++      originalText: string;
++      revisedText: string;
++      finalText: string | null;
++      finalPath: string | null;
++      error: string | null;
++      createdAt: number;
++      updatedAt: number;
++    };
++    items: Array<{
++      itemIdx: number;
++      type: "add" | "del" | "mod";
++      aStart: number; aCount: number;
++      bStart: number; bCount: number;
++      oldText: string; newText: string;
++      decision: "pending" | "accepted" | "rejected";
++    }>;
++  }>;
++  redlineList?(params: {
++    workspacePath: string;
++  }): Promise<{
++    revisions: Array<{
++      revisionId: string; materialName: string;
++      status: "revising" | "ready" | "failed" | "finalized";
++      itemCount: number; decidedCount: number; createdAt: number;
++    }>;
++  }>;
++  redlineDecide?(params: {
++    workspacePath: string;
++    revisionId: string;
++    itemIdx: number;
++    decision: "accepted" | "rejected" | "pending";
++  }): Promise<{
++    revision: {
++      revisionId: string;
++      status: "revising" | "ready" | "failed" | "finalized";
++      finalText: string | null;
++      finalPath: string | null;
++      error: string | null;
++    };
++    items: Array<{
++      itemIdx: number;
++      type: "add" | "del" | "mod";
++      decision: "pending" | "accepted" | "rejected";
++    }>;
++  }>;
++  redlineFinalize?(params: {
++    workspacePath: string;
++    revisionId: string;
++  }): Promise<{ revisionId: string; status: "finalized"; finalPath: string }>;
++  /**
++   * 功能 #19 轻量知识图谱（步骤4·RE-19；fork 扩展可选方法——上游 ZCode 无此方法，
++   * 合成桥以 graph 文档式 JSON 落桥同库 SQLite、写路径全量校验+版本乐观锁，其它实现方可不提供）。
++   */
++  caseGraphGet?(params: {
++    workspacePath: string;
++    workspaceIdentity?: string;
++    caseId: string;
++  }): Promise<
++    | { exists: false; caseId: string }
++    | { exists: true; caseId: string; revision: number; graph: unknown; updatedAt: number }
++  >;
++  caseGraphSave?(params: {
++    workspacePath: string;
++    workspaceIdentity?: string;
++    caseId: string;
++    baseRevision: number;
++    graph: unknown;
++  }): Promise<{ caseId: string; revision: number; updatedAt: string; nodeCount: number; edgeCount: number }>;
++  caseGraphBuildPreview?(params: {
++    workspacePath: string;
++    workspaceIdentity?: string;
++    caseId: string;
++    caseName?: string;
++  }): Promise<{
++    caseId: string;
++    available: boolean;
++    partiesCount: number;
++    materialsCount: number;
++    note: string;
++    proposal: { schemaVersion: number; title: string; nodes: unknown[]; edges: unknown[]; config: unknown; layout: unknown };
++  }>;
++  caseGraphClear?(params: {
++    workspacePath: string;
++    workspaceIdentity?: string;
++    caseId: string;
++    baseRevision: number;
++  }): Promise<{ cleared: boolean; caseId: string }>;
++  caseGraphReadSource?(params: {
++    workspacePath: string;
++    filename: string;
++  }): Promise<{ name: string; text: string; truncated: boolean }>;
++
++  /**
++   * 功能 #29 新手引导与产品指引（RE-29；fork 扩展可选方法——上游 ZCode 无此方法，
++   * 合成桥以 SQLite app_meta 三键+演示台账实现，其它实现方可不提供）。
++   * 四元组：status(pending|completed)/demoChoice(blank|demo|null)/demoImported(台账查证)/
++   * guideStatus(pending|completed|skipped，非法值归一 pending)。
++   */
++  onboardingGet?(): Promise<{
++    status: "pending" | "completed";
++    demoChoice: "blank" | "demo" | null;
++    demoImported: boolean;
++    guideStatus: "pending" | "completed" | "skipped";
++  }>;
++  onboardingComplete?(params: { demo?: boolean; startGuide?: boolean }): Promise<{
++    status: "pending" | "completed";
++    demoChoice: "blank" | "demo" | null;
++    demoImported: boolean;
++    guideStatus: "pending" | "completed" | "skipped";
++  }>;
++  onboardingGuideStatus?(params: { status: "pending" | "completed" | "skipped" }): Promise<{
++    status: "pending" | "completed";
++    demoChoice: "blank" | "demo" | null;
++    demoImported: boolean;
++    guideStatus: "pending" | "completed" | "skipped";
++  }>;
++  /**
++   * 功能 #30 安全审计中心（步骤4·RE-30；fork 扩展可选方法——上游 ZCode 无此方法，
++   * 合成桥以 audit_log 哈希链实现（一次往返同返 rows+chainOk），其它实现方可不提供）。
++   */
++  auditList?(params?: { limit?: number }): Promise<{
++    rows: Array<{
++      id: string;
++      ts: string | null;
++      actor: string | null;
++      action: string;
++      target: string | null;
++      detail: string | null;
++      prev_hash: string | null;
++      hash: string;
++    }>;
++    chainOk: boolean;
++  }>;
++  /** 渲染层追加通道（RE-30 §3.4 等量保留任意写入面；本版渲染层无调用点，通道在即契约在）。 */
++  auditAppend?(entry: Record<string, unknown>): Promise<true>;
++  /**
++   * 功能 #31 支持通道（RE-31 §3；fork 扩展可选方法——上游 ZCode 无此方法）。
++   * supportInfoGet：上传目标解析（env JUSCITE_SUPPORT_OPS_API > ops-config.json > 无=null 降级）。
++   * 工单/诊断线 fetch 无显式超时无重试（A8 等量）；60s 兜底在渲染层（A18 不向桥传取消）。
++   */
++  supportInfoGet?(): Promise<{
++    opsApi: string | null;
++    source: "env" | "file" | "none";
++    supportDir: string;
++    appVersion: string;
++  }>;
++  /**
++   * 提交工单：有 opsApi=POST /support/tickets（body {requester, subject(trim 后), content|""，ticket_key}，
++   * A6 等量）；无配置=降级落盘 %APPDATA%\Juscite\support\ticket-<UTC时间戳>.md（§3.5 Markdown，
++   * E31/E32/E33）。responseTicketKey=服务端回显的 ticket_key（无回显=null，渲染层按加固 1 处理）。
++   */
++  supportTicketCreate?(params: {
++    requester: string; subject: string; content?: string; ticketKey?: string;
++  }): Promise<{
++    mode: "remote" | "local"; ok: true; ticketKey: string;
++    responseTicketKey?: string | null;
++    path?: string; fileName?: string; content?: string; createdAt?: string;
++  }>;
++  /**
++   * 工单列表：有 opsApi=GET /support/tickets?requester=<enc> + x-ticket-key 头（A10 等量，rows 原样
++   * 透传）；无配置=降级本地枚举 ticket-*.md 时间戳倒序（E38，跨桶全域=有意差异）。requester/
++   * ticketKey 缺一抛错（仅 remote 线）。
++   */
++  supportTicketList?(params: {
++    requester: string; ticketKey: string;
++  }): Promise<{
++    mode: "remote" | "local"; ok?: boolean;
++    rows?: Array<{ status?: string; subject?: string; reply?: string }>;
++    error?: string | null;
++  } & {
++    localRows?: Array<{ fileName: string; createdAt: string; subject: string | null; path: string }>;
++  }>;
++  /**
++   * 组诊断包：9 键固定键序 JSON（B15 等量；app_version 真版本不复刻 B16；table_counts 五存储面，
++   * 查询失败={} B18；license 只嵌 state/reason B19）。supportDir=导出默认目录。
++   */
++  supportDiagnosticsBuild?(): Promise<{
++    payload: {
++      app_version: string; platform: string; arch: string; generated_at: string;
++      license_state: string; license_reason: string; agent_status: string;
++      table_counts: Record<string, number>; note: string;
++    };
++    json: string; supportDir: string; appVersion: string;
++  }>;
++  /** 上传诊断包：POST /support/diagnostics {requester|'unknown', payload}（B24 等量；B23 空 payload 抛错）。 */
++  supportDiagnosticsUpload?(params: {
++    requester?: string; payload: string;
++  }): Promise<{ mode: "remote"; ok: true }>;
++  /**
++   * 功能 #10 模板文书起草（步骤4·RE-10；fork 扩展可选方法——上游 ZCode 无此方法，
++   * 合成桥以内置目录+隐藏案由模板+oc28 独立会话生成+JSON 落盘存储实现，其它实现方可不提供）。
++   */
++  draftCatalog?(params: { workspacePath?: string }): Promise<{
++    builtin: Array<{
++      id: string; name: string; category: "litigation" | "non-litigation"; description: string;
++      content: string; fields: Array<{ id: string; label: string; type: string; placeholder?: string; options?: string[] }>;
++      legalBasis?: string; icon?: string;
++    }>;
++    userTemplates: Array<{
++      id: string; name: string; description: string; category: "custom";
++      fields: Array<{ id: string; label: string; type: string; placeholder?: string; options?: string[] }>;
++      learningStatus: "idle" | "analyzing" | "done" | "failed"; learningError: string;
++      hasSourceDocx: boolean; createdAt: number;
++    }>;
++  }>;
++  draftUploadTemplate?(params: {
++    fileName: string; base64: string;
++  }): Promise<{ template: { id: string; name: string; learningStatus: string; fields: unknown[]; hasSourceDocx: boolean } }>;
++  draftRetryLearning?(params: { templateId: string }): Promise<{ id: string; learningStatus: string }>;
++  draftDeleteTemplate?(params: { templateId: string }): Promise<{ ok: boolean }>;
++  draftResolveTemplate?(params: {
++    documentType: string; query: string;
++  }): Promise<{
++    isError?: boolean; reason?: string;
++    matched: boolean; priority?: string;
++    template?: { id: string; name: string; documentType: string; sourceFileId: string; cause?: string; content: string };
++    instructions?: string; supportedCauses?: string[];
++  }>;
++  draftGenerate?(params: {
++    workspacePath?: string;
++    templateSource: "builtin" | "custom";
++    templateId?: string;
++    hiddenDocumentType?: string;
++    hiddenQuery?: string;
++    fieldValues: Record<string, string>;
++    materialNames: string[];
++    pastedCase?: string;
++    instructions?: string;
++  }): Promise<{ draftId: string; status: string; materialErrors: string[] }>;
++  draftStatus?(params: { draftId: string }): Promise<{
++    draftId: string; status: "running" | "done" | "partial" | "error" | "cancelled";
++    stages: Record<string, string>; lastTool: string; textLength: number;
++    materialCount?: number;
++    verdict: string; notice: string; error: string; templateName: string;
++    startedAt: number; endedAt: number; content?: string;
++  }>;
++  /**
++   * 功能 #10 简版生成备用通道（RE-10 §2 I3；fork 扩展可选方法——无 agent 直调 LLM，
++   * 服务端拼 prompt 一次性产出，无偏好卡/无工作流/不写历史；主路径不走它。
++   */
++  draftGenerateLite?(params: {
++    templateContent?: string;
++    hiddenDocumentType?: string;
++    hiddenQuery?: string;
++    fieldValues?: Record<string, string>;
++    pastedCase?: string;
++  }): Promise<{ content: string; model: string }>;
++  draftSteer?(params: { draftId: string; text: string }): Promise<{ ok: boolean }>;
++  draftCancel?(params: { draftId: string }): Promise<{ ok: boolean; status: string }>;
++  draftHistoryList?(params: { workspacePath?: string }): Promise<{
++    records: Array<{
++      id: string; templateName: string; templateCategory: string; templateSource: string;
++      materialCount: number; hasInstructions: boolean; verdict: string; createdAt: number;
++    }>;
++  }>;
++  draftHistoryGet?(params: { id: string }): Promise<{
++    record: {
++      id: string; templateName: string; templateCategory: string; templateSource: string;
++      fieldValues: Record<string, string>; materialFileNames: string[]; instructions: string;
++      generatedContent: string; verdict: string; model: string; createdAt: number;
++    };
++  }>;
++  draftHistoryDelete?(params: { id: string }): Promise<{ ok: boolean }>;
++  draftExportWord?(params: {
++    templateSource: "builtin" | "custom"; templateId?: string; markdown: string;
++  }): Promise<{ docxBase64: string; mode: "inplace" | "standard"; warning: string }>;
++
+   /** 控制面不需要账号或模型，且不发送普通协议请求。 */
+   prepareStorage(params: ZCodeAgentWorkspaceTarget): Promise<void>;
+   getStorageStartupState(
+diff --git a/packages/zcode-cua/broker-server.d.ts b/packages/zcode-cua/broker-server.d.ts
+index e00cdde8..b9b31068 100644
+--- a/packages/zcode-cua/broker-server.d.ts
++++ b/packages/zcode-cua/broker-server.d.ts
+@@ -31,17 +31,9 @@ export interface CuaHelperVerifierDependencies {
+   [key: string]: unknown;
+ }
+ 
+-// 公共调用方依赖上下文类型；unknown 曾使日志回调在开源类型检查中失去参数类型。
+-export interface BrokerLogger {
+-  debug: (traceId: string | undefined, ...args: unknown[]) => void;
+-  info: (traceId: string | undefined, ...args: unknown[]) => void;
+-  warn: (traceId: string | undefined, ...args: unknown[]) => void;
+-  error: (traceId: string | undefined, ...args: unknown[]) => void;
+-}
+-
+ export interface CuaHelperInstallerOptions {
+   env?: NodeJS.ProcessEnv;
+-  logger?: BrokerLogger;
++  logger?: unknown;
+   bundledAppPath?: string;
+   plan?: unknown;
+   dependencies?: Partial<CuaHelperVerifierDependencies>;
+diff --git a/packages/zcode-cua/package.json b/packages/zcode-cua/package.json
+index 6318c493..01ae4ab7 100644
+--- a/packages/zcode-cua/package.json
++++ b/packages/zcode-cua/package.json
+@@ -1,6 +1,7 @@
+ {
+   "name": "@zcode/zcode-cua",
+-  "version": "0.6.5",
++  "version": "0.6.3",
++  "zcodeCuaPlaceholder": true,
+   "private": true,
+   "description": "API-compatible placeholder package for Computer Use. This build ships without Computer Use: every runtime surface reports unavailable and fails closed.",
+   "license": "Apache-2.0",
+@@ -54,9 +55,5 @@
+       "types": "./broker-helper-health.d.ts",
+       "import": "./broker-helper-health.js"
+     }
+-  },
+-  "scripts": {
+-    "build": "tsc --noEmit -p tsconfig.json"
+-  },
+-  "zcodeCuaPlaceholder": true
++  }
+ }

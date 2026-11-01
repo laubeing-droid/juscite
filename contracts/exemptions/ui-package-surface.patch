@@ -1,0 +1,1771 @@
+diff --git a/packages/ui/package.json b/packages/ui/package.json
+index 32a7f20c..93597ed6 100644
+--- a/packages/ui/package.json
++++ b/packages/ui/package.json
+@@ -30,6 +30,7 @@
+     "@dnd-kit/react": "^0.4.0",
+     "@dnd-kit/sortable": "^10.0.0",
+     "@dnd-kit/utilities": "^3.2.2",
++    "driver.js": "1.10.2",
+     "@extend-ai/react-docx": "^0.8.1",
+     "@extend-ai/react-xlsx": "^0.16.0",
+     "@floating-ui/dom": "1.7.6",
+@@ -55,6 +56,7 @@
+     "@zcode/provider": "workspace:*",
+     "@zcode/rpc": "workspace:*",
+     "@zcode/services": "workspace:*",
++    "@juscite/legal": "workspace:*",
+     "@zcode/shared": "workspace:*",
+     "ai": "^6.0.138",
+     "ansi-to-react": "^6.2.6",
+diff --git a/packages/ui/src/App.tsx b/packages/ui/src/App.tsx
+index c81152d3..9bec8201 100644
+--- a/packages/ui/src/App.tsx
++++ b/packages/ui/src/App.tsx
+@@ -16,7 +16,14 @@ import { useWorkspaceProviderConfigFile } from "@/hooks/useWorkspaceProviderConf
+ import { useWorkspaceActiveTaskState } from "@/hooks/useWorkspaceActiveTaskState.js";
+ import { useEnsureWorkspaceMcpLoaded } from "@/hooks/useEnsureWorkspaceMcpLoaded.js";
+ import { useTabStore } from "@/store/TabStoreProvider.js";
+-import { isWorkspaceReadOnly, isWorkspaceTab } from "@/store/tabStore.js";
++import { isSettingsTab, isWorkspaceReadOnly, isWorkspaceTab } from "@/store/tabStore.js";
++import { useTabStoreApi } from "@/store/TabStoreProvider.js";
++// 功能 #29 产品指引（RE-29 D1/D5）：tour 组件+触发总线（向导完成/设置重看共用同链）
++import { ProductTour, PRODUCT_TOUR_EVENT } from "@/onboarding/ProductTour.js";
++// 功能 #30 安全审计中心（RE-30 §3.6）：门面组件+触发总线（侧栏入口/设置安全节导流卡共用同链）
++// r12 波3：面板族出树 → @juscite/legal（注册点见 ./legal/register.tsx，须随本文件静态加载）
++import "@/legal/register.js";
++import { SecurityAuditCenter, SECURITY_AUDIT_EVENT } from "@juscite/legal/panels/SecurityAuditCenter";
+ import type { TaskChatMessage as TestChatMessage } from "@/lib/taskChatMessageTypes.js";
+ import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+ import { useIsOfficeMode } from "@/hooks/useInterfaceMode.js";
+@@ -66,6 +73,8 @@ import { useTaskSidePaneMemoryBridge } from "@/app-shell/useTaskSidePaneMemoryBr
+ import { resolveAppWorkspaceRpcTarget } from "@/app-shell/workspaceRpcTarget.js";
+ import { useWorkspaceServicesResolution } from "@/hooks/useWorkspaceServices.js";
+ import { useWorkspaceTerminalTaskNotifications } from "@/hooks/useTaskNotifications.js";
++// 功能 #28 桌宠：sessions-index 边沿 → 桌宠运行事件转发（驱动流 1）。
++import { usePetRunStatusForwarder } from "@/hooks/usePetRunStatusForwarder.js";
+ import { useMarketingTaskCompletionRefresh } from "@/components/marketing-touch/useMarketingTaskCompletionRefresh.js";
+ import { useOffPeakTaskNotifications } from "@/hooks/useOffPeakTaskNotifications.js";
+ import type { AppProps, WorkspaceMainView } from "@/app-shell/types.js";
+@@ -296,6 +305,14 @@ export function App({
+     platform,
+     formatMessage: intl.formatMessage,
+   });
++  // 功能 #28 桌宠：与任务通知同源的边沿投影，不受通知开关约束（陪伴状态≠通知意图）。
++  usePetRunStatusForwarder({
++    workspacePath: workspaceAbsPath,
++    ...(workspaceIdentity ? { workspaceIdentity } : {}),
++    ...(workspaceRemoteSessionId ? { endpointKey: workspaceRemoteSessionId } : {}),
++    rpcReady: workspaceRpcReady,
++    platform,
++  });
+   // 闲时任务终态/等确认通知：仅桌面本地链路，main 进程按 status:taskId 去重多窗口重复。
+   useOffPeakTaskNotifications({
+     offPeakTaskService: services.offPeakTaskService,
+@@ -858,6 +875,32 @@ export function App({
+   );
+   useTestActions(testActions);
+   const [workspaceMainView, setWorkspaceMainView] = useState<WorkspaceMainView>("chat");
++  // 功能 #29 产品指引令牌（RE-29 流程 2/4）：向导与设置重看入口发 PRODUCT_TOUR_EVENT，
++  // App 层统一消费——关设置 tab（若开）→切回对话页→令牌 +1；ProductTour 消费令牌启动（≤0 不启动）。
++  const [productTourToken, setProductTourToken] = useState(0);
++  const tabStoreApi = useTabStoreApi();
++  useEffect(() => {
++    const start = () => {
++      const settingsTab = tabStoreApi.getState().tabs.find(isSettingsTab);
++      if (settingsTab) tabStoreApi.getState().closeTab(settingsTab.id, "user-close");
++      setWorkspaceMainView("chat");
++      setProductTourToken((token) => token + 1);
++    };
++    window.addEventListener(PRODUCT_TOUR_EVENT, start);
++    return () => window.removeEventListener(PRODUCT_TOUR_EVENT, start);
++  }, [tabStoreApi]);
++  // 功能 #30 安全审计中心令牌（对拍 2：设置安全节导流卡=关设置→开审计）：App 层统一消费——
++  // 关设置 tab（若开）→令牌 +1；SecurityAuditCenter 消费令牌挂载面板（≤0 不挂载）。
++  const [auditCenterToken, setAuditCenterToken] = useState(0);
++  useEffect(() => {
++    const open = () => {
++      const settingsTab = tabStoreApi.getState().tabs.find(isSettingsTab);
++      if (settingsTab) tabStoreApi.getState().closeTab(settingsTab.id, "user-close");
++      setAuditCenterToken((token) => token + 1);
++    };
++    window.addEventListener(SECURITY_AUDIT_EVENT, open);
++    return () => window.removeEventListener(SECURITY_AUDIT_EVENT, open);
++  }, [tabStoreApi]);
+   const [openAutomationId, setOpenAutomationId] = useState<string | null>(null);
+   const [openAutomationTab, setOpenAutomationTab] = useState<NonNullable<
+     AutomationsNavigationTarget["automationTab"]
+@@ -881,6 +924,29 @@ export function App({
+     preserveNextSettingsExit();
+     setWorkspaceMainView("plugin-store");
+   }, [preserveNextSettingsExit]);
++  const handleNavigateToLegalMain = useCallback(() => {
++    setWorkspaceMainView("legal");
++  }, []);
++  // 【步骤4·#20 知识库】九工作区入口（B01 路由 knowledgeBase，视图懒加载）。
++  const handleNavigateToKnowledgeBaseMain = useCallback(() => {
++    setWorkspaceMainView("knowledgeBase");
++  }, []);
++  // 【步骤4·#16 调研报告】工作区入口（B01 路由 researchReport，视图懒加载）。
++  const handleNavigateToResearchReportMain = useCallback(() => {
++    setWorkspaceMainView("researchReport");
++  }, []);
++  // 【步骤4·#26 团队同步】工作区入口（A1 路由 team，视图在 ShellLayout 挂载）。
++  const handleNavigateToTeamMain = useCallback(() => {
++    setWorkspaceMainView("team");
++  }, []);
++  // 【步骤4·#5 冲突查重】预检工作区入口（侧栏路由 conflictPrecheck，视图懒加载）。
++  const handleNavigateToConflictPrecheckMain = useCallback(() => {
++    setWorkspaceMainView("conflictPrecheck");
++  }, []);
++  // 【步骤4·#18 学习迭代】工作区入口（侧栏路由 learningIteration，视图在 ShellLayout 懒加载）。
++  const handleNavigateToLearningIterationMain = useCallback(() => {
++    setWorkspaceMainView("learningIteration");
++  }, []);
+   const handleOpenAutomationConsumed = useCallback(() => {
+     setOpenAutomationId(null);
+     setOpenAutomationTab(null);
+@@ -1154,6 +1220,8 @@ export function App({
+ 
+   return (
+     <>
++      <ProductTour runToken={productTourToken} />
++      <SecurityAuditCenter openToken={auditCenterToken} />
+       <CommandCenterDialog
+         open={isQuickPickOpen}
+         commands={quickPickCommands}
+@@ -1185,6 +1253,12 @@ export function App({
+           onOpenAutomationConsumed={handleOpenAutomationConsumed}
+           handleOpenAutomations={handleOpenAutomations}
+           handleOpenPluginStore={handleOpenPluginStoreForScope}
++          handleOpenLegal={handleNavigateToLegalMain}
++          handleOpenKnowledgeBase={handleNavigateToKnowledgeBaseMain}
++          handleOpenResearchReport={handleNavigateToResearchReportMain}
++          handleOpenTeam={handleNavigateToTeamMain}
++          handleOpenConflictPrecheck={handleNavigateToConflictPrecheckMain}
++          handleOpenLearningIteration={handleNavigateToLearningIterationMain}
+           onConnectRemote={onConnectRemote}
+           onSelectRemoteProject={onSelectRemoteProject}
+           onCancelRemoteProject={onCancelRemoteProject}
+diff --git a/packages/ui/src/CodingPlanUsageRemainingPanel.tsx b/packages/ui/src/CodingPlanUsageRemainingPanel.tsx
+index b4acf20a..b7a90def 100644
+--- a/packages/ui/src/CodingPlanUsageRemainingPanel.tsx
++++ b/packages/ui/src/CodingPlanUsageRemainingPanel.tsx
+@@ -111,8 +111,8 @@ function resolveCodingPlanTabProviderIcon(providerId: string): OAuthProviderId {
+ 
+ function formatCodingPlanProviderTabAriaLabel(providerId: string): string {
+   return providerId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan
+-    ? "Z.ai Coding Plan"
+-    : "BigModel Coding Plan";
++    ? "Juscite Coding Plan"
++    : "Juscite Coding Plan";
+ }
+ 
+ function getEntitlementSourceId(
+diff --git a/packages/ui/src/ErrorBoundary.tsx b/packages/ui/src/ErrorBoundary.tsx
+index 29026443..a28edee0 100644
+--- a/packages/ui/src/ErrorBoundary.tsx
++++ b/packages/ui/src/ErrorBoundary.tsx
+@@ -5,6 +5,7 @@ import { DEFAULT_LOCALE } from "@zcode/shared";
+ import { DesktopWindowFrame } from "@/DesktopWindowFrame.js";
+ import zhCN from "@/i18n/locales/zh-CN.js";
+ import enUS from "@/i18n/locales/en-US.js";
++import { applyJusciteOverlay } from "@/i18n/jusciteOverlay.js";
+ import { logger } from "@/logger.js";
+ import { reportReactErrorToArms } from "@/lib/reactErrorArmsTelemetry.js";
+ import { cn } from "@/components/lib/utils.js";
+@@ -85,7 +86,7 @@ function resolveBoundaryLocale(): Locale {
+ 
+ function formatBoundaryMessage(id: string): string {
+   const locale = resolveBoundaryLocale();
+-  const messages = locale === "en-US" ? enUS : zhCN;
++  const messages = applyJusciteOverlay(locale, locale === "en-US" ? enUS : zhCN);
+   return messages[id] ?? id;
+ }
+ 
+diff --git a/packages/ui/src/NewTaskButtonGroup.tsx b/packages/ui/src/NewTaskButtonGroup.tsx
+index 03b0e50e..f3b54c59 100644
+--- a/packages/ui/src/NewTaskButtonGroup.tsx
++++ b/packages/ui/src/NewTaskButtonGroup.tsx
+@@ -18,6 +18,7 @@ export function NewTaskButtonGroup({
+     <div
+       role="group"
+       aria-disabled={disabled}
++      data-tour="tour-chat"
+       data-testid={TID_TASK_NEW_BUTTON}
+       onClick={() => {
+         if (!disabled) {
+diff --git a/packages/ui/src/Root.tsx b/packages/ui/src/Root.tsx
+index 80f80dcd..685d4c87 100644
+--- a/packages/ui/src/Root.tsx
++++ b/packages/ui/src/Root.tsx
+@@ -70,6 +70,7 @@ import { resolveConversationWorkspaceTarget } from "@/conversation-workspace-tar
+ import { resolveRootWorkspaceShellTarget } from "@/root/rootWorkspaceShellTarget.js";
+ import { OccupationOnboarding } from "@/onboarding/OccupationOnboarding.js";
+ import { OnboardingDialog } from "@/onboarding/OnboardingDialog.js";
++import { FirstRunWizard } from "@/onboarding/FirstRunWizard.js";
+ import { useRemoteWorkspaceHistory } from "@/root/useRemoteWorkspaceHistory.js";
+ import { useRemoteWorkspaceTabLifecycle } from "@/root/useRemoteWorkspaceTabLifecycle.js";
+ import { RemoteWorkspaceControllerProvider } from "@/remote/useRemoteWorkspaceController.js";
+@@ -1650,6 +1651,14 @@ function RootInner({
+             isDesktop={isDesktop}
+           />
+         </ScopedErrorBoundary>
++        <ScopedErrorBoundary
++          scope="first-run-wizard"
++          resetKeys={[workspaceShellIdentity?.trim() || workspaceShellPath]}
++          variant="silent"
++        >
++          {/* 功能 #29 首启向导：onboardingGet=pending 才弹（RE-29 A3/A4）；崩溃只静默孤离本组件 */}
++          <FirstRunWizard />
++        </ScopedErrorBoundary>
+       </OccupationOnboarding>
+     </RootShell>
+   );
+diff --git a/packages/ui/src/SettingsPage.tsx b/packages/ui/src/SettingsPage.tsx
+index 65a4df02..e9e674fe 100644
+--- a/packages/ui/src/SettingsPage.tsx
++++ b/packages/ui/src/SettingsPage.tsx
+@@ -72,6 +72,12 @@ import { buildUsageEntitlementCacheKey } from "@/lib/usageEntitlementCache.js";
+ import { ArchiveManagement, useOptionalProjectDirectory } from "@/project-sidebar/index.js";
+ import { resolveRecentRemoteProjectPreference } from "@/project-sidebar/remote-project-connection.js";
+ import { ModelProviderSection } from "@/settings/ModelProviderSection.js";
++import { StealthSettingsSection } from "@/settings/StealthSettingsSection.js";
++// 功能 #28 桌宠（RE-28 §3.3）：设置面五控件分区。
++import { PetSettingsSection } from "@/settings/PetSettingsSection.js";
++// 【步骤4·#18 学习迭代】通用节三控件（J14：总开关/空闲等待/托盘驻留，保存热 sync）
++import { LearningSettingsSection } from "@/settings/LearningSettingsSection.js";
++import { HelpFeedbackSection } from "@/settings/HelpFeedbackSection.js";
+ import { useCodingPlanUpgradeDialog } from "@/settings/CodingPlanUpgradeDialogProvider.js";
+ import { useEnterpriseCodingPlanProducts } from "@/settings/model-provider-section/useEnterpriseCodingPlanProducts.js";
+ import { UsageStatsSection, type UsageStatsSectionTab } from "@/settings/UsageStatsSection.js";
+@@ -228,7 +234,7 @@ function resolveSettingsUsageCodingPlanTabLabel({
+   source: CodingPlanUsageSource;
+ }): string {
+   if (isTeamCodingPlanUsageSource(source)) {
+-    return source.label.replace(/^BigModel\s*-\s*/i, "").trim() || source.label;
++    return source.label.replace(/^Juscite\s*-\s*/i, "").trim() || source.label;
+   }
+   if (hasMultiplePersonalSources) {
+     return source.label.replace(/\s*-\s*Coding Plan$/i, "").trim() || source.label;
+@@ -1812,6 +1818,7 @@ export function SettingsPage({
+                         </div>
+                         <div className="space-y-8">
+                           {activeSection === "general" ? (
++                            <>
+                             <GeneralSectionContent
+                               localePreference={localePreference}
+                               interfaceMode={interfaceMode}
+@@ -1941,6 +1948,8 @@ export function SettingsPage({
+                                 })
+                               }
+                             />
++                            <LearningSettingsSection />
++                          </>
+                           ) : activeSection === "remoteDevices" ? (
+                             sharedSettings && isDesktop && sourceManagement ? (
+                               <SourceServerManagementPanel
+@@ -2096,6 +2105,12 @@ export function SettingsPage({
+                                 }
+                               />
+                             </ServiceProvider>
++                          ) : activeSection === "stealth" ? (
++                            <StealthSettingsSection />
++                          ) : activeSection === "pet" ? (
++                            <PetSettingsSection platform={platform} />
++                          ) : activeSection === "help" ? (
++                            <HelpFeedbackSection />
+                           ) : activeSection === "memory" ? (
+                             <ServiceProvider services={localHostServices}>
+                               {/* Memory catalog 始终使用本地 Host，避免远程 workspace 误读本机数据。 */}
+diff --git a/packages/ui/src/WelcomeScreen.tsx b/packages/ui/src/WelcomeScreen.tsx
+index 060cb9b1..b3aa113d 100644
+--- a/packages/ui/src/WelcomeScreen.tsx
++++ b/packages/ui/src/WelcomeScreen.tsx
+@@ -478,7 +478,7 @@ function LoginPanelLogo() {
+     // 登录 logo 壳是固定深色底，边框不能跟随浅色主题 token，否则浅色主题下边框过重。
+     <div
+       className="relative mb-1 flex size-16 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#000000_0%,#151718_100%)] text-[#ffffff] shadow-lg/20 before:pointer-events-none before:absolute before:inset-0 before:rounded-2xl before:border before:border-[rgba(255,255,255,0.1)]"
+-      aria-label="ZCode"
++      aria-label="Juscite"
+       role="img"
+     >
+       <ZCodeAboutLogo className="h-auto w-10" />
+diff --git a/packages/ui/src/WindowsTopLeftLogo.tsx b/packages/ui/src/WindowsTopLeftLogo.tsx
+index 9a01f029..595528d5 100644
+--- a/packages/ui/src/WindowsTopLeftLogo.tsx
++++ b/packages/ui/src/WindowsTopLeftLogo.tsx
+@@ -18,7 +18,7 @@ export function WindowsTopLeftLogo({
+     >
+       <span
+         role="img"
+-        aria-label="ZCode"
++        aria-label="Juscite"
+         data-testid="settings-logo"
+         className={cn(
+           "pointer-events-none flex size-5 items-center justify-center select-none",
+diff --git a/packages/ui/src/WorkspaceHeaderSections/WorkspaceHeaderActionSection.tsx b/packages/ui/src/WorkspaceHeaderSections/WorkspaceHeaderActionSection.tsx
+index 433b3b98..bb91c5b4 100644
+--- a/packages/ui/src/WorkspaceHeaderSections/WorkspaceHeaderActionSection.tsx
++++ b/packages/ui/src/WorkspaceHeaderSections/WorkspaceHeaderActionSection.tsx
+@@ -12,7 +12,6 @@ export type { WorkspaceHeaderActionSectionProps } from "@/WorkspaceHeaderSection
+ export function WorkspaceHeaderActionSection({
+   variant = "task",
+   activeTaskId,
+-  user,
+   readOnlyReason,
+   workspaceAbsPath,
+   workspaceIdentity,
+@@ -48,9 +47,9 @@ export function WorkspaceHeaderActionSection({
+           onSelectedEditorChange={onSelectedEditorChange}
+         />
+       ) : null}
+-      {/* 分享发布接口依赖登录态；未登录时隐藏入口，避免用户打开后只能得到鉴权失败。 */}
++      {/* 分享在律引为本地 BYOK 形态：无账号体系，发布走桥面本机分享站，登录门槛不适用；
++          远程控制与 server 远程仍隐藏（那些宿主没有本机分享站）。 */}
+       {activeTaskId &&
+-      user &&
+       isDesktop !== false &&
+       !isWebRemoteControl &&
+       remoteTarget?.kind !== "server" ? (
+diff --git a/packages/ui/src/WorkspaceSidebarFooter.tsx b/packages/ui/src/WorkspaceSidebarFooter.tsx
+index ff88957f..06a50b35 100644
+--- a/packages/ui/src/WorkspaceSidebarFooter.tsx
++++ b/packages/ui/src/WorkspaceSidebarFooter.tsx
+@@ -70,7 +70,7 @@ function getSidebarProfileName(user?: UserInfo | null): string {
+     return username;
+   }
+ 
+-  return "ZCode";
++  return "Juscite";
+ }
+ 
+ function getSidebarProfileBadge(
+@@ -480,6 +480,7 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
+               type="button"
+               variant="ghost"
+               size="icon-lg"
++              data-tour="tour-settings"
+               data-testid={TID_TASK_SETTINGS_BUTTON}
+               aria-label={settingsButtonLabel}
+               disabled={!onSettingsButtonClick}
+diff --git a/packages/ui/src/WorkspaceSidebarFooterUsageSummary.tsx b/packages/ui/src/WorkspaceSidebarFooterUsageSummary.tsx
+index a5b40d3f..053fa6c5 100644
+--- a/packages/ui/src/WorkspaceSidebarFooterUsageSummary.tsx
++++ b/packages/ui/src/WorkspaceSidebarFooterUsageSummary.tsx
+@@ -120,8 +120,8 @@ export function useWorkspaceSidebarFooterUsageSummaryState({
+             label:
+               access.label ||
+               (providerId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan
+-                ? "Z.ai - Coding Plan"
+-                : "BigModel - Coding Plan"),
++                ? "Juscite - Coding Plan"
++                : "Juscite - Coding Plan"),
+           },
+         ];
+       }),
+diff --git a/packages/ui/src/app-shell/WorkspaceShellLayout.tsx b/packages/ui/src/app-shell/WorkspaceShellLayout.tsx
+index 36ffea24..4eedbf81 100644
+--- a/packages/ui/src/app-shell/WorkspaceShellLayout.tsx
++++ b/packages/ui/src/app-shell/WorkspaceShellLayout.tsx
+@@ -1,5 +1,5 @@
+ /* eslint-disable max-lines -- workspace shell 当前集中编排 sidebar、chat、terminal 和 browser pane 的布局联动，先保持单文件收口，避免为满足行数限制打散关键布局状态。*/
+-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
++import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+ import type {
+   CSSProperties,
+   ReactNode,
+@@ -111,6 +111,28 @@ import {
+   areWorkspaceFilePathsEqual,
+   isWorkspaceFilePathInside,
+ } from "@/workspace-file-tree/model.js";
++// r12 波3：面板族出树 → @juscite/legal（注册点 ../legal/register.tsx；挂载点逐点记 contracts/pin-points-wave3.md）
++import { LegalWorkbench } from "@juscite/legal/panels/LegalWorkbench";
++// 【步骤4·#20 知识库】视图懒加载（B01）：react-pdf/检索面板只在进入工作区时进 bundle。
++const KnowledgeBasePanel = lazy(() =>
++  import("@juscite/legal/panels/KnowledgeBasePanel").then((module) => ({ default: module.KnowledgeBasePanel })),
++);
++// 【步骤4·#16 调研报告】视图懒加载（B01）：轮询投影面板只在进入工作区时进 bundle。
++const ResearchPanel = lazy(() =>
++  import("@juscite/legal/panels/ResearchPanel").then((module) => ({ default: module.ResearchPanel })),
++);
++const TeamPanel = lazy(() =>
++  // 【步骤4·#26 团队同步】团队面板（懒加载，与知识库/调研同款）
++  import("@juscite/legal/panels/TeamPanel").then((module) => ({ default: module.TeamPanel })),
++);
++// 【步骤4·#5 冲突查重】预检页懒加载（与调研报告同款 lazy 分支）。
++const ConflictPrecheckPanel = lazy(() =>
++  import("@juscite/legal/panels/ConflictPrecheckPanel").then((module) => ({ default: module.ConflictPrecheckPanel })),
++);
++// 【步骤4·#18 学习迭代】视图懒加载（J1）：轮询面板只在进入工作区时进 bundle。
++const LearningIterationPanel = lazy(() =>
++  import("@juscite/legal/panels/LearningIterationPanel").then((module) => ({ default: module.LearningIterationPanel })),
++);
+ import type { WorkspaceShellLayoutProps } from "@/app-shell/types.js";
+ import { isWorkspaceTab } from "@/store/tabStore.js";
+ import { useTabStore, useTabStoreApi } from "@/store/TabStoreProvider.js";
+@@ -286,6 +308,12 @@ const WorkspaceShellLayoutContent = memo(function WorkspaceShellLayoutComponent(
+   onOpenAutomationConsumed,
+   handleOpenAutomations,
+   handleOpenPluginStore,
++  handleOpenLegal,
++  handleOpenKnowledgeBase,
++  handleOpenResearchReport,
++  handleOpenTeam,
++  handleOpenConflictPrecheck,
++  handleOpenLearningIteration,
+   onConnectRemote,
+   onSelectRemoteProject,
+   onCancelRemoteProject,
+@@ -1982,6 +2010,18 @@ const WorkspaceShellLayoutContent = memo(function WorkspaceShellLayoutComponent(
+       automationsActive={workspaceMainView === "automations"}
+       onOpenPluginStore={handleOpenPluginStore}
+       pluginStoreActive={workspaceMainView === "plugin-store"}
++      onOpenLegal={handleOpenLegal}
++      legalActive={workspaceMainView === "legal"}
++      onOpenKnowledgeBase={handleOpenKnowledgeBase}
++      knowledgeBaseActive={workspaceMainView === "knowledgeBase"}
++      onOpenResearchReport={handleOpenResearchReport}
++      researchReportActive={workspaceMainView === "researchReport"}
++      onOpenTeam={handleOpenTeam}
++      teamActive={workspaceMainView === "team"}
++      onOpenConflictPrecheck={handleOpenConflictPrecheck}
++      conflictPrecheckActive={workspaceMainView === "conflictPrecheck"}
++      onOpenLearningIteration={handleOpenLearningIteration}
++      learningIterationActive={workspaceMainView === "learningIteration"}
+       // 桌面没有 mobile 导航动作；内联包装曾让右侧开关穿透侧栏 memo，重复渲染全部项目。
+       onWebRemoteTaskOpen={
+         mobile
+@@ -2166,6 +2206,96 @@ const WorkspaceShellLayoutContent = memo(function WorkspaceShellLayoutComponent(
+                 </div>
+               </AutomationsMainBreadcrumbFrame>
+             </main>
++          ) : workspaceMainView === "legal" && !isWebRemoteControlShell ? (
++            <main className="flex h-full min-h-0 flex-1 flex-col bg-background">
++              <AutomationsMainBreadcrumbFrame
++                isDesktop={Boolean(isDesktop)}
++                sectionLabel="法律工作台"
++                ariaLabel="法律工作台"
++              >
++                <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
++                  <div className="mx-auto flex w-full max-w-5xl flex-col px-4 py-4 md:px-6 md:py-6">
++                    <LegalWorkbench services={services} workspacePath={workspaceAbsPath} onOpenConflictPrecheck={handleOpenConflictPrecheck} />
++                  </div>
++                </div>
++              </AutomationsMainBreadcrumbFrame>
++            </main>
++          ) : workspaceMainView === "knowledgeBase" && !isWebRemoteControlShell ? (
++            <main className="flex h-full min-h-0 flex-1 flex-col bg-background">
++              <AutomationsMainBreadcrumbFrame
++                isDesktop={Boolean(isDesktop)}
++                sectionLabel="知识库"
++                ariaLabel="知识库"
++              >
++                {/* 功能 #20（B24）：视图渲染崩溃错误边界（与 chat 分支同款 ScopedErrorBoundary） */}
++                <ScopedErrorBoundary scope="workspace-knowledge-base" variant="panel" className="h-full">
++                  <Suspense fallback={<div className="p-4 text-ui-sm text-foreground-subtle">知识库加载中…</div>}>
++                    <KnowledgeBasePanel />
++                  </Suspense>
++                </ScopedErrorBoundary>
++              </AutomationsMainBreadcrumbFrame>
++            </main>
++          ) : workspaceMainView === "team" && !isWebRemoteControlShell ? (
++            <main className="flex h-full min-h-0 flex-1 flex-col bg-background">
++              <AutomationsMainBreadcrumbFrame
++                isDesktop={Boolean(isDesktop)}
++                sectionLabel="团队"
++                ariaLabel="团队"
++              >
++                {/* 功能 #26：视图渲染崩溃错误边界（与调研分支同款 ScopedErrorBoundary） */}
++                <ScopedErrorBoundary scope="workspace-team" variant="panel" className="h-full">
++                  <Suspense fallback={<div className="p-4 text-ui-sm text-foreground-subtle">团队加载中…</div>}>
++                    <TeamPanel />
++                  </Suspense>
++                </ScopedErrorBoundary>
++              </AutomationsMainBreadcrumbFrame>
++            </main>
++          ) : workspaceMainView === "researchReport" && !isWebRemoteControlShell ? (
++            <main className="flex h-full min-h-0 flex-1 flex-col bg-background">
++              <AutomationsMainBreadcrumbFrame
++                isDesktop={Boolean(isDesktop)}
++                sectionLabel="调研报告"
++                ariaLabel="调研报告"
++              >
++                {/* 功能 #16：视图渲染崩溃错误边界（与知识库分支同款） */}
++                <ScopedErrorBoundary scope="workspace-research-report" variant="panel" className="h-full">
++                  <Suspense fallback={<div className="p-4 text-ui-sm text-foreground-subtle">调研报告加载中…</div>}>
++                    {/* B06 去配置：法规库配置面=法律工作台·法条手册（应用内导航，竞品为系统浏览器外链） */}
++                    <ResearchPanel onOpenLawBook={() => onWorkspaceMainViewChange("legal")} />
++                  </Suspense>
++                </ScopedErrorBoundary>
++              </AutomationsMainBreadcrumbFrame>
++            </main>
++          ) : workspaceMainView === "conflictPrecheck" && !isWebRemoteControlShell ? (
++            <main className="flex h-full min-h-0 flex-1 flex-col bg-background">
++              <AutomationsMainBreadcrumbFrame
++                isDesktop={Boolean(isDesktop)}
++                sectionLabel="冲突预检"
++                ariaLabel="冲突预检"
++              >
++                {/* 功能 #5：视图渲染崩溃错误边界（与调研报告分支同款） */}
++                <ScopedErrorBoundary scope="workspace-conflict-precheck" variant="panel" className="h-full">
++                  <Suspense fallback={<div className="p-4 text-ui-sm text-foreground-subtle">冲突预检加载中…</div>}>
++                    <ConflictPrecheckPanel onViewMatter={() => onWorkspaceMainViewChange("legal")} />
++                  </Suspense>
++                </ScopedErrorBoundary>
++              </AutomationsMainBreadcrumbFrame>
++            </main>
++          ) : workspaceMainView === "learningIteration" && !isWebRemoteControlShell ? (
++            <main className="flex h-full min-h-0 flex-1 flex-col bg-background">
++              <AutomationsMainBreadcrumbFrame
++                isDesktop={Boolean(isDesktop)}
++                sectionLabel="学习迭代"
++                ariaLabel="学习迭代"
++              >
++                {/* 功能 #18：视图渲染崩溃错误边界（与调研报告分支同款） */}
++                <ScopedErrorBoundary scope="workspace-learning-iteration" variant="panel" className="h-full">
++                  <Suspense fallback={<div className="p-4 text-ui-sm text-foreground-subtle">学习迭代加载中…</div>}>
++                    <LearningIterationPanel />
++                  </Suspense>
++                </ScopedErrorBoundary>
++              </AutomationsMainBreadcrumbFrame>
++            </main>
+           ) : (
+             <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col">
+               {/* Bugfix: 手机远控聊天页中间层必须继续提供 flex 高度链。
+@@ -2609,6 +2739,96 @@ const WorkspaceShellLayoutContent = memo(function WorkspaceShellLayoutComponent(
+                               </div>
+                             </AutomationsMainBreadcrumbFrame>
+                           </main>
++                        ) : workspaceMainView === "legal" && !isWebRemoteControlShell ? (
++                          <main className="flex h-full min-h-0 flex-1 flex-col bg-background">
++                            <AutomationsMainBreadcrumbFrame
++                              isDesktop={Boolean(isDesktop)}
++                              sectionLabel="法律工作台"
++                              ariaLabel="法律工作台"
++                            >
++                              <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
++                                <div className="mx-auto flex w-full max-w-5xl flex-col px-4 py-4 md:px-6 md:py-6">
++                                  <LegalWorkbench services={services} workspacePath={workspaceAbsPath} onOpenConflictPrecheck={handleOpenConflictPrecheck} />
++                                </div>
++                              </div>
++                            </AutomationsMainBreadcrumbFrame>
++                          </main>
++                        ) : workspaceMainView === "knowledgeBase" && !isWebRemoteControlShell ? (
++                          <main className="flex h-full min-h-0 flex-1 flex-col bg-background">
++                            <AutomationsMainBreadcrumbFrame
++                              isDesktop={Boolean(isDesktop)}
++                              sectionLabel="知识库"
++                              ariaLabel="知识库"
++                            >
++                              {/* 功能 #20（B24）：同上，窄壳分支 */}
++                              <ScopedErrorBoundary scope="workspace-knowledge-base" variant="panel" className="h-full">
++                                <Suspense fallback={<div className="p-4 text-ui-sm text-foreground-subtle">知识库加载中…</div>}>
++                                  <KnowledgeBasePanel />
++                                </Suspense>
++                              </ScopedErrorBoundary>
++                            </AutomationsMainBreadcrumbFrame>
++                          </main>
++                        ) : workspaceMainView === "team" && !isWebRemoteControlShell ? (
++                          <main className="flex h-full min-h-0 flex-1 flex-col bg-background">
++                            <AutomationsMainBreadcrumbFrame
++                              isDesktop={Boolean(isDesktop)}
++                              sectionLabel="团队"
++                              ariaLabel="团队"
++                            >
++                              {/* 功能 #26：同上，窄壳分支 */}
++                              <ScopedErrorBoundary scope="workspace-team-narrow" variant="panel" className="h-full">
++                                <Suspense fallback={<div className="p-4 text-ui-sm text-foreground-subtle">团队加载中…</div>}>
++                                  <TeamPanel />
++                                </Suspense>
++                              </ScopedErrorBoundary>
++                            </AutomationsMainBreadcrumbFrame>
++                          </main>
++                        ) : workspaceMainView === "researchReport" && !isWebRemoteControlShell ? (
++                          <main className="flex h-full min-h-0 flex-1 flex-col bg-background">
++                            <AutomationsMainBreadcrumbFrame
++                              isDesktop={Boolean(isDesktop)}
++                              sectionLabel="调研报告"
++                              ariaLabel="调研报告"
++                            >
++                              {/* 功能 #16：同上，窄壳分支 */}
++                              <ScopedErrorBoundary scope="workspace-research-report" variant="panel" className="h-full">
++                                <Suspense fallback={<div className="p-4 text-ui-sm text-foreground-subtle">调研报告加载中…</div>}>
++                                  {/* B06 去配置：法规库配置面=法律工作台·法条手册（应用内导航，竞品为系统浏览器外链） */}
++                                  <ResearchPanel onOpenLawBook={() => onWorkspaceMainViewChange("legal")} />
++                                </Suspense>
++                              </ScopedErrorBoundary>
++                            </AutomationsMainBreadcrumbFrame>
++                          </main>
++                        ) : workspaceMainView === "conflictPrecheck" && !isWebRemoteControlShell ? (
++                          <main className="flex h-full min-h-0 flex-1 flex-col bg-background">
++                            <AutomationsMainBreadcrumbFrame
++                              isDesktop={Boolean(isDesktop)}
++                              sectionLabel="冲突预检"
++                              ariaLabel="冲突预检"
++                            >
++                              {/* 功能 #5：同上，窄壳分支（视图渲染崩溃错误边界+懒加载） */}
++                              <ScopedErrorBoundary scope="workspace-conflict-precheck" variant="panel" className="h-full">
++                                <Suspense fallback={<div className="p-4 text-ui-sm text-foreground-subtle">冲突预检加载中…</div>}>
++                                  <ConflictPrecheckPanel onViewMatter={() => onWorkspaceMainViewChange("legal")} />
++                                </Suspense>
++                              </ScopedErrorBoundary>
++                            </AutomationsMainBreadcrumbFrame>
++                          </main>
++                        ) : workspaceMainView === "learningIteration" && !isWebRemoteControlShell ? (
++                          <main className="flex h-full min-h-0 flex-1 flex-col bg-background">
++                            <AutomationsMainBreadcrumbFrame
++                              isDesktop={Boolean(isDesktop)}
++                              sectionLabel="学习迭代"
++                              ariaLabel="学习迭代"
++                            >
++                              {/* 功能 #18：窄壳分支（与冲突预检窄壳同款错误边界+懒加载） */}
++                              <ScopedErrorBoundary scope="workspace-learning-iteration" variant="panel" className="h-full">
++                                <Suspense fallback={<div className="p-4 text-ui-sm text-foreground-subtle">学习迭代加载中…</div>}>
++                                  <LearningIterationPanel />
++                                </Suspense>
++                              </ScopedErrorBoundary>
++                            </AutomationsMainBreadcrumbFrame>
++                          </main>
+                         ) : (
+                           <main className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+                             {renderChatFindDialog()}
+@@ -2785,7 +3005,7 @@ const WorkspaceShellLayoutContent = memo(function WorkspaceShellLayoutComponent(
+   );
+   return (
+     <DesktopWindowFrame
+-      title={`ZCode / ${getPathLeaf(workspaceAbsPath)}`}
++      title={`Juscite / ${getPathLeaf(workspaceAbsPath)}`}
+       showHeader
+       isDesktop={isDesktop}
+       isMacDesktop={isMacDesktop}
+diff --git a/packages/ui/src/app-shell/types.ts b/packages/ui/src/app-shell/types.ts
+index 6960662d..389480ea 100644
+--- a/packages/ui/src/app-shell/types.ts
++++ b/packages/ui/src/app-shell/types.ts
+@@ -204,7 +204,7 @@ export interface GitChangeSummary {
+   removed: number;
+ }
+ 
+-export type WorkspaceMainView = "chat" | "automations" | "plugin-store";
++export type WorkspaceMainView = "chat" | "automations" | "plugin-store" | "legal" | "knowledgeBase" | "researchReport" | "team" | "conflictPrecheck" | "learningIteration";
+ 
+ export interface WorkspaceShellLayoutProps extends Omit<AppProps, "baseFeedbackService"> {
+   workspaceReadOnlyReason?: string;
+@@ -224,6 +224,12 @@ export interface WorkspaceShellLayoutProps extends Omit<AppProps, "baseFeedbackS
+   onOpenAutomationConsumed: () => void;
+   handleOpenAutomations: OpenAutomationsMain;
+   handleOpenPluginStore: () => void;
++  handleOpenLegal: () => void;
++  handleOpenKnowledgeBase: () => void;
++  handleOpenResearchReport: () => void; // 【步骤4·#16 调研报告】
++  handleOpenTeam: () => void; // 【步骤4·#26 团队同步】
++  handleOpenConflictPrecheck: () => void; // 【步骤4·#5 冲突查重】
++  handleOpenLearningIteration: () => void; // 【步骤4·#18 学习迭代】
+   workspaceShellZCodeState: WorkspaceShellZCodeState;
+   theme: Theme;
+   isMacFullscreen: boolean;
+diff --git a/packages/ui/src/chat-input-toolbar/StartPlanContextBalance.tsx b/packages/ui/src/chat-input-toolbar/StartPlanContextBalance.tsx
+index 36b7fbc6..a891c3d5 100644
+--- a/packages/ui/src/chat-input-toolbar/StartPlanContextBalance.tsx
++++ b/packages/ui/src/chat-input-toolbar/StartPlanContextBalance.tsx
+@@ -41,7 +41,7 @@ function formatStartPlanRemainingPercentage(ratio: number, locale: string): stri
+ function formatModelCode(modelCode: string): string {
+   const normalized = modelCode.replace(/^model:/i, "");
+   if (normalized.toLowerCase() === "glm-5-turbo") {
+-    return "GLM-5Turbo";
++    return "Juscite-5Turbo";
+   }
+   return normalized.toUpperCase();
+ }
+diff --git a/packages/ui/src/components/ui/pdf-viewer.tsx b/packages/ui/src/components/ui/pdf-viewer.tsx
+index e470fd54..10bdd953 100644
+--- a/packages/ui/src/components/ui/pdf-viewer.tsx
++++ b/packages/ui/src/components/ui/pdf-viewer.tsx
+@@ -100,6 +100,7 @@ export interface PdfViewerProps extends HTMLAttributes<HTMLDivElement> {
+   source: PdfViewerSource;
+   labels?: Partial<PdfViewerLabels>;
+   onLoadError?: (error: Error) => void;
++  onPageChange?: (page: number) => void; // 功能 #20（B35）：当前页变化回调，划选引用来源带页码用（可选）
+ }
+ 
+ type PdfDocumentFile = string | Blob | { data: Uint8Array } | { range: PdfViewerRangeTransport };
+@@ -119,7 +120,7 @@ function normalizePdfSource(
+   return { data: new Uint8Array(source) };
+ }
+ 
+-export function PdfViewer({ source, labels, onLoadError, className, ...props }: PdfViewerProps) {
++export function PdfViewer({ source, labels, onLoadError, onPageChange, className, ...props }: PdfViewerProps) {
+   const mergedLabels = { ...DEFAULT_LABELS, ...labels };
+   const [numPages, setNumPages] = useState<number | null>(null);
+   const [pageNumber, setPageNumber] = useState(1);
+@@ -137,6 +138,10 @@ export function PdfViewer({ source, labels, onLoadError, className, ...props }:
+   const pendingZoomAnchorRef = useRef<pdfZoom.PdfZoomAnchor | null>(null);
+   const onLoadErrorRef = useRef(onLoadError);
+   onLoadErrorRef.current = onLoadError;
++  // 功能 #20（B35）：页码变化（含首次载入=第 1 页）回报给调用方；ref 转发避免回调身份变化重挂文档
++  const onPageChangeRef = useRef(onPageChange);
++  onPageChangeRef.current = onPageChange;
++  useEffect(() => { onPageChangeRef.current?.(pageNumber); }, [pageNumber]);
+   const { clearZoomOverlay, pageViewportRef, stageZoomOverlay } = pdfZoom.usePdfZoomOverlay();
+ 
+   const rangeTransport = useMemo(() => {
+diff --git a/packages/ui/src/feedback/feedbackSubmitDescription.ts b/packages/ui/src/feedback/feedbackSubmitDescription.ts
+index fce76e84..8a13564c 100644
+--- a/packages/ui/src/feedback/feedbackSubmitDescription.ts
++++ b/packages/ui/src/feedback/feedbackSubmitDescription.ts
+@@ -7,7 +7,7 @@ import type {
+ } from "@zcode/shared";
+ 
+ const TITLE_MAX = 80;
+-const FEEDBACK_ZCODE_AGENT_LABEL = "ZCode Agent";
++const FEEDBACK_ZCODE_AGENT_LABEL = "Juscite Agent";
+ 
+ type MessageFormatter = (descriptor: { id: string }, values?: Record<string, string>) => string;
+ 
+diff --git a/packages/ui/src/feedback/feedbackSubmitSubmission.ts b/packages/ui/src/feedback/feedbackSubmitSubmission.ts
+index fd2895bb..318b198c 100644
+--- a/packages/ui/src/feedback/feedbackSubmitSubmission.ts
++++ b/packages/ui/src/feedback/feedbackSubmitSubmission.ts
+@@ -19,7 +19,7 @@ import {
+   type FeedbackSubmissionJob,
+ } from "@/feedback/feedbackSubmissionJob.js";
+ 
+-const FEEDBACK_ZCODE_AGENT_LABEL = "ZCode Agent";
++const FEEDBACK_ZCODE_AGENT_LABEL = "Juscite Agent";
+ 
+ export const DEFAULT_FEEDBACK_TYPE: FeedbackTicketType = "bug";
+ export const DEFAULT_FEEDBACK_SEVERITY: FeedbackTicketSeverity = "P2-中";
+diff --git a/packages/ui/src/highspeed/HighspeedShareNoticeCard.tsx b/packages/ui/src/highspeed/HighspeedShareNoticeCard.tsx
+index aa979841..b05b5f34 100644
+--- a/packages/ui/src/highspeed/HighspeedShareNoticeCard.tsx
++++ b/packages/ui/src/highspeed/HighspeedShareNoticeCard.tsx
+@@ -74,7 +74,7 @@ export function HighspeedShareNoticeCard({
+             data-highspeed-card-background="dark"
+           />
+           <div className="highspeed-sidebar-share-card__content">
+-            <div className="highspeed-sidebar-share-card__title" role="img" aria-label="ZCode">
++            <div className="highspeed-sidebar-share-card__title" role="img" aria-label="Juscite">
+               <ZCodeWordmarkLogo className="highspeed-sidebar-share-card__wordmark" />
+             </div>
+             <Button
+diff --git a/packages/ui/src/highspeed/highspeedShare.ts b/packages/ui/src/highspeed/highspeedShare.ts
+index b8179666..9e19fff9 100644
+--- a/packages/ui/src/highspeed/highspeedShare.ts
++++ b/packages/ui/src/highspeed/highspeedShare.ts
+@@ -131,7 +131,7 @@ export async function copyHighspeedCardImage(
+   const speedup = highspeedSpeedup(metrics);
+   const savedPercent = highspeedSavedPercent(metrics);
+   const imageLabels: HighspeedShareImageLabels = labels ?? {
+-    benefit: "ZCode & Coding Plan Exclusive Benefits",
++    benefit: "Juscite & Coding Plan Exclusive Benefits",
+     standardSpeed: "standard generation speed",
+     speedSummary: `HighSpeed · ${formatHighspeedDurationShort(metrics.durationMs)}`,
+     lessWaiting: `${savedPercent}% less waiting`,
+diff --git a/packages/ui/src/i18n/IntlProvider.tsx b/packages/ui/src/i18n/IntlProvider.tsx
+index e495f70a..5ce1d565 100644
+--- a/packages/ui/src/i18n/IntlProvider.tsx
++++ b/packages/ui/src/i18n/IntlProvider.tsx
+@@ -6,11 +6,12 @@ import type { BroadcastMessage, IBroadcastService, ISettingService } from "@zcod
+ import { readNavigatorLanguage, readSafeLocalStorage, writeSafeLocalStorage } from "@/lib/browserEnvironment.js";
+ import zhCN from "./locales/zh-CN.js";
+ import enUS from "./locales/en-US.js";
++import { applyJusciteOverlay } from "./jusciteOverlay.js";
+ 
+-/** 语言 → 翻译消息映射 */
++/** 语言 → 翻译消息映射（基座 locale 上游原样，Juscite 词条经 overlay 合并，注册点见 jusciteOverlay.ts 头注） */
+ const MESSAGES: Record<Locale, Record<string, string>> = {
+-  "zh-CN": zhCN,
+-  "en-US": enUS,
++  "zh-CN": applyJusciteOverlay("zh-CN", zhCN),
++  "en-US": applyJusciteOverlay("en-US", enUS),
+ };
+ 
+ /** 简易 intl 工具：根据 id 查找翻译，支持 {key} 占位符替换 */
+diff --git a/packages/ui/src/lib/builtinSkillI18n.ts b/packages/ui/src/lib/builtinSkillI18n.ts
+index ee628b5d..ec0ee1a5 100644
+--- a/packages/ui/src/lib/builtinSkillI18n.ts
++++ b/packages/ui/src/lib/builtinSkillI18n.ts
+@@ -53,8 +53,8 @@ const BUILTIN_SKILL_DESCRIPTIONS: Record<string, Record<Locale, string>> = {
+     "en-US": "Use before any creative work, including creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements, and design before implementation.",
+   },
+   "control-browser": {
+-    "zh-CN": "控制 ZCode 内置浏览器，用于打开、检查、点击、输入、截图或验证网页和本地开发页面。",
+-    "en-US": "Control ZCode's built-in browser to open, inspect, click, type, screenshot, or verify webpages and local development targets.",
++    "zh-CN": "控制 Juscite 内置浏览器，用于打开、检查、点击、输入、截图或验证网页和本地开发页面。",
++    "en-US": "Control Juscite's built-in browser to open, inspect, click, type, screenshot, or verify webpages and local development targets.",
+   },
+   "dispatching-parallel-agents": {
+     "zh-CN": "面对 2 个以上彼此独立、无共享状态或顺序依赖的任务时使用。",
+@@ -105,12 +105,12 @@ const BUILTIN_SKILL_DESCRIPTIONS: Record<string, Record<Locale, string>> = {
+     "en-US": "Use when completing tasks, implementing major features, or before merging to verify work meets requirements.",
+   },
+   "restore-legacy-sessions": {
+-    "zh-CN": "检查、规划或执行 ACP 时代 ZCode 旧 session 恢复到新的 ZCode 任务与会话库。",
+-    "en-US": "Inspect, plan, or restore old ACP-era ZCode sessions into the new ZCode task and session stores.",
++    "zh-CN": "检查、规划或执行 ACP 时代 Juscite 旧 session 恢复到新的 Juscite 任务与会话库。",
++    "en-US": "Inspect, plan, or restore old ACP-era Juscite sessions into the new Juscite task and session stores.",
+   },
+   "plugin-creator": {
+-    "zh-CN": "创建、校验 ZCode 插件，并指导本地安装与更新。",
+-    "en-US": "Create and validate ZCode plugins, and guide local installation and updates.",
++    "zh-CN": "创建、校验 Juscite 插件，并指导本地安装与更新。",
++    "en-US": "Create and validate Juscite plugins, and guide local installation and updates.",
+   },
+   "skill-creator": {
+     "zh-CN": "创建新技能、编辑现有技能并迭代措辞。适用于从零编写 SKILL.md、改进已有技能、把重复工作流沉淀为可复用技能，或优化技能描述以提升触发可靠性。",
+@@ -141,8 +141,8 @@ const BUILTIN_SKILL_DESCRIPTIONS: Record<string, Record<Locale, string>> = {
+     "en-US": "Use before claiming work is complete, fixed, or passing. Requires running verification commands and confirming output before success claims.",
+   },
+   "web-gui-tester": {
+-    "zh-CN": "使用 ZCode Browser Use 对网页和本地 Web 前端执行纯 GUI 黑盒测试，通过真实用户交互、DOM 语义证据和截图验证功能、交互与响应式布局。",
+-    "en-US": "Run pure GUI black-box tests against websites and local web frontends with ZCode Browser Use, combining real user interactions, semantic DOM evidence, and inspected screenshots.",
++    "zh-CN": "使用 Juscite Browser Use 对网页和本地 Web 前端执行纯 GUI 黑盒测试，通过真实用户交互、DOM 语义证据和截图验证功能、交互与响应式布局。",
++    "en-US": "Run pure GUI black-box tests against websites and local web frontends with Juscite Browser Use, combining real user interactions, semantic DOM evidence, and inspected screenshots.",
+   },
+   "writing-plans": {
+     "zh-CN": "已有规格或多步骤任务需求，在动代码前用于编写实现计划。",
+diff --git a/packages/ui/src/lib/codingPlanUsageSources.ts b/packages/ui/src/lib/codingPlanUsageSources.ts
+index c5aa4636..89355ca3 100644
+--- a/packages/ui/src/lib/codingPlanUsageSources.ts
++++ b/packages/ui/src/lib/codingPlanUsageSources.ts
+@@ -41,8 +41,8 @@ export function buildPersonalCodingPlanUsageSource({
+     label:
+       normalizedLabel ||
+       (providerId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan
+-        ? "Z.ai - Coding Plan"
+-        : "BigModel - Coding Plan"),
++        ? "Juscite - Coding Plan"
++        : "Juscite - Coding Plan"),
+   };
+ }
+ 
+diff --git a/packages/ui/src/lib/settingsNavigation.ts b/packages/ui/src/lib/settingsNavigation.ts
+index 637dcfa5..fafad179 100644
+--- a/packages/ui/src/lib/settingsNavigation.ts
++++ b/packages/ui/src/lib/settingsNavigation.ts
+@@ -21,7 +21,10 @@ export type SettingsSectionId =
+   | "workspaceFileSearch"
+   | "computerUse"
+   | "automations"
+-  | "shortcuts";
++  | "shortcuts"
++  | "stealth"
++  | "pet" // 功能 #28 桌宠（RE-28 §3.3 设置面五控件）
++  | "help"; // 功能 #29：帮助与反馈（产品指引重看入口，RE-29 E1/E2）
+ 
+ export type SettingsUsageTabTarget = "app" | "codingPlan";
+ export type SettingsPluginTabTarget = "plugins" | "mcps" | "skills" | "commands";
+@@ -84,7 +87,9 @@ function isSettingsSectionId(value: string): value is SettingsSectionId {
+     value === "workspaceFileSearch" ||
+     value === "computerUse" ||
+     value === "automations" ||
+-    value === "shortcuts"
++    value === "shortcuts" ||
++    value === "stealth" ||
++    value === "pet"
+   );
+ }
+ 
+diff --git a/packages/ui/src/lib/zcodeSessionProjection.ts b/packages/ui/src/lib/zcodeSessionProjection.ts
+index 75a1e955..4165bb1e 100644
+--- a/packages/ui/src/lib/zcodeSessionProjection.ts
++++ b/packages/ui/src/lib/zcodeSessionProjection.ts
+@@ -1039,7 +1039,7 @@ export function zcodeSessionEventToZCodeStreamEvents(params: {
+             taskId,
+             traceId,
+             eventInputId,
+-            stringValue(errorPayload.message) ?? "ZCode compact failed",
++            stringValue(errorPayload.message) ?? "Juscite compact failed",
+           ),
+         ];
+       }
+@@ -1052,7 +1052,7 @@ export function zcodeSessionEventToZCodeStreamEvents(params: {
+           taskId,
+           traceId,
+           ...(eventInputId ? { inputId: eventInputId } : {}),
+-          error: stringValue(errorPayload.message) ?? "ZCode session failed",
++          error: stringValue(errorPayload.message) ?? "Juscite session failed",
+           code: stringValue(errorPayload.code) ?? stringValue(errorPayload.type),
+           detail: stringValue(errorPayload.detail),
+           ...(attribution.success ? { attribution: attribution.data } : {}),
+diff --git a/packages/ui/src/lib/zcodeUiError.ts b/packages/ui/src/lib/zcodeUiError.ts
+index 9605db60..275849c7 100644
+--- a/packages/ui/src/lib/zcodeUiError.ts
++++ b/packages/ui/src/lib/zcodeUiError.ts
+@@ -21,6 +21,9 @@ const GENERIC_ZCODE_UI_ERROR_MESSAGES = new Set([
+   "Turn execution failed",
+   "Compact failed",
+   "Rewind failed",
++  // 本侧投影 fallback（zcodeSessionProjection）与 services 侧 adapter（zcodeTaskServiceAdapter）
++  // 各产一种字面量，两类都要归入 generic 集合：
++  "Juscite session failed",
+   "ZCode session failed",
+ ]);
+ 
+diff --git a/packages/ui/src/login/LoginApiKeyForm.helpers.ts b/packages/ui/src/login/LoginApiKeyForm.helpers.ts
+index f1a00181..f0496d58 100644
+--- a/packages/ui/src/login/LoginApiKeyForm.helpers.ts
++++ b/packages/ui/src/login/LoginApiKeyForm.helpers.ts
+@@ -22,8 +22,8 @@ export function resolveLoginApiKeyTemplateId(
+ }
+ 
+ export function resolveLoginApiKeyProviderLabel(choice: ApiKeyProviderChoice): string {
+-  // Welcome Screen API Key 错误提示需要使用 BigModel 品牌固定写法。
+-  return choice === "zai" ? "Z.ai" : "BigModel";
++  // 白标口径：欢迎页 API Key 错误提示统一以 Juscite 品牌呈现（r12 波2 D5）。
++  return choice === "zai" ? "Juscite" : "Juscite";
+ }
+ 
+ export function resolveLoginApiKeyProviderFamilyDomain(
+diff --git a/packages/ui/src/onboarding/OnboardingWelcomeView.tsx b/packages/ui/src/onboarding/OnboardingWelcomeView.tsx
+index f30f33a2..01ec17ed 100644
+--- a/packages/ui/src/onboarding/OnboardingWelcomeView.tsx
++++ b/packages/ui/src/onboarding/OnboardingWelcomeView.tsx
+@@ -19,7 +19,7 @@ export function OnboardingWelcomeView(props: { onStart: () => void; onOpenMigrat
+             {/* 欢迎 logo 壳是固定深色底，边框不能跟随浅色主题 token，否则浅色主题下边框过重。*/}
+             <div
+               className="relative flex size-14 items-center justify-center rounded-xl bg-[linear-gradient(180deg,#000000_0%,#151718_100%)] text-[#ffffff] shadow-lg/20 before:pointer-events-none before:absolute before:inset-0 before:rounded-xl before:border before:border-[rgba(255,255,255,0.1)]"
+-              aria-label="ZCode"
++              aria-label="Juscite"
+               role="img"
+             >
+               <ZCodeAboutLogo className="h-auto w-8" />
+diff --git a/packages/ui/src/plugin-ui/adapters/useUiPluginRecommendations.ts b/packages/ui/src/plugin-ui/adapters/useUiPluginRecommendations.ts
+index 4a2c3266..e36965f5 100644
+--- a/packages/ui/src/plugin-ui/adapters/useUiPluginRecommendations.ts
++++ b/packages/ui/src/plugin-ui/adapters/useUiPluginRecommendations.ts
+@@ -15,8 +15,9 @@ export function useUiPluginRecommendations(enabled: boolean) {
+     setSnapshot(undefined);
+     if (enabled && service) {
+       void service.getSnapshot().then(
+-        ({ uiPluginRecommendations }) => {
+-          if (active) setSnapshot({ service, recommendations: uiPluginRecommendations ?? [] });
++        // R3 走查：client-config 端点被 CORS 拦截时部分实现 resolve undefined——快照不假设非空
++        (snapshot) => {
++          if (active) setSnapshot({ service, recommendations: snapshot?.uiPluginRecommendations ?? [] });
+         },
+         () => {
+           if (active) {
+diff --git a/packages/ui/src/previewPanePdfContent.tsx b/packages/ui/src/previewPanePdfContent.tsx
+index c32be76a..75e8a056 100644
+--- a/packages/ui/src/previewPanePdfContent.tsx
++++ b/packages/ui/src/previewPanePdfContent.tsx
+@@ -12,14 +12,15 @@ const PdfViewer = lazy(() =>
+ interface PdfPreviewContentProps {
+   source: PdfViewerSource;
+   labels: PdfViewerLabels;
++  onPageChange?: (page: number) => void; // 功能 #20（B35）透传
+ }
+ 
+-export function PdfPreviewContent({ source, labels }: PdfPreviewContentProps) {
++export function PdfPreviewContent({ source, labels, onPageChange }: PdfPreviewContentProps) {
+   return (
+     <Suspense
+       fallback={<div className="p-3 text-ui-base text-foreground-subtle">{labels.loading}</div>}
+     >
+-      <PdfViewer source={source} labels={labels} className="h-full" />
++      <PdfViewer source={source} labels={labels} onPageChange={onPageChange} className="h-full" />
+     </Suspense>
+   );
+ }
+diff --git a/packages/ui/src/project-sidebar/ProjectSidebarNavigation.tsx b/packages/ui/src/project-sidebar/ProjectSidebarNavigation.tsx
+index c26d5b83..8960003a 100644
+--- a/packages/ui/src/project-sidebar/ProjectSidebarNavigation.tsx
++++ b/packages/ui/src/project-sidebar/ProjectSidebarNavigation.tsx
+@@ -1,4 +1,4 @@
+-import { Blocks, CalendarClock } from "lucide-react";
++import { Blocks, CalendarClock, FolderOpen, GraduationCap, Scale, ScanSearch, Telescope, Users } from "lucide-react";
+ import { TID_AUTOMATIONS_OPEN } from "@zcode/shared/test-ids";
+ import type { ProjectSidebarProps } from "@/project-sidebar/contract.js";
+ import { Button } from "@/components/ui/button.js";
+@@ -18,6 +18,18 @@ export function ProjectSidebarNavigation({
+     | "automationsActive"
+     | "onOpenPluginStore"
+     | "pluginStoreActive"
++    | "onOpenLegal"
++    | "legalActive"
++    | "onOpenKnowledgeBase"
++    | "knowledgeBaseActive"
++    | "onOpenResearchReport"
++    | "researchReportActive"
++    | "onOpenTeam"
++    | "teamActive"
++    | "onOpenConflictPrecheck"
++    | "conflictPrecheckActive"
++    | "onOpenLearningIteration"
++    | "learningIterationActive"
+     | "webRemoteControlWorkspaceSwitcher"
+   >;
+   onCreate(): void;
+@@ -27,6 +39,7 @@ export function ProjectSidebarNavigation({
+   return (
+     <div
+       data-testid="sidebar-primary-navigation"
++      data-tour="tour-overview"
+       className={`flex flex-col gap-1 px-2 py-3 ${props.isWebRemoteControl && !deviceNavigation ? "max-md:pt-11" : ""}`}
+     >
+       {/* Relay V2 远控：当前电脑是项目与任务的上一级，放在导航首行；手机端占用原顶部留白。 */}
+@@ -38,6 +51,7 @@ export function ProjectSidebarNavigation({
+           size="lg"
+           className={`w-full justify-start gap-2 ${props.automationsActive ? "bg-selected text-foreground" : ""}`}
+           aria-pressed={props.automationsActive ?? false}
++          data-tour="tour-schedule"
+           data-testid={TID_AUTOMATIONS_OPEN}
+           // 点击事件不能进入业务导航的可选 automationId 参数。
+           onClick={() => props.onOpenAutomations?.()}
+@@ -46,11 +60,92 @@ export function ProjectSidebarNavigation({
+           {intl.formatMessage({ id: "workspace.openScheduledSettings" })}
+         </Button>
+       ) : null}
++      {/* 法律工作台入口（v4 §4.5 八模块法律面）：锚点重放自 M3 面轨。 */}
++      <Button
++        variant="ghost"
++        size="lg"
++        data-icon="inline-start"
++        data-testid="legal-workbench-sidebar-open"
++        data-tour="tour-legal"
++        aria-pressed={props.legalActive ?? false}
++        className={`w-full justify-start gap-2 ${props.legalActive ? "bg-selected text-foreground" : ""}`}
++        onClick={() => props.onOpenLegal?.()}
++      >
++        <Scale className="size-4" />
++        法律工作台
++      </Button>
++      {/* 【步骤4·#20 知识库】所内文集问答工作区入口（B01 同位入口同名工作区）。 */}
++      <Button
++        variant="ghost"
++        size="lg"
++        data-icon="inline-start"
++        data-testid="knowledge-base-sidebar-open"
++        data-tour="tour-knowledge"
++        aria-pressed={props.knowledgeBaseActive ?? false}
++        className={`w-full justify-start gap-2 ${props.knowledgeBaseActive ? "bg-selected text-foreground" : ""}`}
++        onClick={() => props.onOpenKnowledgeBase?.()}
++      >
++        <FolderOpen className="size-4" />
++        知识库
++      </Button>
++      {/* 【步骤4·#16 调研报告】调研工作区入口（B01 侧栏入口+lazy 面板）。 */}
++      <Button
++        variant="ghost"
++        size="lg"
++        data-icon="inline-start"
++        data-testid="research-report-sidebar-open"
++        aria-pressed={props.researchReportActive ?? false}
++        className={`w-full justify-start gap-2 ${props.researchReportActive ? "bg-selected text-foreground" : ""}`}
++        onClick={() => props.onOpenResearchReport?.()}
++      >
++        <Telescope className="size-4" />
++        调研报告
++      </Button>
++      {/* 【步骤4·#26 团队同步】一级「团队」入口（A1：恒显，未入团也显示）。 */}
++      <Button
++        variant="ghost"
++        size="lg"
++        data-icon="inline-start"
++        data-testid="team-sidebar-open"
++        aria-pressed={props.teamActive ?? false}
++        className={`w-full justify-start gap-2 ${props.teamActive ? "bg-selected text-foreground" : ""}`}
++        onClick={() => props.onOpenTeam?.()}
++      >
++        <Users className="size-4" />
++        团队
++      </Button>
++      {/* 【步骤4·#5 冲突查重】冲突预检工作区入口（收案动线：先预检再建案）。 */}
++      <Button
++        variant="ghost"
++        size="lg"
++        data-icon="inline-start"
++        data-testid="conflict-precheck-sidebar-open"
++        aria-pressed={props.conflictPrecheckActive ?? false}
++        className={`w-full justify-start gap-2 ${props.conflictPrecheckActive ? "bg-selected text-foreground" : ""}`}
++        onClick={() => props.onOpenConflictPrecheck?.()}
++      >
++        <ScanSearch className="size-4" />
++        冲突预检
++      </Button>
++      {/* 【步骤4·#18 学习迭代】工作区入口（J1 侧栏入口+lazy 面板）。 */}
++      <Button
++        variant="ghost"
++        size="lg"
++        data-icon="inline-start"
++        data-testid="learning-iteration-sidebar-open"
++        aria-pressed={props.learningIterationActive ?? false}
++        className={`w-full justify-start gap-2 ${props.learningIterationActive ? "bg-selected text-foreground" : ""}`}
++        onClick={() => props.onOpenLearningIteration?.()}
++      >
++        <GraduationCap className="size-4" />
++        学习迭代
++      </Button>
+       <Button
+         variant="ghost"
+         size="lg"
+         className={`w-full justify-start gap-2 ${props.pluginStoreActive ? "bg-selected text-foreground" : ""}`}
+         aria-pressed={props.pluginStoreActive ?? false}
++        data-tour="tour-plugins"
+         data-testid="plugin-store-sidebar-open"
+         onClick={() => props.onOpenPluginStore?.()}
+       >
+diff --git a/packages/ui/src/project-sidebar/contract.ts b/packages/ui/src/project-sidebar/contract.ts
+index 3809a8df..730c4249 100644
+--- a/packages/ui/src/project-sidebar/contract.ts
++++ b/packages/ui/src/project-sidebar/contract.ts
+@@ -143,8 +143,23 @@ export interface ProjectSidebarProps {
+   repoWikiActive?: boolean;
+   onOpenAutomations?: () => void;
+   onOpenPluginStore?: () => void;
++  onOpenLegal?: () => void;
++  onOpenKnowledgeBase?: () => void;
++  // 【步骤4·#16 调研报告】工作区入口（B01 同位入口同名工作区）
++  onOpenResearchReport?: () => void;
++  researchReportActive?: boolean;
++  onOpenTeam?: () => void; // 【步骤4·#26 团队同步】一级「团队」入口（A1 恒显无 feature gate）
++  teamActive?: boolean;
++  // 【步骤4·#5 冲突查重】预检工作区入口
++  onOpenConflictPrecheck?: () => void;
++  conflictPrecheckActive?: boolean;
++  // 【步骤4·#18 学习迭代】工作区入口（J1 同位入口同名工作区）
++  onOpenLearningIteration?: () => void;
++  learningIterationActive?: boolean;
+   automationsActive?: boolean;
+   pluginStoreActive?: boolean;
++  legalActive?: boolean;
++  knowledgeBaseActive?: boolean;
+   onFileTreeOpenChange?: (open: boolean) => void;
+   onWebRemoteTaskOpen?: (options: { crossWorkspace: boolean }) => void;
+   onWebRemoteTaskSwitchingChange?: (switching: boolean) => void;
+diff --git a/packages/ui/src/project-sidebar/index.tsx b/packages/ui/src/project-sidebar/index.tsx
+index ac83de39..e20a1e32 100644
+--- a/packages/ui/src/project-sidebar/index.tsx
++++ b/packages/ui/src/project-sidebar/index.tsx
+@@ -49,6 +49,8 @@ import { ProjectSidebarListHeader } from "@/project-sidebar/ProjectSidebarListHe
+ import { ProjectSidebarNavigation } from "@/project-sidebar/ProjectSidebarNavigation.js";
+ import { HomeOnlyWorkspaceRows } from "@/project-sidebar/HomeOnlyWorkspaceRows.js";
+ import { WorkspaceSidebarFooter } from "@/WorkspaceSidebarFooter.js";
++// 功能 #30 安全审计中心：侧栏底部常驻入口（盾+双行文案+右箭头，账户区之下最底行）。
++import { SecurityAuditSidebarEntry } from "@juscite/legal/panels/SecurityAuditCenter";
+ import { SidebarBottomActivity } from "@/sidebar-activity/SidebarBottomActivity.js";
+ import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+ import { useTabStoreApi } from "@/store/TabStoreProvider.js";
+@@ -343,6 +345,8 @@ export const ProjectSidebar = memo(function ProjectSidebar(props: ProjectSidebar
+                 isDesktop={props.isDesktop}
+                 banner={banner}
+               />
++              {/* 功能 #30（对拍 1）：盾+主/副两行文案+右箭头+悬浮说明，位置=账户区之下最底行。 */}
++              <SecurityAuditSidebarEntry />
+             </div>
+           </div>
+           {creating && service && remoteService ? (
+diff --git a/packages/ui/src/project-workflow/WorkflowRunPaneSaveSlots.tsx b/packages/ui/src/project-workflow/WorkflowRunPaneSaveSlots.tsx
+index aeb92040..28f8766b 100644
+--- a/packages/ui/src/project-workflow/WorkflowRunPaneSaveSlots.tsx
++++ b/packages/ui/src/project-workflow/WorkflowRunPaneSaveSlots.tsx
+@@ -58,7 +58,7 @@ function useWorkflowRunPaneSaveHost(params: WorkflowRunPaneSaveParams): Workflow
+         }),
+       );
+       if (ack.status !== "accepted") {
+-        logger.warn("[workflow-run] 交给 ZCode 提炼保存的那条消息被拒", {
++        logger.warn("[workflow-run] 交给 Juscite 提炼保存的那条消息被拒", {
+           reasonCode: ack.reasonCode ?? null,
+           runId: tab.runId,
+           status: ack.status,
+diff --git a/packages/ui/src/root/PostUpdateReleaseNotesDialog.tsx b/packages/ui/src/root/PostUpdateReleaseNotesDialog.tsx
+index 1b8cdc58..6a6b9351 100644
+--- a/packages/ui/src/root/PostUpdateReleaseNotesDialog.tsx
++++ b/packages/ui/src/root/PostUpdateReleaseNotesDialog.tsx
+@@ -49,7 +49,7 @@ export function PostUpdateReleaseNotesDialog({
+       >
+         <div className="flex flex-col px-8 py-6">
+           <div className="flex min-w-0 shrink-0 items-center gap-2.5">
+-            <GlmMonochromeIcon className="size-5 shrink-0" alt="ZCode" />
++            <GlmMonochromeIcon className="size-5 shrink-0" alt="Juscite" />
+             <div className="min-w-0 flex-1">
+               <DialogTitle className="text-lg leading-snug tracking-tight text-foreground">
+                 {dialogHeading}
+diff --git a/packages/ui/src/root/RootStartupLoading.tsx b/packages/ui/src/root/RootStartupLoading.tsx
+index 3ee752b9..c6787725 100644
+--- a/packages/ui/src/root/RootStartupLoading.tsx
++++ b/packages/ui/src/root/RootStartupLoading.tsx
+@@ -64,7 +64,7 @@ export function ZCodeStartupLogo({
+       width="118"
+       height="100"
+       fill="none"
+-      viewBox="0 0 256 218"
++      viewBox="0 0 32 32"
+       className={cn("shrink-0 text-current", className)}
+       aria-hidden="true"
+       focusable="false"
+@@ -78,15 +78,15 @@ export function ZCodeStartupLogo({
+           values="1;0.4;1"
+         />
+       ) : null}
+-      <path
+-        fill="currentColor"
+-        d="M134.4 0.130152L116.48 25.6022C113.665 29.5699 109.054 32.0019 104.064 32.0019H6.3999V0C6.3999 0.130149 134.4 0.130152 134.4 0.130152Z"
+-      />
+-      <path fill="currentColor" d="M256 0.130127L102.401 217.732H0L153.599 0.130127H256Z" />
+-      <path
+-        fill="currentColor"
+-        d="M121.601 217.732L139.65 192.134C142.465 188.166 147.076 185.734 152.067 185.734H249.604V217.736H121.601V217.732Z"
+-      />
++      {/* Juscite 占位 logo：抽象天平（正式 logo 定稿后替换） */}
++      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none">
++        <circle cx="16" cy="5" r="1.6" fill="currentColor" stroke="none" />
++        <line x1="16" y1="6.6" x2="16" y2="25" />
++        <line x1="7" y1="9" x2="25" y2="9" />
++        <path d="M7 9 L4 15 H10 Z" fill="currentColor" stroke="none" />
++        <path d="M25 9 L22 15 H28 Z" fill="currentColor" stroke="none" />
++        <line x1="9" y1="25.5" x2="23" y2="25.5" />
++      </g>
+     </svg>
+   );
+ }
+diff --git a/packages/ui/src/settings/mcpSettingsShared.ts b/packages/ui/src/settings/mcpSettingsShared.ts
+index 5e3c64ad..bee49c5f 100644
+--- a/packages/ui/src/settings/mcpSettingsShared.ts
++++ b/packages/ui/src/settings/mcpSettingsShared.ts
+@@ -9,8 +9,8 @@ export const SOURCE_META: Record<
+   { label: string; section: string; badgeClass: string }
+ > = {
+   zcodeagentmcp: {
+-    label: "ZCode Agent",
+-    section: "ZCode Agent",
++    label: "Juscite Agent",
++    section: "Juscite Agent",
+     badgeClass: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",
+   },
+ };
+diff --git a/packages/ui/src/settings/model-provider-section/StartPlanBalanceCard.tsx b/packages/ui/src/settings/model-provider-section/StartPlanBalanceCard.tsx
+index 88e129e5..7700a448 100644
+--- a/packages/ui/src/settings/model-provider-section/StartPlanBalanceCard.tsx
++++ b/packages/ui/src/settings/model-provider-section/StartPlanBalanceCard.tsx
+@@ -206,7 +206,7 @@ function formatLimitModels(limit: UsageQuotaLimit): string {
+ function formatModelCode(modelCode: string): string {
+   const normalized = modelCode.replace(/^model:/i, "");
+   if (normalized.toLowerCase() === "glm-5-turbo") {
+-    return "GLM-5Turbo";
++    return "Juscite-5Turbo";
+   }
+   return normalized.toUpperCase();
+ }
+diff --git a/packages/ui/src/settings/model-provider-section/constants.ts b/packages/ui/src/settings/model-provider-section/constants.ts
+index 6d72fcf2..601c8538 100644
+--- a/packages/ui/src/settings/model-provider-section/constants.ts
++++ b/packages/ui/src/settings/model-provider-section/constants.ts
+@@ -34,12 +34,12 @@ export interface PresetProviderSpec {
+ export const PRESET_PROVIDER_SPECS: PresetProviderSpec[] = [
+   {
+     id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
+-    displayName: "Z.ai",
++    displayName: "Juscite",
+     oauthProviderId: ZAI_PROVIDER_ID,
+   },
+   {
+     id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
+-    displayName: "BigModel",
++    displayName: "Juscite",
+     oauthProviderId: BIGMODEL_PROVIDER_ID,
+   },
+ ];
+@@ -78,29 +78,29 @@ export const CODING_PLAN_PROVIDER_SPECS: CodingPlanProviderSpec[] = [
+   {
+     id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
+     oauthProviderId: ZAI_PROVIDER_ID,
+-    label: "Z.ai - Coding Plan",
+-    providerName: "Z.ai",
++    label: "Juscite - Coding Plan",
++    providerName: "Juscite",
+     purchaseUrl: "https://z.ai/manage-apikey/subscription",
+   },
+   {
+     id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
+     oauthProviderId: ZAI_PROVIDER_ID,
+-    label: "Z.ai - Coding Plan",
+-    providerName: "Z.ai",
++    label: "Juscite - Coding Plan",
++    providerName: "Juscite",
+     purchaseUrl: "https://z.ai/manage-apikey/subscription",
+   },
+   {
+     id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
+     oauthProviderId: BIGMODEL_PROVIDER_ID,
+-    label: "BigModel - Coding Plan",
+-    providerName: "BigModel",
++    label: "Juscite - Coding Plan",
++    providerName: "Juscite",
+     purchaseUrl: BIGMODEL_CODING_PLAN_PERSONAL_MANAGE_URL,
+   },
+   {
+     id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
+     oauthProviderId: BIGMODEL_PROVIDER_ID,
+-    label: "BigModel- Coding Plan",
+-    providerName: "BigModel",
++    label: "Juscite - Coding Plan",
++    providerName: "Juscite",
+     purchaseUrl: BIGMODEL_CODING_PLAN_PERSONAL_MANAGE_URL,
+   },
+ ];
+@@ -118,7 +118,7 @@ export function resolveModelProviderDisplayName(
+     provider.providerId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan ||
+     provider.providerId === BUILTIN_MODEL_PROVIDER_IDS.zaiTeamCodingPlan
+   ) {
+-    return "Z.ai - Coding Plan";
++    return "Juscite - Coding Plan";
+   }
+ 
+   if (provider.providerId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan) {
+diff --git a/packages/ui/src/settings/model-provider-section/quotaModelDisplayName.ts b/packages/ui/src/settings/model-provider-section/quotaModelDisplayName.ts
+index 8b69d00e..2a089425 100644
+--- a/packages/ui/src/settings/model-provider-section/quotaModelDisplayName.ts
++++ b/packages/ui/src/settings/model-provider-section/quotaModelDisplayName.ts
+@@ -5,7 +5,7 @@ export function formatQuotaModelDisplayName(value: string): string {
+       .split("-")
+       .map((part, index) => {
+         if (index === 0) {
+-          return "GLM";
++          return "Juscite";
+         }
+         if (/^turbo$/i.test(part)) {
+           return "Turbo";
+diff --git a/packages/ui/src/settings/model-provider-section/useCodingPlanProducts.ts b/packages/ui/src/settings/model-provider-section/useCodingPlanProducts.ts
+index d022a0f6..257db12f 100644
+--- a/packages/ui/src/settings/model-provider-section/useCodingPlanProducts.ts
++++ b/packages/ui/src/settings/model-provider-section/useCodingPlanProducts.ts
+@@ -275,7 +275,7 @@ function buildStaticProductsSnapshot(providerId: CodingPlanProviderId): CodingPl
+ function buildZaiStartStaticProducts(preview: StartPlanPreviewConfig): CodingPlanStaticProduct[] {
+   const isChineseLocale =
+     typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("zh");
+-  const previewName = preview.name.trim() || "Z.ai Start";
++  const previewName = preview.name.trim() || "Juscite Start";
+   const equityList = preview.entitlements.map((entitlement) => ({
+     productEquityTitle: entitlement.showName,
+     productEquityDetails: formatStartPlanPreviewEntitlement(entitlement, isChineseLocale),
+@@ -286,7 +286,7 @@ function buildZaiStartStaticProducts(preview: StartPlanPreviewConfig): CodingPla
+       productId: ZAI_START_FREE_PRODUCT_IDS.month,
+       productName: previewName,
+       productSmallTitle: "Free Coding Plan",
+-      description: "Free Coding Plan entry for connected Z.ai users.",
++      description: "Free Coding Plan entry for connected Juscite users.",
+       productEquityList: equityList,
+       priceUnit: "month",
+       displayOrder: 0,
+@@ -299,7 +299,7 @@ function buildZaiStartStaticProducts(preview: StartPlanPreviewConfig): CodingPla
+       productId: ZAI_START_FREE_PRODUCT_IDS.quarter,
+       productName: previewName,
+       productSmallTitle: "Free Coding Plan",
+-      description: "Free Coding Plan entry for signed-in Z.ai users.",
++      description: "Free Coding Plan entry for signed-in Juscite users.",
+       productEquityList: equityList,
+       priceUnit: "quarter",
+       displayOrder: 0,
+@@ -312,7 +312,7 @@ function buildZaiStartStaticProducts(preview: StartPlanPreviewConfig): CodingPla
+       productId: ZAI_START_FREE_PRODUCT_IDS.year,
+       productName: previewName,
+       productSmallTitle: "Free Coding Plan",
+-      description: "Free Coding Plan entry for signed-in Z.ai users.",
++      description: "Free Coding Plan entry for signed-in Juscite users.",
+       productEquityList: equityList,
+       priceUnit: "year",
+       displayOrder: 0,
+diff --git a/packages/ui/src/settings/settingsPageConfig.ts b/packages/ui/src/settings/settingsPageConfig.ts
+index 845aaccc..de7be4c7 100644
+--- a/packages/ui/src/settings/settingsPageConfig.ts
++++ b/packages/ui/src/settings/settingsPageConfig.ts
+@@ -20,6 +20,9 @@ import {
+   HardDrive,
+   Keyboard,
+   FileSearch,
++  Shield,
++  LifeBuoy,
++  Cat,
+ } from "lucide-react";
+ import { isSettingsSectionEnabled, type SettingsSectionId } from "@/lib/settingsNavigation.js";
+ import type { Theme } from "@/useTheme.js";
+@@ -75,6 +78,27 @@ const BASE_SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
+     titleId: "settings.modelProviderTitle",
+     groupId: "basics",
+   },
++  // 隐身模式（v4 §8/patch 022）：一键全屏蔽开关+五通道清单；紧跟模型供应商（§4 设置分区序）。
++  {
++    id: "stealth",
++    icon: Shield,
++    titleId: "settings.stealth.title",
++    groupId: "basics",
++  },
++  // 功能 #28 桌宠（RE-28 §3.3）：设置面五控件分区，紧跟隐身模式。
++  {
++    id: "pet",
++    icon: Cat,
++    titleId: "settings.pet.title",
++    groupId: "basics",
++  },
++  // 功能 #29 帮助与反馈（RE-29 E1）：产品指引重看入口所在分区，紧跟隐身模式。
++  {
++    id: "help",
++    icon: LifeBuoy,
++    titleId: "settings.help.title",
++    groupId: "basics",
++  },
+   {
+     id: "memory",
+     icon: Brain,
+diff --git a/packages/ui/src/settings/usage-stats/CodingPlanUsagePanel.tsx b/packages/ui/src/settings/usage-stats/CodingPlanUsagePanel.tsx
+index 54046091..2d0c1ac0 100644
+--- a/packages/ui/src/settings/usage-stats/CodingPlanUsagePanel.tsx
++++ b/packages/ui/src/settings/usage-stats/CodingPlanUsagePanel.tsx
+@@ -91,7 +91,7 @@ const CODING_PLAN_DETAIL_SERIES_COLORS = [
+ ] as const;
+ const MAX_SELECTED_CODING_PLAN_DETAIL_SERIES = 3;
+ const CODING_PLAN_USAGE_TRENDS_SECTION_ID = "coding-plan-usage-trends";
+-const HIDDEN_CODING_PLAN_PROVIDER_NAMES = new Set(["BigModel - Coding Plan"]);
++const HIDDEN_CODING_PLAN_PROVIDER_NAMES = new Set(["Juscite - Coding Plan"]);
+ type CodingPlanUsageTrendRange = Extract<CodingPlanUsageRange, "7d" | "30d">;
+ 
+ export function CodingPlanUsagePanel({
+diff --git a/packages/ui/src/store/conversationShareSelectionStore.ts b/packages/ui/src/store/conversationShareSelectionStore.ts
+index a0fbdca3..745ab163 100644
+--- a/packages/ui/src/store/conversationShareSelectionStore.ts
++++ b/packages/ui/src/store/conversationShareSelectionStore.ts
+@@ -3,8 +3,10 @@ import { create } from "zustand";
+ import type { ConversationShareAccessMode, ConversationShareRejection } from "@zcode/shared";
+ import type { ConversationShareFailureIssue } from "@zcode/services";
+ 
++// 律引分享站只开放链接只读形态（无跨机导入通道），默认访问模式须与分享站能力一致，
++// 否则首次发布就会收到 feature_disabled（capability 缺 public_importable）。
+ export const DEFAULT_CONVERSATION_SHARE_ACCESS_MODE: ConversationShareAccessMode =
+-  "public_importable";
++  "public_readonly";
+ 
+ export interface ConversationShareAttempt {
+   key: string;
+diff --git a/packages/ui/src/styles.css b/packages/ui/src/styles.css
+index 96a1767a..f81d8411 100644
+--- a/packages/ui/src/styles.css
++++ b/packages/ui/src/styles.css
+@@ -2277,3 +2277,34 @@ html[data-document-hidden] *::after {
+   [data-sidebar-divider-extension] {
+   display: none;
+ }
++
++/* ── 功能 #29 产品指引（RE-29 §3）：driver.js 引擎样式 + 自写皮肤（等量版式，非竞品复刻）── */
++@import "driver.js/dist/driver.css";
++
++.driver-popover.juscite-product-tour {
++  background: var(--bg-card, #fff);
++  color: var(--text-foreground, #1a1a1a);
++  border: 1px solid var(--border-border, rgba(0, 0, 0, 0.12));
++  border-radius: 12px;
++  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
++  max-width: 340px;
++}
++.driver-popover.juscite-product-tour .driver-popover-title {
++  font-size: 14px;
++  font-weight: 650;
++}
++.driver-popover.juscite-product-tour .driver-popover-description {
++  font-size: 12px;
++  line-height: 1.65;
++  margin-top: 6px;
++}
++.driver-popover.juscite-product-tour .driver-popover-progress-text {
++  font-size: 11px;
++  color: var(--text-foreground-subtle, #8a8f98);
++}
++.driver-popover.juscite-product-tour .driver-popover-close-btn {
++  color: var(--text-foreground-subtle, #8a8f98);
++}
++.driver-popover.juscite-product-tour .driver-popover-arrow {
++  display: none;
++}
+diff --git a/packages/ui/src/v4/ConversationComposer.tsx b/packages/ui/src/v4/ConversationComposer.tsx
+index 8b19443f..225a2b60 100644
+--- a/packages/ui/src/v4/ConversationComposer.tsx
++++ b/packages/ui/src/v4/ConversationComposer.tsx
+@@ -228,6 +228,8 @@ export interface ConversationComposerSendOptions {
+   sharedContextRefs?: Array<{ kind: "shared_context_import"; context_id: string }>;
+   /** 插件 UI 代发：随 sendText 持久化，用户消息卡片显示"来自插件 X"。 */
+   source?: import("@zcode/shared/zcode-protocol-v4").ConversationInputSource;
++  /** #6 材料附件区：桥附件库 att_* id，SessionPane 写入 sendText payload.attachmentIds。 */
++  materialAttachmentIds?: string[];
+ }
+ 
+ export type ConversationComposerSendResult = "sent" | "blocked" | "confirmationRequired";
+@@ -435,6 +437,12 @@ export interface ConversationComposerProps {
+    */
+   blockingRequestId?: string | null;
+   disabled?: boolean;
++  /** #6 材料附件区（桥附件库）存在上传中附件时禁用发送（对拍 48 裁决：上传中不可发送）。 */
++  materialAttachmentsBusy?: boolean;
++  /** #6 材料附件区已就绪的桥附件 id，随 sendText payload.attachmentIds 上行（RE-6 §3 注入面）。 */
++  materialAttachmentIds?: readonly string[];
++  /** 发送被权威 ACK 接受并完成内容结算后回调：材料区清芯片（附件已并入会话集合）。 */
++  onMaterialAttachmentsSent?: () => void;
+   onRetryInitialization?: () => void;
+   /** 当前 Task 可用的 Highspeed 卡；只影响静态标识和模型锁定。 */
+   highspeedCard?: HighspeedCardSnapshot | null;
+@@ -562,6 +570,9 @@ function ConversationComposerImpl({
+   workingDurationMs,
+   blockingRequestId = null,
+   disabled: disabledProp = false,
++  materialAttachmentsBusy = false,
++  materialAttachmentIds,
++  onMaterialAttachmentsSent,
+   onRetryInitialization,
+   highspeedCard = null,
+   highspeedActivationCardId = null,
+@@ -1332,7 +1343,8 @@ function ConversationComposerImpl({
+     routingAllowsSend &&
+     attachmentsReady &&
+     submissionReady &&
+-    !runtimeBlocked;
++    !runtimeBlocked &&
++    !materialAttachmentsBusy; // 对拍 48：材料上传中禁发（比竞品「上传中可发送」更严的裁决）
+   // 旧 UI 状态机：streaming + 空草稿 → Stop；有草稿 → 发送键（入队）。
+   const showStopControl = canStop && !hasDraftToSubmit;
+ 
+@@ -1634,6 +1646,10 @@ function ConversationComposerImpl({
+           ...(expectedHeldQueueItemIds ? { expectedHeldQueueItemIds } : {}),
+           ...(readyAttachmentRefs.length > 0 ? { attachments: readyAttachmentRefs } : {}),
+           ...(contextAttachmentCount > 0 ? { contextAttachmentCount } : {}),
++          // #6 材料附件区：桥附件库 id 随 sendText 上行（桥侧并入会话集合做跨回合继承+注入）
++          ...(materialAttachmentIds && materialAttachmentIds.length > 0
++            ? { materialAttachmentIds: [...materialAttachmentIds] }
++            : {}),
+           ...(submittedShareContext
+             ? {
+                 sharedContextRefs: [
+@@ -1683,6 +1699,8 @@ function ConversationComposerImpl({
+         // 发送成功或 ACK 丢失后由权威 projection 结算：清本次提交捕获的内容，
+         // prompt history 已在真实发送前同步写盘，避免首发 promote 丢失或误清新 scope。
+         await settleSubmittedContent();
++        // #6 材料附件区：发送已被权威 ACK 接受，附件 id 已并入会话集合，芯片随之清空
++        onMaterialAttachmentsSent?.();
+         sendAction.complete({ resultSource: "authority_ack", admissionResult: "accepted" });
+       } catch (error) {
+         rollbackPromptHistory();
+@@ -1735,6 +1753,8 @@ function ConversationComposerImpl({
+       pptxElementReferences,
+       workspaceIdentity,
+       workspacePath,
++      materialAttachmentIds,
++      onMaterialAttachmentsSent,
+     ],
+   );
+ 
+@@ -2647,7 +2667,7 @@ function ConversationComposerImpl({
+           disabled={disabled || mode === "reject"}
+           submitting={pending}
+           submitDisabled={
+-            runtimeBlocked || pending || !routingAllowsSend || !attachmentsReady || !submissionReady
++            runtimeBlocked || pending || !routingAllowsSend || !attachmentsReady || !submissionReady || materialAttachmentsBusy
+           }
+           allowSubmitWhenEmpty={
+             // 发送按钮已把代码评论视为可发送上下文，但这里曾漏掉同一状态，
+diff --git a/packages/ui/src/v4/SessionPane.tsx b/packages/ui/src/v4/SessionPane.tsx
+index bcae9af6..2dcebb78 100644
+--- a/packages/ui/src/v4/SessionPane.tsx
++++ b/packages/ui/src/v4/SessionPane.tsx
+@@ -5,6 +5,7 @@ import {
+   getRemoteConnectionFailureCode,
+ } from "@/lib/remoteWorkspaceServiceError.js";
+ import { buildConversationShareItems } from "@/v4/conversationShareItems.js";
++import { SessionDocumentSearch } from "@/v4/SessionDocumentSearch.js";
+ import { resolveSelectionSideInheritedModel } from "@/lib/selectionSideInheritedModel.js";
+ import { useStartPlanRecommendation } from "@/hooks/useStartPlanRecommendation.js";
+ import type { SessionCreateSource } from "@zcode/shared";
+@@ -167,6 +168,9 @@ import { useDraftSessionPrewarm } from "@/v4/composer/useDraftSessionPrewarm.js"
+ import { projectSessionConfigToTaskConfigOptions } from "@/v4/composer/sessionConfigTaskCache.js";
+ import { useDraftRuntimeRebuildGate } from "@/v4/composer/useDraftRuntimeRebuildGate.js";
+ import { useDraftModelReadinessGate } from "@/v4/composer/useDraftModelReadinessGate.js";
++// 【功能 #6 材料上传解析】桥附件库附件区（RE-6 §3 UI；对拍 1/3/4/35/36/48/49/55）
++import { useBridgeMaterialAttachments } from "@/v4/composer/useBridgeMaterialAttachments.js";
++import { BridgeMaterialBar } from "@/v4/composer/BridgeMaterialBar.js";
+ import { useSettings } from "@/hooks/useSettingService.js";
+ import { useZCodeStoreWithDefault } from "@/store/StoreProvider.js";
+ import { useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
+@@ -3750,6 +3754,13 @@ export function SessionPane({
+           ...(options?.requestedDelivery ? { requestedDelivery: options.requestedDelivery } : {}),
+           conversationQuotes: options?.conversationQuotes,
+           ...(readyAttachments.length > 0 ? { attachments: readyAttachments } : {}),
++          // 【#6 材料上传解析】桥附件库 id 随 sendText 上行（桥侧并入会话集合：跨回合继承+回合注入）。
++          // options 显式携带优先（composer 主路径）；ref 兜底覆盖未走 options 的调用形态。
++          ...(options?.materialAttachmentIds?.length
++            ? { attachmentIds: options.materialAttachmentIds.slice(0, 64) }
++            : bridgeMaterialsRef.current.attachmentIds.length
++              ? { attachmentIds: [...bridgeMaterialsRef.current.attachmentIds] }
++              : {}),
+           ...(sessionId && options?.requestedDelivery
+             ? {
+                 // Bug 根因：立即发送曾先投影 QueueItem，再等待二次
+@@ -5401,6 +5412,12 @@ export function SessionPane({
+       });
+   }, [dispatchCommand, handleDraftSessionCreated, recoverableCommand, workspaceKey]);
+ 
++  // 【功能 #6 材料上传解析】桥附件库附件区（RE-6 §3）：芯片/上传/粘贴分流状态挂本 pane；
++  // payload 经 ref 读取（覆盖 sendText 各路径），上传中经 materialAttachmentsBusy 禁发送（对拍 48）。
++  const bridgeMaterials = useBridgeMaterialAttachments({ sessionId: sessionId ?? null });
++  const bridgeMaterialsRef = useRef(bridgeMaterials);
++  bridgeMaterialsRef.current = bridgeMaterials;
++
+   // subagent 右侧 child tab 是观察视图；复用普通 SessionPane 时
+   // 若仍创建 composer，会让用户误以为可以直接向 child session 继续输入。
+   const composerNode = readOnly ? null : (
+@@ -5429,6 +5446,9 @@ export function SessionPane({
+         floatingTurnRunning ? floatingLatestTurnSummary?.workDurationMs : undefined
+       }
+       blockingRequestId={blockingInteractionId}
++      materialAttachmentsBusy={bridgeMaterials.hasInFlight}
++      materialAttachmentIds={bridgeMaterials.attachmentIds}
++      onMaterialAttachmentsSent={bridgeMaterials.reset}
+       listenAddToChatEvents={focused}
+       externalTextInsertRequest={focused && sessionId === null ? composerTextInsertRequest : null}
+       onExternalTextInsertApplied={handleExternalTextInsertApplied}
+@@ -5627,6 +5647,20 @@ export function SessionPane({
+           }
+         />
+       ) : null}
++      {/* 【功能 #6 材料上传解析】桥附件库附件区：贴输入框上方（RE-6 §3 UI 结构；readOnly 不挂） */}
++      {composerNode ? (
++        <BridgeMaterialBar
++          chips={bridgeMaterials.chips}
++          hasInFlight={bridgeMaterials.hasInFlight}
++          filesCount={bridgeMaterials.libraryCount}
++          sessionId={sessionId ?? null}
++          onFiles={(files) => void bridgeMaterials.addFiles(files)}
++          onPaste={(dataTransfer) => {
++            void bridgeMaterials.ingestPaste(dataTransfer); // 对拍 3/4：图片直传；≥200 字转「粘贴内容.txt」
++          }}
++          onRemove={bridgeMaterials.removeChip}
++        />
++      ) : null}
+       {composerNode}
+       {/* 办公模式显示主动任务推荐；编程模式保留原有小型场景入口。 */}
+       {/* 完整视图浮窗只露出输入框，草稿推荐提示不进入浮窗。 */}
+@@ -5704,6 +5738,10 @@ export function SessionPane({
+           compactForRemoteControl && "min-w-0",
+         )}
+       >
++        {/* 功能 #15 案内文档全文搜（RE-15）：浮动入口，不占既有布局流 */}
++        {sessionId && !readOnly ? (
++          <SessionDocumentSearch sessionId={sessionId} workspacePath={workspacePath} />
++        ) : null}
+         {effectiveDropTargetController?.active ? (
+           <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-accent/55 backdrop-blur-sm">
+             <div className="flex items-center gap-2 rounded-full border border-border bg-accent px-4 py-2 text-ui-base text-foreground shadow-sm">
+diff --git a/packages/ui/src/v4/composer/V4ComposerToolbar.tsx b/packages/ui/src/v4/composer/V4ComposerToolbar.tsx
+index 8ef15aa0..cae32b67 100644
+--- a/packages/ui/src/v4/composer/V4ComposerToolbar.tsx
++++ b/packages/ui/src/v4/composer/V4ComposerToolbar.tsx
+@@ -331,7 +331,7 @@ function resolveContextTeamUsageSourceFromEntitlementSnapshot({
+       organizationId,
+       projectId,
+     },
+-    label: `${familySpec?.id === "zai" ? "ZAI" : "BigModel"} - ${displayName}`,
++    label: `Juscite - ${displayName}`,
+   };
+ }
+ 
+@@ -750,8 +750,8 @@ function V4ComposerModelControlsImpl({
+         label:
+           access.label ||
+           (contextCodingPlanUsageProviderId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan
+-            ? "Z.ai - Coding Plan"
+-            : "BigModel - Coding Plan"),
++            ? "Juscite - Coding Plan"
++            : "Juscite - Coding Plan"),
+       },
+     ];
+   }, [contextAccountProviderAccess, contextCodingPlanUsageProviderId, contextPlanConnection.kind]);
+diff --git a/packages/ui/src/v4/conversationProjectionStore.ts b/packages/ui/src/v4/conversationProjectionStore.ts
+index a2a71862..8ef043f2 100644
+--- a/packages/ui/src/v4/conversationProjectionStore.ts
++++ b/packages/ui/src/v4/conversationProjectionStore.ts
+@@ -52,7 +52,7 @@ export function requiresAcceptedInputProjection(type: string): boolean {
+ }
+ 
+ /** 退避耗尽时展示给用户的 lastError（无底层 error 对象可引用的换代路径）。 */
+-const RUNTIME_RECYCLED_ERROR = "ZCode agent runtime 已被回收，重连未成功";
++const RUNTIME_RECYCLED_ERROR = "Juscite agent runtime 已被回收，重连未成功";
+ 
+ function monotonicNow(): number {
+   return typeof performance !== "undefined" ? performance.now() : Date.now();
+diff --git a/packages/ui/src/v4/officeSuggestedPrompts.ts b/packages/ui/src/v4/officeSuggestedPrompts.ts
+index c6b7dfc4..0ad61b5b 100644
+--- a/packages/ui/src/v4/officeSuggestedPrompts.ts
++++ b/packages/ui/src/v4/officeSuggestedPrompts.ts
+@@ -333,17 +333,17 @@ export const officeSuggestedPrompts: RecommendedPrompt[] = [
+     category: "utility",
+     iconUrl: "https://cdn-zcode.z.ai/zcode/official-plugin/assets/zcode-guide/icon.png",
+     label: {
+-      cn: "帮我检查当前的 ZCode 配置，看看有哪些可以调整",
+-      en: "Review my ZCode configuration and suggest useful adjustments.",
++      cn: "帮我检查当前的应用配置，看看有哪些可以调整",
++      en: "Review my app configuration and suggest useful adjustments.",
+     },
+     prompt: {
+-      cn: "帮我检查当前的 ZCode 配置，看看有哪些可以调整",
+-      en: "Review my ZCode configuration and suggest useful adjustments.",
++      cn: "帮我检查当前的应用配置，看看有哪些可以调整",
++      en: "Review my app configuration and suggest useful adjustments.",
+     },
+     plugin: {
+       stableId: "zcode-guide@zcode-plugins-official",
+       label: {
+-        cn: "ZCode 使用指南",
++        cn: "应用使用指南",
+         en: "zcode-guide",
+       },
+     },
+diff --git a/packages/ui/test/conversationShareMenu.test.ts b/packages/ui/test/conversationShareMenu.test.ts
+index 0a1e5faf..58f2937a 100644
+--- a/packages/ui/test/conversationShareMenu.test.ts
++++ b/packages/ui/test/conversationShareMenu.test.ts
+@@ -31,7 +31,7 @@ describe("ConversationShareMenu", () => {
+     fireEvent.click(screen.getByRole("button", { name: "conversationShare.trigger" }));
+     expect(
+       getConversationShareDraft(useConversationShareSelectionStore.getState(), "task-42"),
+-    ).toMatchObject({ open: true, pendingExcludedRowIds: null, accessMode: "public_importable" });
++    ).toMatchObject({ open: true, pendingExcludedRowIds: null, accessMode: "public_readonly" });
+   });
+ 
+   it.each(["all", "partial", "published", "error"])(
+diff --git a/packages/ui/test/conversationSharePopoverState.test.ts b/packages/ui/test/conversationSharePopoverState.test.ts
+index f24a7a21..7a594fb0 100644
+--- a/packages/ui/test/conversationSharePopoverState.test.ts
++++ b/packages/ui/test/conversationSharePopoverState.test.ts
+@@ -154,7 +154,7 @@ it("A/B 标题权限、范围、披露、发布进度和结果分别归属各自
+   state().openShare("b");
+   expect(state().drafts.a).toBe(aDraft);
+   expect(state().dockStates.a).toBe(aDock);
+-  expect(state().drafts.b.accessMode).toBe("public_importable");
++  expect(state().drafts.b.accessMode).toBe("public_readonly");
+   expect(getConversationShareSelectedProductTurnIds(state(), "b")).toEqual(["t1", "t2"]);
+   expect(state().dockStates.b).toMatchObject({
+     title: "B",
+diff --git a/packages/ui/test/conversationShareSelection.test.ts b/packages/ui/test/conversationShareSelection.test.ts
+index 2a77f047..e236c108 100644
+--- a/packages/ui/test/conversationShareSelection.test.ts
++++ b/packages/ui/test/conversationShareSelection.test.ts
+@@ -50,7 +50,7 @@ describe("conversation partial share selection store", () => {
+     ).toBe(true);
+     expect(
+       getConversationShareDraft(useConversationShareSelectionStore.getState(), "task-a").accessMode,
+-    ).toBe("public_importable");
++    ).toBe("public_readonly");
+     store.syncAvailableTurns(
+       "task-a",
+       [11, 22].map((rowId) => ({ rowId, productTurnId: String(rowId) })),
+diff --git a/packages/ui/tsconfig.json b/packages/ui/tsconfig.json
+index e9f2ad1c..29afcf38 100644
+--- a/packages/ui/tsconfig.json
++++ b/packages/ui/tsconfig.json
+@@ -23,6 +23,7 @@
+     { "path": "../provider" },
+     { "path": "../shared" },
+     { "path": "../services" },
+-    { "path": "../rpc" }
++    { "path": "../rpc" },
++    { "path": "../juscite-legal" }
+   ]
+ }

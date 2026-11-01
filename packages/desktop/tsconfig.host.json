@@ -1,0 +1,11 @@
+{
+  // 换宿主（v4 §1.3）：src/host（@zcode/server 的 Electron utilityProcess 宿主）整目录已砍，
+  // 本项目保留为空壳仅为了让外部 tsc -b 项目清单（确定性闸门）可解析——不再编译任何文件。
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "out/tsc-host",
+    "rootDir": "src/main",
+    "noEmit": true
+  },
+  "files": []
+}

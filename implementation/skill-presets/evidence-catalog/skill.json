@@ -1,0 +1,12 @@
+{
+  "id": "evidence-catalog",
+  "name": "证据目录生成",
+  "description": "把在案证据整理成可提交的证据目录：接收初筛→分类→编号→摘要与证明目的→按受案机关格式成表，附十二项质量自查；对话内可经 /evidencecat 触发，或在提到 证据目录/证据清单/证据组织/证据管理 时激活（内置合成技能，随预装批次分发）。",
+  "triggers": {
+    "commands": ["/evidencecat"],
+    "promptPatterns": ["证据目录|证据清单|证据组织|证据管理"],
+    "fileTypes": [".pdf", ".docx", ".txt", ".md"]
+  },
+  "allowedTools": [],
+  "priority": 0
+}

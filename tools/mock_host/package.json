@@ -1,0 +1,14 @@
+{
+  "name": "@juscite/mock-host",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@zcode/rpc": "workspace:*",
+    "@zcode/services": "workspace:*",
+    "ws": "^8.20.0",
+    "@zcode/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "timeline-generation",
+  "name": "办案时间线整理",
+  "description": "从案件材料中抽取、整理案件事实时间线：按统一要素形成事件清单，可输出表格、时间轴图或结构化数据，供案情梳理与文书写作引用（内置合成技能，随预装批次分发）。",
+  "triggers": {
+    "commands": ["/时间线"],
+    "promptPatterns": ["时间线|时间轴|大事记|案件经过|事件梳理"],
+    "fileTypes": [".pdf", ".docx", ".txt", ".md"]
+  },
+  "allowedTools": [],
+  "priority": 0
+}

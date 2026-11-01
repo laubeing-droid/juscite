@@ -1,0 +1,26 @@
+# 上游固定检出与依赖不入本仓（.local/checkouts 下各自是独立 git 仓）
+.local/
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+dist/
+build/
+*.log
+.DS_Store
+Thumbs.db
+
+# desktop 壳（packages/desktop）：build/ 是图标/安装器资源源目录（根 build/ 忽略规则的例外），out/ 是构建产物
+!packages/desktop/build/
+packages/desktop/out/
+packages/desktop/.vite/
+
+# 桥随包物化目录（materialize-bridge-bundle.mjs 产物，构建期重建，不入 git）
+packages/desktop/bridge-bundle/
+
+# Juscite runtime artifacts
+*.db
+*.lic
+*.exe
+dist/
+*.tsbuildinfo

@@ -1,0 +1,507 @@
+import { decorateRequestSecurityLogArgs } from "./request-security-edition/index.js";
+/* eslint-disable max-lines -- 桌面平台 IPC 集中装配，拆散会让权限边界更难审计；行数随平台能力增长。 */
+import { z } from "zod";
+import { BrowserWindow, dialog, ipcMain, nativeTheme } from "electron";
+import { readZCodeStdioTapDevState } from "@zcode/services/node";
+import {
+  DesktopCommandIds,
+  appSettingsPatchSchema,
+  formatZodError,
+  localeSchema,
+  nonEmptyStringSchema,
+  PlatformChannels,
+  rendererLogPayloadSchema,
+  stringArraySchema,
+  webRemoteControlWorkspaceTargetsSchema,
+  type AppSettings,
+  type DesktopCommandId,
+  type ApplicationIconRequest,
+  type Locale,
+  type LoadCliMcpFromUserDirectoryRequest,
+  type MigrateLegacyCommonMcpRequest,
+  type OpenInEditorOptions,
+  type SaveCliMcpToUserDirectoryRequest,
+  type CreateTempTextAttachmentRequest,
+  type MaterializeWorkflowArtifactFileRequest,
+  type UpdateStatePayload,
+  type WebRemoteControlTaskTarget,
+  type WebRemoteControlWorkspaceTarget,
+} from "@zcode/shared";
+import { getInstalledEditors } from "./editors.js";
+import { getApplicationIcon } from "./applicationIcons.js";
+import { exportLogs } from "./exportLogs.js";
+import { resolveCommunityUrl } from "./desktopCommandHandlers.js";
+import { openInEditor } from "./openInEditor.js";
+import {
+  openResourceManager,
+  getResourceUsageSnapshot,
+  setResourceUsageSamplingActive,
+} from "./resourceManagerWindow.js";
+import { registerResourceManagerStorageIpc } from "./resourceManagerStorage.js";
+import { registerResourceManagerNetworkIpc } from "./resourceManagerNetwork.js";
+import { applyWindowsTitleBarTheme, getWindowOverlayTheme } from "./desktopWindowChrome.js";
+import { syncWindowControlsOverlayForZoomLevel } from "./desktopWindowButtonPosition.js";
+import { resolveDesktopZoomLevelFromFactor } from "./desktopZoom.js";
+import { resolveDesktopWindowChromeState } from "./desktopWindowChromeState.js";
+import { handleWindowUnreadCountSync } from "./desktopWindowLifecycle.js";
+import { captureWindowScreenshot, openPathInFileManager } from "./desktopMainIpcHelpers.js";
+import {
+  registerDesktopBrowserIpcHandlers,
+  type AttachBrowserGuest,
+  type ReportBrowserScreenshotSurfaceReady,
+  type UpdateBrowserGuestViewport,
+  type BrowserViewResidencyIpcHandlers,
+} from "./desktopBrowserViewIpc.js";
+import { createTempTextAttachment } from "./tempTextAttachment.js";
+import { materializeWorkflowArtifactFile } from "./workflowArtifactFile.js";
+import { registerDesktopSaveFileIpcHandler } from "./desktopSaveFile.js";
+import { registerDesktopPrintToPdfIpcHandler } from "./desktopPrintToPdf.js";
+
+export function registerPlatformIpcHandlers(options: {
+  fetchHelpConfig?: () => Promise<unknown>;
+  logger: {
+    info: (...args: unknown[]) => void;
+    warn: (...args: unknown[]) => void;
+  };
+  applyApplicationLocale: (locale: Locale) => Promise<void>;
+  resolveSystemLocale: () => Locale;
+  focusWorkspaceInExistingWindow: (
+    path: string,
+    extra?: { skipWindowId?: number },
+  ) => { activated: boolean; winId?: number };
+  windowWorkspaceMap: Map<number, Set<string>>;
+  windowUnreadCountMap: Map<number, number>;
+  currentApplicationLocale: () => Locale;
+  executeDesktopCommand: (
+    command: DesktopCommandId,
+    senderWindow?: BrowserWindow | null,
+  ) => Promise<unknown>;
+  acknowledgePostUpdateReleaseNotes: (version: string) => Promise<void>;
+  syncActiveTaskSession?: (windowId: number, sessionId: string | null) => void;
+  syncTaskRealtimeWorkspaceKeys?: (windowId: number, workspaceKeys: Iterable<string>) => void;
+  restorePreviouslyEnabledWebRemoteControl?: (
+    windowId: number,
+    contexts: Array<{ workspacePath: string }>,
+  ) => void;
+  getUpdateState: () => UpdateStatePayload;
+  openUpdateStatusWindow: () => void;
+  syncWebRemoteControlWorkspaces?: (
+    windowId: number,
+    workspaces: WebRemoteControlWorkspaceTarget[],
+  ) => void;
+  syncWebRemoteControlTasks?: (windowId: number, tasks: WebRemoteControlTaskTarget[]) => void;
+  getDesktopSessionActivity: () => {
+    runningAgentSessionCount: number;
+  };
+  /** 功能 #28 桌宠：设置面读写与运行事件转发；模块初始化失败时不传（面自动降级）。 */
+  petModule?: {
+    getStatus: () => import("@zcode/shared").PetStatusPayload;
+    updateConfig: (
+      patch: import("@zcode/shared").PetConfigPatch,
+    ) => import("@zcode/shared").PetStatusPayload;
+    reportRunEvent: (event: import("@zcode/shared").PetRunEventPayload) => void;
+  };
+  getAutoUpdatePreferences: () => Promise<{
+    autoDownloadAndInstallUpdates: boolean;
+  }>;
+  setAutoDownloadAndInstallUpdates: (enabled: boolean) => Promise<void>;
+  syncAppSettings: (patch: ReturnType<typeof appSettingsPatchSchema.parse>) => void;
+  /** 关闭驻留托盘能力查询（spec：docs/desktop/linux-close-to-tray.md）；传入 monitor 的 refresh */
+  refreshCloseToTrayCapability: () => Promise<import("@zcode/shared").DesktopCloseToTrayCapability>;
+  /** 快捷键设置页录制态开关：true 时 main 重建菜单摘除可配置 accelerator（见 shortcut-settings-spec §7） */
+  setShortcutRecordingActive?: (active: boolean, ownerWebContentsId?: number | null) => void;
+  /** 桌面端设备标识符（基于 userData 路径的 SHA-256） */
+  deviceMid: string;
+  /** CDP-on-guest pivot：renderer `<webview>` 上报 guest webContentsId → main attach。 */
+  attachBrowserGuest?: AttachBrowserGuest;
+  /** renderer 自由尺寸变化 → 当前窗口所属的受控 tab。 */
+  updateBrowserGuestViewport?: UpdateBrowserGuestViewport;
+  /** 可信 owner renderer 上报的后台截图表面 ready。 */
+  reportBrowserScreenshotSurfaceReady?: ReportBrowserScreenshotSurfaceReady;
+  /** Browser tab 关闭、挂起、恢复与跨重启 shell IPC。 */
+  browserViewResidencyHandlers?: BrowserViewResidencyIpcHandlers;
+}) {
+  ipcMain.handle(PlatformChannels.SelectDirectory, async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle(PlatformChannels.SelectFile, async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ["openFile"],
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle(PlatformChannels.SelectFiles, async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ["openFile", "multiSelections"],
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return [];
+    }
+    return result.filePaths;
+  });
+
+  registerDesktopSaveFileIpcHandler(options.logger);
+  registerDesktopPrintToPdfIpcHandler(options.logger);
+
+  ipcMain.handle(
+    PlatformChannels.CreateTempTextAttachment,
+    async (_event, payload: CreateTempTextAttachmentRequest) => {
+      return createTempTextAttachment(payload);
+    },
+  );
+
+  ipcMain.handle(
+    PlatformChannels.MaterializeWorkflowArtifactFile,
+    async (_event, payload: MaterializeWorkflowArtifactFileRequest) => {
+      return materializeWorkflowArtifactFile(payload);
+    },
+  );
+
+  registerDesktopBrowserIpcHandlers(
+    options.attachBrowserGuest,
+    options.updateBrowserGuestViewport,
+    options.logger,
+    options.reportBrowserScreenshotSurfaceReady,
+    options.browserViewResidencyHandlers,
+  );
+
+  ipcMain.handle(PlatformChannels.ActivateOrSetWorkspace, (event, path: string) => {
+    const validatedPath = nonEmptyStringSchema.parse(path);
+    const senderWin = BrowserWindow.fromWebContents(event.sender);
+    const activated = options.focusWorkspaceInExistingWindow(validatedPath, {
+      skipWindowId: senderWin?.id,
+    });
+    if (activated.activated) {
+      return { activated: true };
+    }
+
+    if (senderWin) {
+      let pathSet = options.windowWorkspaceMap.get(senderWin.id);
+      if (!pathSet) {
+        pathSet = new Set();
+        options.windowWorkspaceMap.set(senderWin.id, pathSet);
+        senderWin.on("closed", () => options.windowWorkspaceMap.delete(senderWin.id));
+      }
+      pathSet.add(validatedPath);
+      options.syncTaskRealtimeWorkspaceKeys?.(senderWin.id, pathSet);
+    }
+    return { activated: false };
+  });
+
+  ipcMain.handle(PlatformChannels.GetResourceUsageSnapshot, (event) =>
+    getResourceUsageSnapshot(event.sender.id),
+  );
+  // 设置页 Linux 置灰判断入口；monitor 带 stale 缓存，用户装完扩展重开设置页即可解除置灰。
+  ipcMain.handle(PlatformChannels.GetCloseToTrayCapability, () =>
+    options.refreshCloseToTrayCapability(),
+  );
+  // 功能 #28 桌宠：设置面读写 + 主渲染层运行事件转发（驱动流 1）。
+  ipcMain.handle(PlatformChannels.PetGetStatus, () => {
+    if (!options.petModule) throw new Error("pet module unavailable");
+    return options.petModule.getStatus();
+  });
+  ipcMain.handle(PlatformChannels.PetUpdateConfig, (_event, patch: unknown) => {
+    if (!options.petModule) throw new Error("pet module unavailable");
+    // 白名单五字段，其余丢弃（fail-closed 不透传）。
+    const source = typeof patch === "object" && patch !== null ? (patch as Record<string, unknown>) : {};
+    const clean: import("@zcode/shared").PetConfigPatch = {};
+    if (typeof source.enabled === "boolean") clean.enabled = source.enabled;
+    if (typeof source.alwaysOnTop === "boolean") clean.alwaysOnTop = source.alwaysOnTop;
+    if (typeof source.rememberPosition === "boolean") clean.rememberPosition = source.rememberPosition;
+    if (typeof source.sizePercent === "number") clean.sizePercent = source.sizePercent;
+    if (typeof source.throwEnabled === "boolean") clean.throwEnabled = source.throwEnabled;
+    return options.petModule.updateConfig(clean);
+  });
+  ipcMain.on(PlatformChannels.PetReportRunEvent, (_event, payload: unknown) => {
+    const source = typeof payload === "object" && payload !== null ? (payload as Record<string, unknown>) : {};
+    const kind = source.kind;
+    if (kind !== "running" && kind !== "terminal" && kind !== "pending" && kind !== "idle") return;
+    if (kind === "terminal") {
+      const outcome = source.outcome;
+      if (outcome !== "completed" && outcome !== "error" && outcome !== "interrupted") return;
+      options.petModule?.reportRunEvent({
+        kind,
+        outcome,
+        ...(typeof source.sessionTitle === "string" && source.sessionTitle.trim() !== ""
+          ? { sessionTitle: source.sessionTitle }
+          : {}),
+      });
+      return;
+    }
+    options.petModule?.reportRunEvent({
+      kind,
+      ...(typeof source.sessionTitle === "string" && source.sessionTitle.trim() !== ""
+        ? { sessionTitle: source.sessionTitle }
+        : {}),
+    });
+  });
+  ipcMain.on(PlatformChannels.SetResourceUsageSamplingActive, (event, active: unknown) => {
+    if (typeof active === "boolean") setResourceUsageSamplingActive(event.sender.id, active);
+  });
+  registerResourceManagerStorageIpc();
+  registerResourceManagerNetworkIpc();
+  ipcMain.handle(PlatformChannels.GetZCodeStdioTapDevState, () => readZCodeStdioTapDevState());
+  ipcMain.on(PlatformChannels.OpenResourceManager, () => {
+    openResourceManager();
+  });
+
+  ipcMain.handle(PlatformChannels.SetTitleBarTheme, (event, theme: string) => {
+    const senderWindow = BrowserWindow.fromWebContents(event.sender);
+    if (!senderWindow) {
+      return;
+    }
+
+    if (theme !== "light" && theme !== "dark" && theme !== "system") {
+      options.logger.warn("[title-bar-theme] invalid theme:", theme);
+      return;
+    }
+
+    nativeTheme.themeSource = theme;
+    applyWindowsTitleBarTheme(senderWindow, theme === "system" ? getWindowOverlayTheme() : theme);
+  });
+
+  ipcMain.handle(PlatformChannels.SetApplicationLocale, (_event, locale: unknown) => {
+    const result = localeSchema.safeParse(locale);
+    if (!result.success) {
+      options.logger.warn("[application-locale] invalid locale:", formatZodError(result.error));
+      return;
+    }
+
+    return options.applyApplicationLocale(result.data);
+  });
+
+  ipcMain.handle(PlatformChannels.GetSystemLocale, () => options.resolveSystemLocale());
+
+  ipcMain.on(PlatformChannels.SyncWindowTabs, (event, paths: string[]) => {
+    const result = stringArraySchema.safeParse(paths);
+    if (!result.success) {
+      options.logger.warn("[sync-window-tabs] invalid payload:", formatZodError(result.error));
+      return;
+    }
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+      options.windowWorkspaceMap.set(win.id, new Set(result.data));
+      options.syncTaskRealtimeWorkspaceKeys?.(win.id, result.data);
+      options.restorePreviouslyEnabledWebRemoteControl?.(
+        win.id,
+        result.data.map((workspacePath) => ({ workspacePath })),
+      );
+    }
+  });
+
+  ipcMain.on(PlatformChannels.SyncWebRemoteControlWorkspaces, (event, payload: unknown) => {
+    const result = webRemoteControlWorkspaceTargetsSchema.safeParse(payload);
+    if (!result.success) {
+      options.logger.warn(
+        "[sync-web-remote-control-workspaces] invalid payload:",
+        formatZodError(result.error),
+      );
+      return;
+    }
+
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) {
+      return;
+    }
+
+    options.syncWebRemoteControlWorkspaces?.(win.id, result.data);
+  });
+
+  // 3.16.2 shared 仅余 interface WebRemoteControlTaskTarget（V1 远控 zod schema 已移除）；
+// 本地最小验形 schema 等价替代（字段=interface 白名单，safeParse 通过即透传可选面板）。
+const webRemoteControlTaskTargetsSchema = z.array(
+  z.object({
+    taskId: z.string(),
+    hostId: z.string().optional(),
+    title: z.string(),
+    workspacePath: z.string(),
+    workspaceIdentity: z.string().optional(),
+    remoteSessionId: z.string().optional(),
+    workspaceLabel: z.string(),
+    workspaceKind: z.enum(["local", "remote"]),
+    createdAt: z.number(),
+    updatedAt: z.number(),
+    provider: z.unknown().optional(),
+    unreadAt: z.number().optional(),
+  }),
+);
+
+ipcMain.on(PlatformChannels.SyncWebRemoteControlTasks, (event, payload: unknown) => {
+    const result = webRemoteControlTaskTargetsSchema.safeParse(payload);
+    if (!result.success) {
+      options.logger.warn(
+        "[sync-web-remote-control-tasks] invalid payload:",
+        formatZodError(result.error),
+      );
+      return;
+    }
+
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) {
+      return;
+    }
+
+    options.syncWebRemoteControlTasks?.(win.id, result.data);
+  });
+
+  ipcMain.on(PlatformChannels.SyncWindowUnreadCount, (event, payload: unknown) => {
+    handleWindowUnreadCountSync(
+      BrowserWindow.fromWebContents(event.sender),
+      payload,
+      options.windowUnreadCountMap,
+      options.logger,
+    );
+  });
+  ipcMain.on(
+    PlatformChannels.WindowControlsOverlayReady,
+    (event, payload: { zoomLevel: number }) => {
+      const senderWindow = BrowserWindow.fromWebContents(event.sender);
+      if (!senderWindow || !Number.isFinite(payload.zoomLevel)) {
+        return;
+      }
+
+      // preload 早于 React 页面运行，用它同步到的 zoom 档位先调整 macOS 红绿灯，
+      // 避免等 RootStartupLoading 切到 App 页面后才重置位置。
+      syncWindowControlsOverlayForZoomLevel(senderWindow, payload.zoomLevel);
+    },
+  );
+
+  ipcMain.on(PlatformChannels.SyncAppSettings, (_event, payload: unknown) => {
+    const result = appSettingsPatchSchema.safeParse(payload);
+    if (!result.success) {
+      options.logger.warn(
+        "[settings] invalid app settings sync payload:",
+        formatZodError(result.error),
+      );
+      return;
+    }
+
+    options.syncAppSettings(result.data);
+  });
+
+  // 快捷键录制态：renderer 设置页进入/退出录制时通知。macOS 系统菜单会先于 renderer
+  // 吃掉按键，录制 menu 通道命令必须先摘掉可配置 accelerator，否则按键直接触发原命令。
+  // 附带发起方 webContents id：录制中窗口销毁时 main 侧据此复位（见 index.ts）。
+  ipcMain.on(PlatformChannels.SetShortcutRecordingActive, (event, payload: unknown) => {
+    if (typeof payload !== "boolean") {
+      options.logger.warn("[shortcuts] invalid recording-active payload:", payload);
+      return;
+    }
+    options.setShortcutRecordingActive?.(payload, event.sender.id);
+  });
+
+  ipcMain.on(PlatformChannels.Log, (event, payload: unknown) => {
+    const result = rendererLogPayloadSchema.safeParse(payload);
+    if (!result.success) {
+      options.logger.warn("[renderer-log] invalid payload:", formatZodError(result.error));
+      return;
+    }
+    (
+      options.logger as unknown as { fromRenderer(level: string, args: unknown[]): void }
+    ).fromRenderer?.(
+      result.data.level,
+      decorateRequestSecurityLogArgs(result.data.args, event.sender.id),
+    );
+  });
+
+  ipcMain.handle(PlatformChannels.OpenInFileManager, async (_event, rawPath: string) =>
+    openPathInFileManager(rawPath, options.logger),
+  );
+
+  ipcMain.handle(PlatformChannels.CanOpenCommunity, async (_event, locale: unknown) => {
+    const result = localeSchema.safeParse(locale);
+    if (!result.success) {
+      options.logger.warn("[community] invalid locale:", formatZodError(result.error));
+      return false;
+    }
+
+    const communityUrl = await resolveCommunityUrl({
+      locale: result.data,
+      fetchRemoteConfig: options.fetchHelpConfig,
+      logger: options.logger,
+    });
+
+    return typeof communityUrl === "string" && communityUrl.length > 0;
+  });
+
+  ipcMain.handle(
+    PlatformChannels.AcknowledgePostUpdateReleaseNotes,
+    async (_event, version: string) => {
+      const validatedVersion = nonEmptyStringSchema.parse(version);
+      await options.acknowledgePostUpdateReleaseNotes(validatedVersion);
+    },
+  );
+
+  ipcMain.handle(PlatformChannels.GetUpdateState, () => options.getUpdateState());
+  ipcMain.handle(PlatformChannels.OpenUpdateStatusWindow, () => {
+    options.openUpdateStatusWindow();
+  });
+  ipcMain.handle(PlatformChannels.GetAutoUpdatePreferences, () =>
+    options.getAutoUpdatePreferences(),
+  );
+  ipcMain.handle(
+    PlatformChannels.SetAutoDownloadAndInstallUpdates,
+    async (_event, enabled: unknown) => {
+      if (typeof enabled !== "boolean") {
+        return;
+      }
+      await options.setAutoDownloadAndInstallUpdates(enabled);
+    },
+  );
+  ipcMain.handle(PlatformChannels.GetDesktopSessionActivity, () =>
+    options.getDesktopSessionActivity(),
+  );
+  ipcMain.handle(PlatformChannels.GetDesktopZoomLevel, (event) => {
+    const senderWindow = BrowserWindow.fromWebContents(event.sender);
+    if (!senderWindow || senderWindow.isDestroyed()) {
+      return { zoomLevel: 0 };
+    }
+
+    return {
+      zoomLevel: resolveDesktopZoomLevelFromFactor(senderWindow.webContents.getZoomFactor()),
+    };
+  });
+  ipcMain.handle(PlatformChannels.GetDesktopWindowChromeState, (event) => {
+    const senderWindow = BrowserWindow.fromWebContents(event.sender);
+    return resolveDesktopWindowChromeState(senderWindow?.isMaximized() ?? false);
+  });
+  ipcMain.handle(PlatformChannels.GetInstalledEditors, () => getInstalledEditors());
+  ipcMain.handle(
+    PlatformChannels.GetApplicationIcon,
+    (_event, request: string | ApplicationIconRequest) => getApplicationIcon(request),
+  );
+  ipcMain.handle(PlatformChannels.GetDeviceId, () => options.deviceMid);
+  ipcMain.handle(PlatformChannels.ExportLogs, () => exportLogs());
+  ipcMain.handle(PlatformChannels.CaptureWindowScreenshot, async (event) => {
+    const senderWindow = BrowserWindow.fromWebContents(event.sender);
+    return captureWindowScreenshot(senderWindow);
+  });
+  ipcMain.handle(
+    PlatformChannels.OpenInEditor,
+    (_event, payload: { editorId: string; path: string; options?: OpenInEditorOptions }) =>
+      openInEditor(payload.editorId, payload.path, payload.options),
+  );
+
+  ipcMain.handle(PlatformChannels.ExecuteDesktopCommand, async (event, command: string) => {
+    const senderWindow = BrowserWindow.fromWebContents(event.sender);
+    const isKnownCommand = (Object.values(DesktopCommandIds) as string[]).includes(command);
+    if (!isKnownCommand) {
+      options.logger.warn("[desktop-command] invalid command:", command);
+      return;
+    }
+
+    // 返回值直通 renderer 的 executeDesktopCommand promise（GetCuaOsSupport 依赖此行为）。
+    return await options.executeDesktopCommand(command as DesktopCommandId, senderWindow);
+  });
+}

@@ -1,0 +1,13 @@
+{
+  "subject_commit": "026b106bc5d41b679ffc413264229c340871e4d3",
+  "source_path": "packages/app/src/shell/routes/routes.tsx",
+  "source_sha256_normalized": "521f874b59a69e2829bf840c8e4947fd1f631d911c1ae1c2d07cb667146d627e",
+  "mount_count": 1,
+  "new_dependency_count": 0,
+  "saved_fixed_source_git_apply_check": "PASS",
+  "full_checkout_git_apply_check": "NOT_RUN",
+  "typecheck": "NOT_RUN",
+  "build": "NOT_RUN",
+  "runtime_ui": "NOT_RUN",
+  "production_modified": false
+}

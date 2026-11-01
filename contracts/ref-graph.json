@@ -1,0 +1,3748 @@
+{
+  "meta": {
+    "generated": "2026-10-30",
+    "generator": "scripts/gen-ref-graph.mjs",
+    "baseline": "upstream/main=3c5b227649371507ddc4eb46ac5133afe6db1cab (3.16.2 原树)",
+    "scope": "边界引用图：桥(tools/bridge 顶层 .mjs/.mts 排 .bak/_tmp_)+自有包(juscite-legal/runtime-port/runtime-adapters/desktop-pet/edisc/vizb) src+树内注册点(contracts/pin-points.json) 对 @zcode/*、@juscite/* 与跨域相对导入；node: 内建、纯第三方 npm 依赖(ws/react/lucide-react 等)、域内相对互导不记",
+    "counts": {
+      "scannedFiles": 190,
+      "edges": 124,
+      "consumedExports": 39,
+      "contractModules": 5
+    }
+  },
+  "edges": [
+    {
+      "from": "packages/juscite-desktop-pet/src/main/desktop/pet/motions.ts",
+      "spec": "@zcode/shared",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "PetMotion",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/shared/src/index.ts"
+    },
+    {
+      "from": "packages/juscite-desktop-pet/src/main/desktop/pet/projection.ts",
+      "spec": "@zcode/shared",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "PetBubbleState",
+          "form": "named"
+        },
+        {
+          "name": "PetMotion",
+          "form": "named"
+        },
+        {
+          "name": "PetRunEventPayload",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/shared/src/index.ts"
+    },
+    {
+      "from": "packages/juscite-desktop-pet/src/main/desktop/pet/store.ts",
+      "spec": "@zcode/shared",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "PetBubbleState",
+          "form": "named"
+        },
+        {
+          "name": "PetConfig",
+          "form": "named"
+        },
+        {
+          "name": "PetConfigPatch",
+          "form": "named"
+        },
+        {
+          "name": "PetMotion",
+          "form": "named"
+        },
+        {
+          "name": "PetStatusPayload",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/shared/src/index.ts"
+    },
+    {
+      "from": "packages/juscite-desktop-pet/src/main/desktop/pet/window.ts",
+      "spec": "@zcode/shared",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "PlatformChannels",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/shared/src/index.ts"
+    },
+    {
+      "from": "packages/juscite-desktop-pet/src/main/desktop/pet/window.ts",
+      "spec": "@zcode/shared",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "PetConfigPatch",
+          "form": "named"
+        },
+        {
+          "name": "PetRunEventPayload",
+          "form": "named"
+        },
+        {
+          "name": "PetStatusPayload",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/shared/src/index.ts"
+    },
+    {
+      "from": "packages/juscite-desktop-pet/src/renderer/src/pet/main.ts",
+      "spec": "@zcode/shared",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "PetStatusPayload",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/shared/src/index.ts"
+    },
+    {
+      "from": "packages/juscite-legal/src/panels/LegalWorkbench.tsx",
+      "spec": "@zcode/services",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "IServiceAccessor",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/index.ts"
+    },
+    {
+      "from": "packages/juscite-legal/src/ui-kit.ts",
+      "spec": "@zcode/services",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "IServiceAccessor",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/index.ts"
+    },
+    {
+      "from": "packages/juscite-runtime-port/src/index.ts",
+      "spec": "../../shared/src/model-selection.js",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "ModelSelection",
+          "form": "named"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "packages/juscite-runtime-port/src/index.ts",
+      "spec": "../../shared/src/zcode-protocol-v4/index.js",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "Timestamp",
+          "form": "named"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "packages/ui/src/app-shell/WorkspaceShellLayout.tsx",
+      "spec": "@juscite/legal/panels/ConflictPrecheckPanel",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "packages/ui/src/app-shell/WorkspaceShellLayout.tsx",
+      "spec": "@juscite/legal/panels/KnowledgeBasePanel",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "packages/ui/src/app-shell/WorkspaceShellLayout.tsx",
+      "spec": "@juscite/legal/panels/LearningIterationPanel",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "packages/ui/src/app-shell/WorkspaceShellLayout.tsx",
+      "spec": "@juscite/legal/panels/LegalWorkbench",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "LegalWorkbench",
+          "form": "named"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "packages/ui/src/app-shell/WorkspaceShellLayout.tsx",
+      "spec": "@juscite/legal/panels/ResearchPanel",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "packages/ui/src/app-shell/WorkspaceShellLayout.tsx",
+      "spec": "@juscite/legal/panels/TeamPanel",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "packages/ui/src/app-shell/WorkspaceShellLayout.tsx",
+      "spec": "@zcode/shared/test-ids",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "TID_APP_HEADER",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/shared/src/test-ids.ts"
+    },
+    {
+      "from": "packages/ui/src/App.tsx",
+      "spec": "@juscite/legal/panels/SecurityAuditCenter",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "SecurityAuditCenter",
+          "form": "named"
+        },
+        {
+          "name": "SECURITY_AUDIT_EVENT",
+          "form": "named"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "packages/ui/src/App.tsx",
+      "spec": "@zcode/shared",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "resolveWorkspaceKey",
+          "form": "named"
+        },
+        {
+          "name": "GitChangeSourceId",
+          "form": "named"
+        },
+        {
+          "name": "WorkspacePurpose",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/shared/src/index.ts"
+    },
+    {
+      "from": "packages/ui/src/legal/register.tsx",
+      "spec": "@juscite/legal/ui-kit",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "configureLegalUiKit",
+          "form": "named"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "packages/ui/src/project-sidebar/index.tsx",
+      "spec": "@juscite/legal/panels/SecurityAuditCenter",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "SecurityAuditSidebarEntry",
+          "form": "named"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "packages/ui/src/project-sidebar/index.tsx",
+      "spec": "@zcode/shared/test-ids",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "TID_SIDEBAR",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/shared/src/test-ids.ts"
+    },
+    {
+      "from": "packages/ui/src/settings/StealthSettingsSection.tsx",
+      "spec": "@juscite/legal/panels/SecurityAuditCenter",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "requestSecurityAuditCenter",
+          "form": "named"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "tools/bridge/assemblecheck.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/assemblecheck.mts",
+      "spec": "@zcode/shared/zcode-protocol-v4",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "TopicWireFrameAssembler",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/shared/src/zcode-protocol-v4/index.ts"
+    },
+    {
+      "from": "tools/bridge/assemblecheck.mts",
+      "spec": "@zcode/shared/zcode-protocol-v4",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "proto",
+          "form": "namespace"
+        }
+      ],
+      "resolved": "packages/shared/src/zcode-protocol-v4/index.ts"
+    },
+    {
+      "from": "tools/bridge/automation_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/board_seed.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/board_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/panels/boardCalendar.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "boardCellDotColor",
+          "form": "named"
+        },
+        {
+          "name": "boardDeadlineLadder",
+          "form": "named"
+        },
+        {
+          "name": "boardMonthCells",
+          "form": "named"
+        },
+        {
+          "name": "boardNextCaseNode",
+          "form": "named"
+        },
+        {
+          "name": "boardShapeTimelineRows",
+          "form": "named"
+        },
+        {
+          "name": "boardTodayStr",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/panels/boardCalendar.ts"
+    },
+    {
+      "from": "tools/bridge/board_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/panels/boardCaseList.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "boardApplyDragOrder",
+          "form": "named"
+        },
+        {
+          "name": "boardCaseGate",
+          "form": "named"
+        },
+        {
+          "name": "boardDeadlineRiskOf",
+          "form": "named"
+        },
+        {
+          "name": "boardDragOrderSeq",
+          "form": "named"
+        },
+        {
+          "name": "boardFilingDateOf",
+          "form": "named"
+        },
+        {
+          "name": "boardFocusItem",
+          "form": "named"
+        },
+        {
+          "name": "boardHearingDisplayTitle",
+          "form": "named"
+        },
+        {
+          "name": "boardNextHearingDateOf",
+          "form": "named"
+        },
+        {
+          "name": "boardRecentGroups",
+          "form": "named"
+        },
+        {
+          "name": "boardSortCasesByKey",
+          "form": "named"
+        },
+        {
+          "name": "boardStatusWeight",
+          "form": "named"
+        },
+        {
+          "name": "boardYuan",
+          "form": "named"
+        },
+        {
+          "name": "filterCasesByDomain",
+          "form": "named"
+        },
+        {
+          "name": "isCriminalCase",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/panels/boardCaseList.ts"
+    },
+    {
+      "from": "tools/bridge/board_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/panels/boardImportant.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "briefingLevel",
+          "form": "named"
+        },
+        {
+          "name": "buildImportantReminders",
+          "form": "named"
+        },
+        {
+          "name": "boardDeleteConfirmCopy",
+          "form": "named"
+        },
+        {
+          "name": "importantCountdown",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/panels/boardImportant.ts"
+    },
+    {
+      "from": "tools/bridge/board_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/panels/boardPreservation.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "cnDateString",
+          "form": "named"
+        },
+        {
+          "name": "cnNumber",
+          "form": "named"
+        },
+        {
+          "name": "boardDedupTimelineHearings",
+          "form": "named"
+        },
+        {
+          "name": "dedupHearingsBySession",
+          "form": "named"
+        },
+        {
+          "name": "durationMonths",
+          "form": "named"
+        },
+        {
+          "name": "extractPreservationClauses",
+          "form": "named"
+        },
+        {
+          "name": "hearingSessionKeyOf",
+          "form": "named"
+        },
+        {
+          "name": "suppressedByUnseal",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/panels/boardPreservation.ts"
+    },
+    {
+      "from": "tools/bridge/board_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/panels/boardReminder.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "BOARD_FIRE_GRACE_MS",
+          "form": "named"
+        },
+        {
+          "name": "BOARD_24H_WINDOW_MS",
+          "form": "named"
+        },
+        {
+          "name": "boardFireKey",
+          "form": "named"
+        },
+        {
+          "name": "boardFireMomentMs",
+          "form": "named"
+        },
+        {
+          "name": "scanBoardReminders",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/panels/boardReminder.ts"
+    },
+    {
+      "from": "tools/bridge/board_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/panels/boardStatus.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "BOARD_STATUS_NAMES",
+          "form": "named"
+        },
+        {
+          "name": "boardDisplayStatus",
+          "form": "named"
+        },
+        {
+          "name": "boardSignalsFromRows",
+          "form": "named"
+        },
+        {
+          "name": "boardSortCasesByBucket",
+          "form": "named"
+        },
+        {
+          "name": "boardStatusBucket",
+          "form": "named"
+        },
+        {
+          "name": "inferBoardWorkflowStatus",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/panels/boardStatus.ts"
+    },
+    {
+      "from": "tools/bridge/board_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/branch_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/juscite-legal/src/kernel/caseGraphModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "validateGraph",
+          "form": "named"
+        },
+        {
+          "name": "buildGraphFromCaseRecords",
+          "form": "named"
+        },
+        {
+          "name": "sanitizeGraphFilename",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/caseGraphModel.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/juscite-legal/src/kernel/caseTimelineModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "AUTO_EVENT_TYPES",
+          "form": "named"
+        },
+        {
+          "name": "CB_EVENT_TYPES",
+          "form": "named"
+        },
+        {
+          "name": "FACT_EVENT_TYPES",
+          "form": "named"
+        },
+        {
+          "name": "RECORDABLE_EVENT_TYPES",
+          "form": "named"
+        },
+        {
+          "name": "EDITABLE_FIELDS",
+          "form": "named"
+        },
+        {
+          "name": "isCalendarDate",
+          "form": "named"
+        },
+        {
+          "name": "normalizeImportance",
+          "form": "named"
+        },
+        {
+          "name": "normalizeStatus",
+          "form": "named"
+        },
+        {
+          "name": "sortCaseEventsFull",
+          "form": "named"
+        },
+        {
+          "name": "parseExtractionOutput",
+          "form": "named"
+        },
+        {
+          "name": "postprocessExtracted",
+          "form": "named"
+        },
+        {
+          "name": "planCaseEventMerge",
+          "form": "named"
+        },
+        {
+          "name": "assembleExtractionPrompt",
+          "form": "named"
+        },
+        {
+          "name": "docHintOf",
+          "form": "named"
+        },
+        {
+          "name": "applyCaseEventEdit",
+          "form": "named"
+        },
+        {
+          "name": "restoreCaseEventField",
+          "form": "named"
+        },
+        {
+          "name": "sanitizeSourceRefs",
+          "form": "named"
+        },
+        {
+          "name": "sanitizePayload",
+          "form": "named"
+        },
+        {
+          "name": "buildCaseTimelineReportLines",
+          "form": "named"
+        },
+        {
+          "name": "CASE_REPORT_EMPTY_TEXT",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/caseTimelineModel.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/juscite-legal/src/kernel/conflictModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "CONCLUSIONS",
+          "form": "named"
+        },
+        {
+          "name": "ROLES",
+          "form": "named"
+        },
+        {
+          "name": "AUTO_NOTE_FORMAL",
+          "form": "named"
+        },
+        {
+          "name": "AUTO_NOTE_REVIEW",
+          "form": "named"
+        },
+        {
+          "name": "nameMatchLevel",
+          "form": "named"
+        },
+        {
+          "name": "severityOfNameHit",
+          "form": "named"
+        },
+        {
+          "name": "reasonOfHit",
+          "form": "named"
+        },
+        {
+          "name": "dedupeHits",
+          "form": "named"
+        },
+        {
+          "name": "sortHitsDesc",
+          "form": "named"
+        },
+        {
+          "name": "buildNameProbes",
+          "form": "named"
+        },
+        {
+          "name": "buildConflictQueries",
+          "form": "named"
+        },
+        {
+          "name": "idVariants",
+          "form": "named"
+        },
+        {
+          "name": "normalizeIdNumber",
+          "form": "named"
+        },
+        {
+          "name": "normalizePrecheckQueries",
+          "form": "named"
+        },
+        {
+          "name": "pickSeverity",
+          "form": "named"
+        },
+        {
+          "name": "bumpForIdMatch",
+          "form": "named"
+        },
+        {
+          "name": "fingerprintPayload",
+          "form": "named"
+        },
+        {
+          "name": "newHitKeys",
+          "form": "named"
+        },
+        {
+          "name": "hasHighOrBlocking",
+          "form": "named"
+        },
+        {
+          "name": "reviewGateOutcome",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/conflictModel.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/juscite-legal/src/kernel/learningModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "LEARNING_THREAD_PREFIX",
+          "form": "named"
+        },
+        {
+          "name": "TURN_TIMEOUT_MS",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/learningModel.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/juscite-legal/src/kernel/researchModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "MAX_REPORT_CONTINUATIONS",
+          "form": "named"
+        },
+        {
+          "name": "newResearchRecord",
+          "form": "named"
+        },
+        {
+          "name": "normalizeRecord",
+          "form": "named"
+        },
+        {
+          "name": "applyReportEdit",
+          "form": "named"
+        },
+        {
+          "name": "exportFileName",
+          "form": "named"
+        },
+        {
+          "name": "isPlanPublished",
+          "form": "named"
+        },
+        {
+          "name": "extractStageNo",
+          "form": "named"
+        },
+        {
+          "name": "isReportComplete",
+          "form": "named"
+        },
+        {
+          "name": "splitResearchStream",
+          "form": "named"
+        },
+        {
+          "name": "buildResearchPrompt",
+          "form": "named"
+        },
+        {
+          "name": "primarySourceDirective",
+          "form": "named"
+        },
+        {
+          "name": "buildStageDirective",
+          "form": "named"
+        },
+        {
+          "name": "evidenceGate",
+          "form": "named"
+        },
+        {
+          "name": "cullToolCatalog",
+          "form": "named"
+        },
+        {
+          "name": "isQuotaAuthError",
+          "form": "named"
+        },
+        {
+          "name": "isBareResearchTopic",
+          "form": "named"
+        },
+        {
+          "name": "toResearchStep",
+          "form": "named"
+        },
+        {
+          "name": "buildEvidenceDirective",
+          "form": "named"
+        },
+        {
+          "name": "buildQuotaFallbackDirective",
+          "form": "named"
+        },
+        {
+          "name": "classifyContinuation",
+          "form": "named"
+        },
+        {
+          "name": "preprocessReportMarkdown",
+          "form": "named"
+        },
+        {
+          "name": "researchThreadTitle",
+          "form": "named"
+        },
+        {
+          "name": "deriveFromRows",
+          "form": "named"
+        },
+        {
+          "name": "lookupLawsLibrary",
+          "form": "named"
+        },
+        {
+          "name": "LAW_LOOKUP_UNAVAILABLE",
+          "form": "named"
+        },
+        {
+          "name": "isResearchThreadTitle",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/researchModel.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/juscite-runtime-adapters/opencode/src/opencodeAdapter.mjs",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "createOpenCodeRuntime",
+          "form": "named"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/juscite-vizb/src/chronicle/index.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "vizbChronicle",
+          "form": "namespace"
+        }
+      ],
+      "resolved": "packages/juscite-vizb/src/chronicle/index.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/juscite-vizb/src/confrontation/index.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "vizbConfrontation",
+          "form": "namespace"
+        }
+      ],
+      "resolved": "packages/juscite-vizb/src/confrontation/index.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/services/src/conversation-share/conversationShareArtifactSource.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "createLocalConversationShareArtifactSource",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/conversation-share/conversationShareArtifactSource.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/services/src/conversation-share/conversationShareHttpClient.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "ConversationShareHttpClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/conversation-share/conversationShareHttpClient.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/services/src/conversation-share/conversationShareService.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "ConversationShareService",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/conversation-share/conversationShareService.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/services/src/plugins/pluginManagementService.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "createPluginManagementService",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/plugins/pluginManagementService.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/services/src/session/automationCron.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "computeAutomationNextRunAt",
+          "form": "named"
+        },
+        {
+          "name": "isOneShotAutomation",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/session/automationCron.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/services/src/session/automationRepo.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "AutomationRepo",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/session/automationRepo.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/services/src/session/automationService.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "AutomationService",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/session/automationService.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/services/src/session/tasksDatabase/migrations.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "runTasksDatabaseMigrations",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/session/tasksDatabase/migrations.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "../../packages/services/src/task-groups/index.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "createTaskGroupService",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/task-groups/index.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelServer",
+          "form": "named"
+        },
+        {
+          "name": "LoggingChannelServer",
+          "form": "named"
+        },
+        {
+          "name": "ProxyChannel",
+          "form": "named"
+        },
+        {
+          "name": "Event",
+          "form": "named"
+        },
+        {
+          "name": "Emitter",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "@zcode/services",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "IConversationShareService",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/bridge_host.mjs",
+      "spec": "@zcode/services",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "ServiceCollection",
+          "form": "named"
+        },
+        {
+          "name": "ISettingService",
+          "form": "named"
+        },
+        {
+          "name": "IZCodeAgentService",
+          "form": "named"
+        },
+        {
+          "name": "IZCodeSessionService",
+          "form": "named"
+        },
+        {
+          "name": "IZCodeTaskService",
+          "form": "named"
+        },
+        {
+          "name": "IOnboardingRecordService",
+          "form": "named"
+        },
+        {
+          "name": "ITaskGroupService",
+          "form": "named"
+        },
+        {
+          "name": "IPluginManagementService",
+          "form": "named"
+        },
+        {
+          "name": "ISubagentsService",
+          "form": "named"
+        },
+        {
+          "name": "IOffPeakTaskService",
+          "form": "named"
+        },
+        {
+          "name": "ISkillsService",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/compare_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/conflict_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/kernel/conflictModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "normalizeOrgName",
+          "form": "named"
+        },
+        {
+          "name": "buildNameProbes",
+          "form": "named"
+        },
+        {
+          "name": "REGION_PREFIXES",
+          "form": "named"
+        },
+        {
+          "name": "nameMatchLevel",
+          "form": "named"
+        },
+        {
+          "name": "pickSeverity",
+          "form": "named"
+        },
+        {
+          "name": "bumpForIdMatch",
+          "form": "named"
+        },
+        {
+          "name": "downgradeForNormalized",
+          "form": "named"
+        },
+        {
+          "name": "severityOfNameHit",
+          "form": "named"
+        },
+        {
+          "name": "dedupeHits",
+          "form": "named"
+        },
+        {
+          "name": "sortHitsDesc",
+          "form": "named"
+        },
+        {
+          "name": "buildConflictQueries",
+          "form": "named"
+        },
+        {
+          "name": "normalizePrecheckQueries",
+          "form": "named"
+        },
+        {
+          "name": "normalizeFormalQueries",
+          "form": "named"
+        },
+        {
+          "name": "fingerprintPayload",
+          "form": "named"
+        },
+        {
+          "name": "reviewGateOutcome",
+          "form": "named"
+        },
+        {
+          "name": "ROLES",
+          "form": "named"
+        },
+        {
+          "name": "ROLE_LABEL",
+          "form": "named"
+        },
+        {
+          "name": "HIT_ROLE_LABEL",
+          "form": "named"
+        },
+        {
+          "name": "APPROVAL_ROLE_LABEL",
+          "form": "named"
+        },
+        {
+          "name": "matchKindOfApproval",
+          "form": "named"
+        },
+        {
+          "name": "APPROVAL_MATCH_KIND_LABEL",
+          "form": "named"
+        },
+        {
+          "name": "conflictQueryCoverage",
+          "form": "named"
+        },
+        {
+          "name": "intakeSubmitGateOutcome",
+          "form": "named"
+        },
+        {
+          "name": "rerunChangedCount",
+          "form": "named"
+        },
+        {
+          "name": "intakeFrozenForConclusion",
+          "form": "named"
+        },
+        {
+          "name": "intakeConvertGateOutcome",
+          "form": "named"
+        },
+        {
+          "name": "AUTO_NOTE_REVIEW",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/conflictModel.ts"
+    },
+    {
+      "from": "tools/bridge/conflict_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/conflict_ui_walkthrough.mjs",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/conversation.e2e.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/conversation.e2e.mts",
+      "spec": "@zcode/shared/zcode-protocol-v4",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "conversationTopicWireCandidateSchema",
+          "form": "named"
+        },
+        {
+          "name": "sessionsIndexTopicWireCandidateSchema",
+          "form": "named"
+        },
+        {
+          "name": "commandsQueryResultSchema",
+          "form": "named"
+        },
+        {
+          "name": "TopicWireFrameAssembler",
+          "form": "named"
+        },
+        {
+          "name": "conversationTopicFrameSchema",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/shared/src/zcode-protocol-v4/index.ts"
+    },
+    {
+      "from": "tools/bridge/conversation.probe.mts",
+      "spec": "../../packages/juscite-runtime-adapters/opencode/src/opencodeAdapter.mjs",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "loadCredentials",
+          "form": "named"
+        },
+        {
+          "name": "makeClient",
+          "form": "named"
+        },
+        {
+          "name": "waitForAssistant",
+          "form": "named"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "tools/bridge/draft_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/duipai20_clean.mjs",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/duipai20_ping.mjs",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/duipai20_r20_b51_fts_probe.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/duipai20_ui_probe.mjs",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/e2e_via_vite.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/edisc_service.mjs",
+      "spec": "../../packages/juscite-edisc/src/anchorKernel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "extractAnchoredPdfBlocks",
+          "form": "named"
+        },
+        {
+          "name": "parseChatSegments",
+          "form": "named"
+        },
+        {
+          "name": "anchorInvariantOk",
+          "form": "named"
+        },
+        {
+          "name": "PDF_COORD_SYSTEM",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-edisc/src/anchorKernel.ts"
+    },
+    {
+      "from": "tools/bridge/edisc_service.mjs",
+      "spec": "../../packages/juscite-edisc/src/reviewKernel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "presetReviewFlag",
+          "form": "named"
+        },
+        {
+          "name": "aggregateCandidates",
+          "form": "named"
+        },
+        {
+          "name": "verifyCandidates",
+          "form": "named"
+        },
+        {
+          "name": "buildReviewReport",
+          "form": "named"
+        },
+        {
+          "name": "FLAG_LEVELS",
+          "form": "named"
+        },
+        {
+          "name": "FLAG_TAGS",
+          "form": "named"
+        },
+        {
+          "name": "PROOF_STRENGTHS",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-edisc/src/reviewKernel.ts"
+    },
+    {
+      "from": "tools/bridge/edisc_service.mjs",
+      "spec": "../../packages/juscite-edisc/src/tableKernel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "parseCsvTable",
+          "form": "named"
+        },
+        {
+          "name": "parseXlsxTables",
+          "form": "named"
+        },
+        {
+          "name": "profileOfTables",
+          "form": "named"
+        },
+        {
+          "name": "normalizeRowRef",
+          "form": "named"
+        },
+        {
+          "name": "amountDualTrack",
+          "form": "named"
+        },
+        {
+          "name": "rowText",
+          "form": "named"
+        },
+        {
+          "name": "DEFAULT_ROW_START",
+          "form": "named"
+        },
+        {
+          "name": "DEFAULT_ROW_END",
+          "form": "named"
+        },
+        {
+          "name": "SEARCH_LIMIT_DEFAULT",
+          "form": "named"
+        },
+        {
+          "name": "SEARCH_LIMIT_MAX",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-edisc/src/tableKernel.ts"
+    },
+    {
+      "from": "tools/bridge/framecheck.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/framecheck.mts",
+      "spec": "@zcode/shared/zcode-protocol-v4",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "conversationTopicWireCandidateSchema",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/shared/src/zcode-protocol-v4/index.ts"
+    },
+    {
+      "from": "tools/bridge/graph_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/kernel/caseGraphModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "layoutGraph",
+          "form": "named"
+        },
+        {
+          "name": "sanitizeGraphFilename",
+          "form": "named"
+        },
+        {
+          "name": "removeNodeCascade",
+          "form": "named"
+        },
+        {
+          "name": "lockedFieldGuard",
+          "form": "named"
+        },
+        {
+          "name": "GNode",
+          "form": "named"
+        },
+        {
+          "name": "GEdge",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/caseGraphModel.ts"
+    },
+    {
+      "from": "tools/bridge/graph_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/kb_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/kb_walk.mjs",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/latency_probe.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/layered_memory_runtime.mjs",
+      "spec": "../../packages/juscite-legal/src/kernel/layeredMemoryModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "assembleInjection",
+          "form": "named"
+        },
+        {
+          "name": "canSedimentResearch",
+          "form": "named"
+        },
+        {
+          "name": "isValidProjectId",
+          "form": "named"
+        },
+        {
+          "name": "matchPreferenceFiles",
+          "form": "named"
+        },
+        {
+          "name": "mergeCorrection",
+          "form": "named"
+        },
+        {
+          "name": "mergeRepresentative",
+          "form": "named"
+        },
+        {
+          "name": "mergeTaxonomy",
+          "form": "named"
+        },
+        {
+          "name": "normalizeCorrectionsFile",
+          "form": "named"
+        },
+        {
+          "name": "normalizeRepresentativesFile",
+          "form": "named"
+        },
+        {
+          "name": "normalizeTaxonomyFile",
+          "form": "named"
+        },
+        {
+          "name": "normalizeMemoryRelPath",
+          "form": "named"
+        },
+        {
+          "name": "resolveMemoryFileKind",
+          "form": "named"
+        },
+        {
+          "name": "findTaxonomyNode",
+          "form": "named"
+        },
+        {
+          "name": "PREFERENCE_COMMON_FILE",
+          "form": "named"
+        },
+        {
+          "name": "renderCorrectionLines",
+          "form": "named"
+        },
+        {
+          "name": "resolveConfidenceGate",
+          "form": "named"
+        },
+        {
+          "name": "researchReuseDecision",
+          "form": "named"
+        },
+        {
+          "name": "markResearched",
+          "form": "named"
+        },
+        {
+          "name": "typeKeyOfPreferenceFileName",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/layeredMemoryModel.ts"
+    },
+    {
+      "from": "tools/bridge/learning_kernel_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/kernel/learningModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "deriveRunStatus",
+          "form": "named"
+        },
+        {
+          "name": "nextEligibleAtOf",
+          "form": "named"
+        },
+        {
+          "name": "backoffDelayMs",
+          "form": "named"
+        },
+        {
+          "name": "backoffDue",
+          "form": "named"
+        },
+        {
+          "name": "evaluateBusyGate",
+          "form": "named"
+        },
+        {
+          "name": "normalizeLearningSettings",
+          "form": "named"
+        },
+        {
+          "name": "clampIdleMinutes",
+          "form": "named"
+        },
+        {
+          "name": "todayEligibilityOf",
+          "form": "named"
+        },
+        {
+          "name": "stripRagContext",
+          "form": "named"
+        },
+        {
+          "name": "isTrivialMessage",
+          "form": "named"
+        },
+        {
+          "name": "truncateHeadTail",
+          "form": "named"
+        },
+        {
+          "name": "extractFilePathsFromPayload",
+          "form": "named"
+        },
+        {
+          "name": "isInternalOutputPath",
+          "form": "named"
+        },
+        {
+          "name": "pathInsideWorkspace",
+          "form": "named"
+        },
+        {
+          "name": "chunkSource",
+          "form": "named"
+        },
+        {
+          "name": "selectWithinBudget",
+          "form": "named"
+        },
+        {
+          "name": "redactText",
+          "form": "named"
+        },
+        {
+          "name": "containsSecret",
+          "form": "named"
+        },
+        {
+          "name": "hasSensitiveIdentifier",
+          "form": "named"
+        },
+        {
+          "name": "buildLearningPrompt",
+          "form": "named"
+        },
+        {
+          "name": "parseModelOutput",
+          "form": "named"
+        },
+        {
+          "name": "LearningParseError",
+          "form": "named"
+        },
+        {
+          "name": "clampProposal",
+          "form": "named"
+        },
+        {
+          "name": "diagnoseFailure",
+          "form": "named"
+        },
+        {
+          "name": "validateMemoryCandidate",
+          "form": "named"
+        },
+        {
+          "name": "validateSkillCandidate",
+          "form": "named"
+        },
+        {
+          "name": "validateKnowledgeCandidate",
+          "form": "named"
+        },
+        {
+          "name": "normalizeKnowledgePath",
+          "form": "named"
+        },
+        {
+          "name": "hasLearningMarker",
+          "form": "named"
+        },
+        {
+          "name": "partitionProtectedSkills",
+          "form": "named"
+        },
+        {
+          "name": "memoryWithProvenance",
+          "form": "named"
+        },
+        {
+          "name": "mergeDuplicateMemory",
+          "form": "named"
+        },
+        {
+          "name": "memoryComparableHash",
+          "form": "named"
+        },
+        {
+          "name": "directoryHash",
+          "form": "named"
+        },
+        {
+          "name": "buildUserReport",
+          "form": "named"
+        },
+        {
+          "name": "looksTechnical",
+          "form": "named"
+        },
+        {
+          "name": "plainSkillDescription",
+          "form": "named"
+        },
+        {
+          "name": "appendRollbackSection",
+          "form": "named"
+        },
+        {
+          "name": "rollbackPreflight",
+          "form": "named"
+        },
+        {
+          "name": "retrieveMemoriesForInjection",
+          "form": "named"
+        },
+        {
+          "name": "shouldInjectMemories",
+          "form": "named"
+        },
+        {
+          "name": "atomicWriteFileSync",
+          "form": "named"
+        },
+        {
+          "name": "defaultLearningState",
+          "form": "named"
+        },
+        {
+          "name": "normalizeLearningState",
+          "form": "named"
+        },
+        {
+          "name": "normalizeLearningState",
+          "alias": "normState",
+          "form": "named"
+        },
+        {
+          "name": "normalizeManifest",
+          "form": "named"
+        },
+        {
+          "name": "normalizeCounts",
+          "form": "named"
+        },
+        {
+          "name": "newRunId",
+          "form": "named"
+        },
+        {
+          "name": "displayNameOf",
+          "form": "named"
+        },
+        {
+          "name": "localDayOf",
+          "form": "named"
+        },
+        {
+          "name": "isRecoverableError",
+          "form": "named"
+        },
+        {
+          "name": "shouldLogError",
+          "form": "named"
+        },
+        {
+          "name": "STAGE_MESSAGES",
+          "form": "named"
+        },
+        {
+          "name": "latestRoundMetrics",
+          "form": "named"
+        },
+        {
+          "name": "buildFailureReport",
+          "form": "named"
+        },
+        {
+          "name": "OUTPUT_MARK_BEGIN",
+          "form": "named"
+        },
+        {
+          "name": "OUTPUT_MARK_END",
+          "form": "named"
+        },
+        {
+          "name": "LearningSource",
+          "form": "named"
+        },
+        {
+          "name": "ModelResult",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/learningModel.ts"
+    },
+    {
+      "from": "tools/bridge/learning_runtime.mjs",
+      "spec": "../../packages/juscite-legal/src/kernel/learningModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "LEARNING_THREAD_PREFIX",
+          "form": "named"
+        },
+        {
+          "name": "KNOWLEDGE_ROOT_DIR",
+          "form": "named"
+        },
+        {
+          "name": "normalizeLearningSettings",
+          "form": "named"
+        },
+        {
+          "name": "deriveRunStatus",
+          "form": "named"
+        },
+        {
+          "name": "nextEligibleAtOf",
+          "form": "named"
+        },
+        {
+          "name": "backoffDue",
+          "form": "named"
+        },
+        {
+          "name": "backoffDelayMs",
+          "form": "named"
+        },
+        {
+          "name": "evaluateBusyGate",
+          "form": "named"
+        },
+        {
+          "name": "todayEligibilityOf",
+          "form": "named"
+        },
+        {
+          "name": "localDayOf",
+          "form": "named"
+        },
+        {
+          "name": "newRunId",
+          "form": "named"
+        },
+        {
+          "name": "stripRagContext",
+          "form": "named"
+        },
+        {
+          "name": "isTrivialMessage",
+          "form": "named"
+        },
+        {
+          "name": "truncateHeadTail",
+          "form": "named"
+        },
+        {
+          "name": "extractFilePathsFromPayload",
+          "form": "named"
+        },
+        {
+          "name": "isInternalOutputPath",
+          "form": "named"
+        },
+        {
+          "name": "pathInsideWorkspace",
+          "form": "named"
+        },
+        {
+          "name": "chunkSource",
+          "form": "named"
+        },
+        {
+          "name": "selectWithinBudget",
+          "form": "named"
+        },
+        {
+          "name": "redactText",
+          "form": "named"
+        },
+        {
+          "name": "buildLearningPrompt",
+          "form": "named"
+        },
+        {
+          "name": "parseModelOutput",
+          "form": "named"
+        },
+        {
+          "name": "clampProposal",
+          "form": "named"
+        },
+        {
+          "name": "diagnoseFailure",
+          "form": "named"
+        },
+        {
+          "name": "validateMemoryCandidate",
+          "form": "named"
+        },
+        {
+          "name": "validateSkillCandidate",
+          "form": "named"
+        },
+        {
+          "name": "validateKnowledgeCandidate",
+          "form": "named"
+        },
+        {
+          "name": "hasLearningMarker",
+          "form": "named"
+        },
+        {
+          "name": "partitionProtectedSkills",
+          "form": "named"
+        },
+        {
+          "name": "memoryWithProvenance",
+          "form": "named"
+        },
+        {
+          "name": "mergeDuplicateMemory",
+          "form": "named"
+        },
+        {
+          "name": "memoryComparableHash",
+          "form": "named"
+        },
+        {
+          "name": "directoryHash",
+          "form": "named"
+        },
+        {
+          "name": "contentHash",
+          "form": "named"
+        },
+        {
+          "name": "buildUserReport",
+          "form": "named"
+        },
+        {
+          "name": "buildFailureReport",
+          "form": "named"
+        },
+        {
+          "name": "appendRollbackSection",
+          "form": "named"
+        },
+        {
+          "name": "rollbackPreflight",
+          "form": "named"
+        },
+        {
+          "name": "retrieveMemoriesForInjection",
+          "form": "named"
+        },
+        {
+          "name": "shouldInjectMemories",
+          "form": "named"
+        },
+        {
+          "name": "atomicWriteFileSync",
+          "form": "named"
+        },
+        {
+          "name": "defaultLearningState",
+          "form": "named"
+        },
+        {
+          "name": "normalizeLearningState",
+          "form": "named"
+        },
+        {
+          "name": "normalizeManifest",
+          "form": "named"
+        },
+        {
+          "name": "normalizeCounts",
+          "form": "named"
+        },
+        {
+          "name": "emptyCounts",
+          "form": "named"
+        },
+        {
+          "name": "displayNameOf",
+          "form": "named"
+        },
+        {
+          "name": "isRecoverableError",
+          "form": "named"
+        },
+        {
+          "name": "shouldLogError",
+          "form": "named"
+        },
+        {
+          "name": "STAGE_MESSAGES",
+          "form": "named"
+        },
+        {
+          "name": "TURN_TIMEOUT_MS",
+          "form": "named"
+        },
+        {
+          "name": "RUN_ID_RE",
+          "form": "named"
+        },
+        {
+          "name": "TOOL_CALL_SUMMARY_CAP",
+          "form": "named"
+        },
+        {
+          "name": "TURN_TRANSIENT_LIMIT",
+          "form": "named"
+        },
+        {
+          "name": "TURN_POLL_MS",
+          "form": "named"
+        },
+        {
+          "name": "MAX_RETRY_COUNT",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/learningModel.ts"
+    },
+    {
+      "from": "tools/bridge/learning_runtime.mjs",
+      "spec": "../../packages/juscite-legal/src/kernel/learningModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "normalizeKnowledgePath",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/learningModel.ts"
+    },
+    {
+      "from": "tools/bridge/learning_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/kernel/learningModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "LEARNING_THREAD_PREFIX",
+          "form": "named"
+        },
+        {
+          "name": "OUTPUT_MARK_BEGIN",
+          "form": "named"
+        },
+        {
+          "name": "OUTPUT_MARK_END",
+          "form": "named"
+        },
+        {
+          "name": "RUN_ID_RE",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/learningModel.ts"
+    },
+    {
+      "from": "tools/bridge/learning_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/matter_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/onboarding_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/persist_probe.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/pet_synthetic.mts",
+      "spec": "../../packages/juscite-desktop-pet/src/main/desktop/pet/admission.ts",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": "packages/juscite-desktop-pet/src/main/desktop/pet/admission.ts"
+    },
+    {
+      "from": "tools/bridge/pet_synthetic.mts",
+      "spec": "../../packages/juscite-desktop-pet/src/main/desktop/pet/geometry.ts",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": "packages/juscite-desktop-pet/src/main/desktop/pet/geometry.ts"
+    },
+    {
+      "from": "tools/bridge/pet_synthetic.mts",
+      "spec": "../../packages/juscite-desktop-pet/src/main/desktop/pet/motions.ts",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": "packages/juscite-desktop-pet/src/main/desktop/pet/motions.ts"
+    },
+    {
+      "from": "tools/bridge/pet_synthetic.mts",
+      "spec": "../../packages/juscite-desktop-pet/src/main/desktop/pet/projection.ts",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": "packages/juscite-desktop-pet/src/main/desktop/pet/projection.ts"
+    },
+    {
+      "from": "tools/bridge/pet_synthetic.mts",
+      "spec": "../../packages/juscite-desktop-pet/src/main/desktop/pet/store.ts",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": "packages/juscite-desktop-pet/src/main/desktop/pet/store.ts"
+    },
+    {
+      "from": "tools/bridge/pet_synthetic.mts",
+      "spec": "../../packages/juscite-desktop-pet/src/main/desktop/pet/tool.ts",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": "packages/juscite-desktop-pet/src/main/desktop/pet/tool.ts"
+    },
+    {
+      "from": "tools/bridge/pet_synthetic.mts",
+      "spec": "../../packages/juscite-desktop-pet/src/renderer/src/pet/bubble.ts",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": "packages/juscite-desktop-pet/src/renderer/src/pet/bubble.ts"
+    },
+    {
+      "from": "tools/bridge/pet_synthetic.mts",
+      "spec": "../../packages/juscite-desktop-pet/src/renderer/src/pet/physics.ts",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": "packages/juscite-desktop-pet/src/renderer/src/pet/physics.ts"
+    },
+    {
+      "from": "tools/bridge/pet_synthetic.mts",
+      "spec": "../../packages/juscite-desktop-pet/src/renderer/src/pet/sprites.ts",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": "packages/juscite-desktop-pet/src/renderer/src/pet/sprites.ts"
+    },
+    {
+      "from": "tools/bridge/r30_ui_walkthrough.mjs",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/re21_security_synthetic.mjs",
+      "spec": "@zcode/rpc",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/re30_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/panels/securityAuditModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "AUDIT_POLICY_VERSION",
+          "form": "named"
+        },
+        {
+          "name": "formatAuditTime",
+          "form": "named"
+        },
+        {
+          "name": "hitChipsOf",
+          "form": "named"
+        },
+        {
+          "name": "hitLinesOf",
+          "form": "named"
+        },
+        {
+          "name": "opsDetailSummary",
+          "form": "named"
+        },
+        {
+          "name": "privacyDetailOf",
+          "form": "named"
+        },
+        {
+          "name": "scenarioKeyOf",
+          "form": "named"
+        },
+        {
+          "name": "scenarioName",
+          "form": "named"
+        },
+        {
+          "name": "selectEffectiveRow",
+          "form": "named"
+        },
+        {
+          "name": "totalHitsOf",
+          "form": "named"
+        },
+        {
+          "name": "truncateDigest",
+          "form": "named"
+        },
+        {
+          "name": "AuditRow",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/panels/securityAuditModel.ts"
+    },
+    {
+      "from": "tools/bridge/re30_synthetic.mts",
+      "spec": "../../packages/juscite-runtime-adapters/opencode/src/opencodeAdapter.mjs",
+      "kind": "dynamic-import",
+      "symbols": [
+        {
+          "name": "<dynamic>",
+          "form": "dynamic"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "tools/bridge/re30_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/re31_support_synthetic.mjs",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/re36_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/kernel/layeredMemoryModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "emptyTaxonomyFile",
+          "form": "named"
+        },
+        {
+          "name": "mergeTaxonomy",
+          "form": "named"
+        },
+        {
+          "name": "resolveConfidenceGate",
+          "form": "named"
+        },
+        {
+          "name": "matchPreferenceFiles",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/layeredMemoryModel.ts"
+    },
+    {
+      "from": "tools/bridge/re36_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/redline_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/research_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/kernel/researchModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "instantPlan",
+          "form": "named"
+        },
+        {
+          "name": "extractPlan",
+          "form": "named"
+        },
+        {
+          "name": "isPlanPublished",
+          "form": "named"
+        },
+        {
+          "name": "isUiNumberedItem",
+          "form": "named"
+        },
+        {
+          "name": "extractStageNo",
+          "form": "named"
+        },
+        {
+          "name": "splitResearchStream",
+          "form": "named"
+        },
+        {
+          "name": "isReportComplete",
+          "form": "named"
+        },
+        {
+          "name": "reportSectionHits",
+          "form": "named"
+        },
+        {
+          "name": "evidenceGate",
+          "form": "named"
+        },
+        {
+          "name": "cullToolCatalog",
+          "form": "named"
+        },
+        {
+          "name": "isQuotaAuthError",
+          "form": "named"
+        },
+        {
+          "name": "isBareResearchTopic",
+          "form": "named"
+        },
+        {
+          "name": "preprocessReportMarkdown",
+          "form": "named"
+        },
+        {
+          "name": "applyReportEdit",
+          "form": "named"
+        },
+        {
+          "name": "exportFileName",
+          "form": "named"
+        },
+        {
+          "name": "buildResearchPrompt",
+          "form": "named"
+        },
+        {
+          "name": "primarySourceDirective",
+          "form": "named"
+        },
+        {
+          "name": "buildStageDirective",
+          "form": "named"
+        },
+        {
+          "name": "newResearchRecord",
+          "form": "named"
+        },
+        {
+          "name": "normalizeRecord",
+          "form": "named"
+        },
+        {
+          "name": "deriveFromRows",
+          "form": "named"
+        },
+        {
+          "name": "lookupLawsLibrary",
+          "form": "named"
+        },
+        {
+          "name": "validityOf",
+          "form": "named"
+        },
+        {
+          "name": "LAW_LOOKUP_UNAVAILABLE",
+          "form": "named"
+        },
+        {
+          "name": "ResearchRecord",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/researchModel.ts"
+    },
+    {
+      "from": "tools/bridge/research_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/search_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/share_station.mjs",
+      "spec": "../../packages/services/src/conversation-share/conversationShareIntegrity.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "sha256ConversationShareJson",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/conversation-share/conversationShareIntegrity.ts"
+    },
+    {
+      "from": "tools/bridge/share_synthetic.mts",
+      "spec": "../../packages/services/src/conversation-share/conversationShareArtifactSource.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "createLocalConversationShareArtifactSource",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/conversation-share/conversationShareArtifactSource.ts"
+    },
+    {
+      "from": "tools/bridge/share_synthetic.mts",
+      "spec": "../../packages/services/src/conversation-share/conversationShareHttpClient.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "ConversationShareHttpClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/conversation-share/conversationShareHttpClient.ts"
+    },
+    {
+      "from": "tools/bridge/share_synthetic.mts",
+      "spec": "../../packages/services/src/conversation-share/conversationShareService.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "ConversationShareService",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/services/src/conversation-share/conversationShareService.ts"
+    },
+    {
+      "from": "tools/bridge/skills_zip_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/snapcheck.mts",
+      "spec": "@zcode/shared/zcode-protocol-v4",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "conversationSnapshotSchema",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/shared/src/zcode-protocol-v4/index.ts"
+    },
+    {
+      "from": "tools/bridge/stealth_proto_e2e.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/submissioncheck.mts",
+      "spec": "../../packages/ui/src/v4/composer/composerSubmissionConfig.js",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "createComposerSubmissionConfig",
+          "form": "named"
+        }
+      ],
+      "resolved": null
+    },
+    {
+      "from": "tools/bridge/timeline_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/kernel/caseTimelineModel.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "AUTO_EVENT_TYPES",
+          "form": "named"
+        },
+        {
+          "name": "CB_EVENT_TYPES",
+          "form": "named"
+        },
+        {
+          "name": "FACT_EVENT_TYPES",
+          "form": "named"
+        },
+        {
+          "name": "BUSINESS_ORDER",
+          "form": "named"
+        },
+        {
+          "name": "applyCaseEventEdit",
+          "form": "named"
+        },
+        {
+          "name": "assembleExtractionPrompt",
+          "form": "named"
+        },
+        {
+          "name": "dedupByKeyKeepFirst",
+          "form": "named"
+        },
+        {
+          "name": "displayDateOf",
+          "form": "named"
+        },
+        {
+          "name": "docHintOf",
+          "form": "named"
+        },
+        {
+          "name": "eventOrderOf",
+          "form": "named"
+        },
+        {
+          "name": "hearingStatusText",
+          "form": "named"
+        },
+        {
+          "name": "parseExtractionOutput",
+          "form": "named"
+        },
+        {
+          "name": "planCaseEventMerge",
+          "form": "named"
+        },
+        {
+          "name": "postprocessExtracted",
+          "form": "named"
+        },
+        {
+          "name": "restoreCaseEventField",
+          "form": "named"
+        },
+        {
+          "name": "rowKeyOf",
+          "form": "named"
+        },
+        {
+          "name": "sortCaseEventsFull",
+          "form": "named"
+        },
+        {
+          "name": "buildCaseTimelineReportLines",
+          "form": "named"
+        },
+        {
+          "name": "CASE_REPORT_DATE_FALLBACK",
+          "form": "named"
+        },
+        {
+          "name": "CASE_REPORT_EMPTY_TEXT",
+          "form": "named"
+        },
+        {
+          "name": "CASE_REPORT_EVENT_FALLBACK",
+          "form": "named"
+        },
+        {
+          "name": "CaseEventProto",
+          "form": "named"
+        },
+        {
+          "name": "ExtractedRow",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/kernel/caseTimelineModel.ts"
+    },
+    {
+      "from": "tools/bridge/timeline_synthetic.mts",
+      "spec": "../../packages/juscite-legal/src/panels/boardReminder.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "BOARD_DEFAULT_LEAD_MINUTES",
+          "form": "named"
+        },
+        {
+          "name": "boardTimelineReminderInputs",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/juscite-legal/src/panels/boardReminder.ts"
+    },
+    {
+      "from": "tools/bridge/timeline_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/timeline_walk.mjs",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    },
+    {
+      "from": "tools/bridge/vizb_synthetic.mts",
+      "spec": "../../packages/juscite-vizb/src/chronicle/index.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "chron",
+          "form": "namespace"
+        }
+      ],
+      "resolved": "packages/juscite-vizb/src/chronicle/index.ts"
+    },
+    {
+      "from": "tools/bridge/vizb_synthetic.mts",
+      "spec": "../../packages/juscite-vizb/src/confrontation/index.ts",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "conf",
+          "form": "namespace"
+        }
+      ],
+      "resolved": "packages/juscite-vizb/src/confrontation/index.ts"
+    },
+    {
+      "from": "tools/bridge/vizb_synthetic.mts",
+      "spec": "@zcode/rpc",
+      "kind": "import",
+      "symbols": [
+        {
+          "name": "VSBuffer",
+          "form": "named"
+        },
+        {
+          "name": "SocketProtocol",
+          "form": "named"
+        },
+        {
+          "name": "ChannelClient",
+          "form": "named"
+        }
+      ],
+      "resolved": "packages/rpc/src/index.ts"
+    }
+  ],
+  "consumedExports": [
+    {
+      "module": "@zcode/rpc",
+      "symbol": "ChannelClient",
+      "decl": "packages/rpc/src/channelClient.ts",
+      "consumers": [
+        "tools/bridge/assemblecheck.mts",
+        "tools/bridge/automation_synthetic.mts",
+        "tools/bridge/board_seed.mts",
+        "tools/bridge/board_synthetic.mts",
+        "tools/bridge/branch_synthetic.mts",
+        "tools/bridge/compare_synthetic.mts",
+        "tools/bridge/conflict_synthetic.mts",
+        "tools/bridge/conflict_ui_walkthrough.mjs",
+        "tools/bridge/conversation.e2e.mts",
+        "tools/bridge/draft_synthetic.mts",
+        "tools/bridge/duipai20_clean.mjs",
+        "tools/bridge/duipai20_ping.mjs",
+        "tools/bridge/duipai20_r20_b51_fts_probe.mts",
+        "tools/bridge/duipai20_ui_probe.mjs",
+        "tools/bridge/e2e_via_vite.mts",
+        "tools/bridge/framecheck.mts",
+        "tools/bridge/graph_synthetic.mts",
+        "tools/bridge/kb_synthetic.mts",
+        "tools/bridge/kb_walk.mjs",
+        "tools/bridge/latency_probe.mts",
+        "tools/bridge/learning_synthetic.mts",
+        "tools/bridge/matter_synthetic.mts",
+        "tools/bridge/onboarding_synthetic.mts",
+        "tools/bridge/persist_probe.mts",
+        "tools/bridge/r30_ui_walkthrough.mjs",
+        "tools/bridge/re30_synthetic.mts",
+        "tools/bridge/re31_support_synthetic.mjs",
+        "tools/bridge/re36_synthetic.mts",
+        "tools/bridge/redline_synthetic.mts",
+        "tools/bridge/research_synthetic.mts",
+        "tools/bridge/search_synthetic.mts",
+        "tools/bridge/skills_zip_synthetic.mts",
+        "tools/bridge/stealth_proto_e2e.mts",
+        "tools/bridge/timeline_synthetic.mts",
+        "tools/bridge/timeline_walk.mjs",
+        "tools/bridge/vizb_synthetic.mts"
+      ]
+    },
+    {
+      "module": "@zcode/rpc",
+      "symbol": "ChannelServer",
+      "decl": "packages/rpc/src/channelServer.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/rpc",
+      "symbol": "Emitter",
+      "decl": "packages/rpc/src/foundation.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/rpc",
+      "symbol": "Event",
+      "decl": "packages/rpc/src/foundation.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/rpc",
+      "symbol": "LoggingChannelServer",
+      "decl": "packages/rpc/src/logging-middleware.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/rpc",
+      "symbol": "ProxyChannel",
+      "decl": "packages/rpc/src/proxy-channel.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/rpc",
+      "symbol": "SocketProtocol",
+      "decl": "packages/rpc/src/protocol.ts",
+      "consumers": [
+        "tools/bridge/assemblecheck.mts",
+        "tools/bridge/automation_synthetic.mts",
+        "tools/bridge/board_seed.mts",
+        "tools/bridge/board_synthetic.mts",
+        "tools/bridge/branch_synthetic.mts",
+        "tools/bridge/bridge_host.mjs",
+        "tools/bridge/compare_synthetic.mts",
+        "tools/bridge/conflict_synthetic.mts",
+        "tools/bridge/conflict_ui_walkthrough.mjs",
+        "tools/bridge/conversation.e2e.mts",
+        "tools/bridge/draft_synthetic.mts",
+        "tools/bridge/duipai20_clean.mjs",
+        "tools/bridge/duipai20_ping.mjs",
+        "tools/bridge/duipai20_r20_b51_fts_probe.mts",
+        "tools/bridge/duipai20_ui_probe.mjs",
+        "tools/bridge/e2e_via_vite.mts",
+        "tools/bridge/framecheck.mts",
+        "tools/bridge/graph_synthetic.mts",
+        "tools/bridge/kb_synthetic.mts",
+        "tools/bridge/kb_walk.mjs",
+        "tools/bridge/latency_probe.mts",
+        "tools/bridge/learning_synthetic.mts",
+        "tools/bridge/matter_synthetic.mts",
+        "tools/bridge/onboarding_synthetic.mts",
+        "tools/bridge/persist_probe.mts",
+        "tools/bridge/r30_ui_walkthrough.mjs",
+        "tools/bridge/re30_synthetic.mts",
+        "tools/bridge/re31_support_synthetic.mjs",
+        "tools/bridge/re36_synthetic.mts",
+        "tools/bridge/redline_synthetic.mts",
+        "tools/bridge/research_synthetic.mts",
+        "tools/bridge/search_synthetic.mts",
+        "tools/bridge/skills_zip_synthetic.mts",
+        "tools/bridge/stealth_proto_e2e.mts",
+        "tools/bridge/timeline_synthetic.mts",
+        "tools/bridge/timeline_walk.mjs",
+        "tools/bridge/vizb_synthetic.mts"
+      ]
+    },
+    {
+      "module": "@zcode/rpc",
+      "symbol": "VSBuffer",
+      "decl": "packages/rpc/src/buffer.ts",
+      "consumers": [
+        "tools/bridge/assemblecheck.mts",
+        "tools/bridge/automation_synthetic.mts",
+        "tools/bridge/board_seed.mts",
+        "tools/bridge/board_synthetic.mts",
+        "tools/bridge/branch_synthetic.mts",
+        "tools/bridge/bridge_host.mjs",
+        "tools/bridge/compare_synthetic.mts",
+        "tools/bridge/conflict_synthetic.mts",
+        "tools/bridge/conflict_ui_walkthrough.mjs",
+        "tools/bridge/conversation.e2e.mts",
+        "tools/bridge/draft_synthetic.mts",
+        "tools/bridge/duipai20_clean.mjs",
+        "tools/bridge/duipai20_ping.mjs",
+        "tools/bridge/duipai20_r20_b51_fts_probe.mts",
+        "tools/bridge/duipai20_ui_probe.mjs",
+        "tools/bridge/e2e_via_vite.mts",
+        "tools/bridge/framecheck.mts",
+        "tools/bridge/graph_synthetic.mts",
+        "tools/bridge/kb_synthetic.mts",
+        "tools/bridge/kb_walk.mjs",
+        "tools/bridge/latency_probe.mts",
+        "tools/bridge/learning_synthetic.mts",
+        "tools/bridge/matter_synthetic.mts",
+        "tools/bridge/onboarding_synthetic.mts",
+        "tools/bridge/persist_probe.mts",
+        "tools/bridge/r30_ui_walkthrough.mjs",
+        "tools/bridge/re30_synthetic.mts",
+        "tools/bridge/re31_support_synthetic.mjs",
+        "tools/bridge/re36_synthetic.mts",
+        "tools/bridge/redline_synthetic.mts",
+        "tools/bridge/research_synthetic.mts",
+        "tools/bridge/search_synthetic.mts",
+        "tools/bridge/skills_zip_synthetic.mts",
+        "tools/bridge/stealth_proto_e2e.mts",
+        "tools/bridge/timeline_synthetic.mts",
+        "tools/bridge/timeline_walk.mjs",
+        "tools/bridge/vizb_synthetic.mts"
+      ]
+    },
+    {
+      "module": "@zcode/services",
+      "symbol": "IConversationShareService",
+      "decl": "packages/services/src/conversation-share/conversationShare.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/services",
+      "symbol": "IOffPeakTaskService",
+      "decl": "packages/services/src/session/offPeakTask.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/services",
+      "symbol": "IOnboardingRecordService",
+      "decl": "packages/services/src/onboarding/onboardingRecord.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/services",
+      "symbol": "IPluginManagementService",
+      "decl": "packages/services/src/plugins/pluginManagement.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/services",
+      "symbol": "IServiceAccessor",
+      "decl": "packages/services/src/accessor.ts",
+      "consumers": [
+        "packages/juscite-legal/src/panels/LegalWorkbench.tsx",
+        "packages/juscite-legal/src/ui-kit.ts"
+      ]
+    },
+    {
+      "module": "@zcode/services",
+      "symbol": "ISettingService",
+      "decl": "packages/services/src/setting/setting.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/services",
+      "symbol": "ISkillsService",
+      "decl": "packages/services/src/skills/skills.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/services",
+      "symbol": "ISubagentsService",
+      "decl": "packages/services/src/subagents/subagents.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/services",
+      "symbol": "ITaskGroupService",
+      "decl": "packages/services/src/task-groups/contract.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/services",
+      "symbol": "IZCodeAgentService",
+      "decl": "packages/services/src/zcode-agent/zcodeAgent.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/services",
+      "symbol": "IZCodeSessionService",
+      "decl": "packages/services/src/zcode-session/zcodeSession.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/services",
+      "symbol": "IZCodeTaskService",
+      "decl": "packages/services/src/session/zcodeTaskService.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/services",
+      "symbol": "ServiceCollection",
+      "decl": "packages/services/src/collection.ts",
+      "consumers": [
+        "tools/bridge/bridge_host.mjs"
+      ]
+    },
+    {
+      "module": "@zcode/shared/test-ids",
+      "symbol": "TID_APP_HEADER",
+      "decl": "packages/shared/src/test-ids.ts",
+      "consumers": [
+        "packages/ui/src/app-shell/WorkspaceShellLayout.tsx"
+      ]
+    },
+    {
+      "module": "@zcode/shared/test-ids",
+      "symbol": "TID_SIDEBAR",
+      "decl": "packages/shared/src/test-ids.ts",
+      "consumers": [
+        "packages/ui/src/project-sidebar/index.tsx"
+      ]
+    },
+    {
+      "module": "@zcode/shared/zcode-protocol-v4",
+      "symbol": "commandsQueryResultSchema",
+      "decl": "packages/shared/src/zcode-protocol-v4/command.ts",
+      "consumers": [
+        "tools/bridge/conversation.e2e.mts"
+      ]
+    },
+    {
+      "module": "@zcode/shared/zcode-protocol-v4",
+      "symbol": "conversationSnapshotSchema",
+      "decl": "packages/shared/src/zcode-protocol-v4/snapshot.ts",
+      "consumers": [
+        "tools/bridge/snapcheck.mts"
+      ]
+    },
+    {
+      "module": "@zcode/shared/zcode-protocol-v4",
+      "symbol": "conversationTopicFrameSchema",
+      "decl": "packages/shared/src/zcode-protocol-v4/transport.ts",
+      "consumers": [
+        "tools/bridge/conversation.e2e.mts"
+      ]
+    },
+    {
+      "module": "@zcode/shared/zcode-protocol-v4",
+      "symbol": "conversationTopicWireCandidateSchema",
+      "decl": "packages/shared/src/zcode-protocol-v4/transport.ts",
+      "consumers": [
+        "tools/bridge/conversation.e2e.mts",
+        "tools/bridge/framecheck.mts"
+      ]
+    },
+    {
+      "module": "@zcode/shared/zcode-protocol-v4",
+      "symbol": "sessionsIndexTopicWireCandidateSchema",
+      "decl": "packages/shared/src/zcode-protocol-v4/transport.ts",
+      "consumers": [
+        "tools/bridge/conversation.e2e.mts"
+      ]
+    },
+    {
+      "module": "@zcode/shared/zcode-protocol-v4",
+      "symbol": "TopicWireFrameAssembler",
+      "decl": "packages/shared/src/zcode-protocol-v4/wire-assembler.ts",
+      "consumers": [
+        "tools/bridge/assemblecheck.mts",
+        "tools/bridge/conversation.e2e.mts"
+      ]
+    },
+    {
+      "module": "@zcode/shared",
+      "symbol": "GitChangeSourceId",
+      "decl": "packages/shared/src/git.ts",
+      "consumers": [
+        "packages/ui/src/App.tsx"
+      ]
+    },
+    {
+      "module": "@zcode/shared",
+      "symbol": "PetBubbleState",
+      "decl": "packages/shared/src/desktop-pet.ts",
+      "consumers": [
+        "packages/juscite-desktop-pet/src/main/desktop/pet/projection.ts",
+        "packages/juscite-desktop-pet/src/main/desktop/pet/store.ts"
+      ]
+    },
+    {
+      "module": "@zcode/shared",
+      "symbol": "PetConfig",
+      "decl": "packages/shared/src/desktop-pet.ts",
+      "consumers": [
+        "packages/juscite-desktop-pet/src/main/desktop/pet/store.ts"
+      ]
+    },
+    {
+      "module": "@zcode/shared",
+      "symbol": "PetConfigPatch",
+      "decl": "packages/shared/src/desktop-pet.ts",
+      "consumers": [
+        "packages/juscite-desktop-pet/src/main/desktop/pet/store.ts",
+        "packages/juscite-desktop-pet/src/main/desktop/pet/window.ts"
+      ]
+    },
+    {
+      "module": "@zcode/shared",
+      "symbol": "PetMotion",
+      "decl": "packages/shared/src/desktop-pet.ts",
+      "consumers": [
+        "packages/juscite-desktop-pet/src/main/desktop/pet/motions.ts",
+        "packages/juscite-desktop-pet/src/main/desktop/pet/projection.ts",
+        "packages/juscite-desktop-pet/src/main/desktop/pet/store.ts"
+      ]
+    },
+    {
+      "module": "@zcode/shared",
+      "symbol": "PetRunEventPayload",
+      "decl": "packages/shared/src/desktop-pet.ts",
+      "consumers": [
+        "packages/juscite-desktop-pet/src/main/desktop/pet/projection.ts",
+        "packages/juscite-desktop-pet/src/main/desktop/pet/window.ts"
+      ]
+    },
+    {
+      "module": "@zcode/shared",
+      "symbol": "PetStatusPayload",
+      "decl": "packages/shared/src/desktop-pet.ts",
+      "consumers": [
+        "packages/juscite-desktop-pet/src/main/desktop/pet/store.ts",
+        "packages/juscite-desktop-pet/src/main/desktop/pet/window.ts",
+        "packages/juscite-desktop-pet/src/renderer/src/pet/main.ts"
+      ]
+    },
+    {
+      "module": "@zcode/shared",
+      "symbol": "PlatformChannels",
+      "decl": "packages/shared/src/channels.ts",
+      "consumers": [
+        "packages/juscite-desktop-pet/src/main/desktop/pet/window.ts"
+      ]
+    },
+    {
+      "module": "@zcode/shared",
+      "symbol": "resolveWorkspaceKey",
+      "decl": "packages/shared/src/task-realtime-core.ts",
+      "consumers": [
+        "packages/ui/src/App.tsx"
+      ]
+    },
+    {
+      "module": "@zcode/shared",
+      "symbol": "WorkspacePurpose",
+      "decl": "packages/shared/src/workspacePurpose.ts",
+      "consumers": [
+        "packages/ui/src/App.tsx"
+      ]
+    }
+  ]
+}

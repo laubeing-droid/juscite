@@ -1,0 +1,452 @@
+{
+  "meta": {
+    "wave": "r12-波5 边界合同索引 v1（D4）",
+    "generated": "2026-10-29",
+    "basis": [
+      "docs/上游对齐债清零设计-r12-20261028.md §一 L2（树内只留注册点）/§四 波5/§八 原则1-3",
+      "contracts/pin-points-wave3.md #1-#8（本文件吸收，符号级化）",
+      "contracts/ref-graph.json（scripts/gen-ref-graph.mjs 生成，bridgeConsumedExports 与之同源）"
+    ],
+    "note": "pinPoints=法律面板族出树后树内仅存的注册/挂载/接线点（升级时必须保活的合同面）；bridgeConsumedExports=桥、自有包与树内注册点对上游合同包(@zcode/*)消费的全部具名导出（符号级，类型快照见 contracts/type-snapshot.json，upgrade 门禁②步 diff 此面）。两表均由树内代码实证（ts-morph 提取，非手写断言）；#42 施工波-20261030 增补 pin 9（桥面 edisc 接线点）。",
+    "relatedArtifacts": {
+      "refGraph": "contracts/ref-graph.json",
+      "typeSnapshot": "contracts/type-snapshot.json",
+      "adapterBudget": "contracts/adapter-budget.md",
+      "exemptions": "contracts/exemptions/",
+      "queryTool": "scripts/query-graph.mjs"
+    }
+  },
+  "pinPoints": [
+    {
+      "id": 1,
+      "file": "packages/ui/src/legal/register.tsx",
+      "kind": "register",
+      "what": "唯一注册点：把 ui 内部件注入 @juscite/legal 的 legalUiKit 窄适配层（configureLegalUiKit）",
+      "symbols": [
+        {
+          "name": "configureLegalUiKit",
+          "via": "@juscite/legal/ui-kit"
+        },
+        {
+          "name": "Button",
+          "via": "ui 内部件（注入面）"
+        },
+        {
+          "name": "Input",
+          "via": "ui 内部件（注入面）"
+        },
+        {
+          "name": "DiffViewer",
+          "via": "ui 内部件（注入面）"
+        },
+        {
+          "name": "MessageResponse",
+          "via": "ui 内部件（注入面）"
+        },
+        {
+          "name": "PdfPreviewContent",
+          "via": "ui 内部件（注入面）"
+        },
+        {
+          "name": "collectDroppedFiles",
+          "via": "ui 内部件（注入面）"
+        },
+        {
+          "name": "useServices",
+          "via": "ui 内部件（注入面）"
+        }
+      ],
+      "consumedBy": "packages/ui/src/App.tsx 静态导入（模块加载即注册，先于任何面板渲染）",
+      "source": "contracts/pin-points-wave3.md #1"
+    },
+    {
+      "id": 2,
+      "file": "packages/ui/src/App.tsx",
+      "kind": "mount",
+      "what": "注册副作用 import（./legal/register.js）+ SecurityAuditCenter 挂载",
+      "symbols": [
+        {
+          "name": "<side-effect>",
+          "via": "@/legal/register.js"
+        },
+        {
+          "name": "SecurityAuditCenter",
+          "via": "@juscite/legal/panels/SecurityAuditCenter"
+        },
+        {
+          "name": "SECURITY_AUDIT_EVENT",
+          "via": "@juscite/legal/panels/SecurityAuditCenter"
+        }
+      ],
+      "consumedBy": "App 根渲染（SecurityAuditCenter）",
+      "source": "contracts/pin-points-wave3.md #2"
+    },
+    {
+      "id": 3,
+      "file": "packages/ui/src/app-shell/WorkspaceShellLayout.tsx",
+      "kind": "mount",
+      "what": "LegalWorkbench 静态挂载 + 五面板 lazy（代码分割边界原样保留）；视图键 workspaceMainView===\"legal\" 字符串合同不改",
+      "symbols": [
+        {
+          "name": "LegalWorkbench",
+          "via": "@juscite/legal/panels/LegalWorkbench（静态）"
+        },
+        {
+          "name": "KnowledgeBasePanel",
+          "via": "@juscite/legal/panels/KnowledgeBasePanel（lazy）"
+        },
+        {
+          "name": "ResearchPanel",
+          "via": "@juscite/legal/panels/ResearchPanel（lazy）"
+        },
+        {
+          "name": "TeamPanel",
+          "via": "@juscite/legal/panels/TeamPanel（lazy）"
+        },
+        {
+          "name": "ConflictPrecheckPanel",
+          "via": "@juscite/legal/panels/ConflictPrecheckPanel（lazy）"
+        },
+        {
+          "name": "LearningIterationPanel",
+          "via": "@juscite/legal/panels/LearningIterationPanel（lazy）"
+        }
+      ],
+      "consumedBy": "工作区壳（渲染点 2217/2263/2278 及 web 分支 2750/2796/2811）",
+      "source": "contracts/pin-points-wave3.md #3"
+    },
+    {
+      "id": 4,
+      "file": "packages/ui/src/project-sidebar/index.tsx",
+      "kind": "mount",
+      "what": "侧栏安全审计入口",
+      "symbols": [
+        {
+          "name": "SecurityAuditSidebarEntry",
+          "via": "@juscite/legal/panels/SecurityAuditCenter"
+        }
+      ],
+      "consumedBy": "项目侧栏",
+      "source": "contracts/pin-points-wave3.md #4"
+    },
+    {
+      "id": 5,
+      "file": "packages/ui/src/settings/StealthSettingsSection.tsx",
+      "kind": "mount",
+      "what": "设置页安全审计请求入口",
+      "symbols": [
+        {
+          "name": "requestSecurityAuditCenter",
+          "via": "@juscite/legal/panels/SecurityAuditCenter"
+        }
+      ],
+      "consumedBy": "设置页",
+      "source": "contracts/pin-points-wave3.md #5"
+    },
+    {
+      "id": 6,
+      "file": "packages/ui/package.json",
+      "kind": "manifest",
+      "what": "ui 包对自有面板包的 workspace 依赖（pnpm/vite/tsc 解析面）",
+      "symbols": [
+        {
+          "name": "@juscite/legal",
+          "via": "dependencies: workspace:*"
+        }
+      ],
+      "consumedBy": "包管理器/构建图",
+      "source": "contracts/pin-points-wave3.md #6"
+    },
+    {
+      "id": 7,
+      "file": "packages/ui/tsconfig.json",
+      "kind": "manifest",
+      "what": "tsc -b 工程引用（ui 发射型 → juscite-legal 发射型，无环：juscite-legal 只引用 services）",
+      "symbols": [
+        {
+          "name": "../juscite-legal",
+          "via": "references[].path"
+        }
+      ],
+      "consumedBy": "tsc 构建图",
+      "source": "contracts/pin-points-wave3.md #7"
+    },
+    {
+      "id": 8,
+      "file": "packages/services/package.json",
+      "kind": "deregistered",
+      "what": "波3 已注销的过渡 exports（./legal/case-graph-model、./legal/case-timeline-model、./legal/research-model、./legal/conflict-model 四条）——升级重放时不得复活；services/src/legal/ 目录归零",
+      "symbols": [
+        {
+          "name": "./legal/case-graph-model",
+          "via": "已删除的 exports 条目"
+        },
+        {
+          "name": "./legal/case-timeline-model",
+          "via": "已删除的 exports 条目"
+        },
+        {
+          "name": "./legal/research-model",
+          "via": "已删除的 exports 条目"
+        },
+        {
+          "name": "./legal/conflict-model",
+          "via": "已删除的 exports 条目"
+        }
+      ],
+      "consumedBy": "（无消费方——防止升级时按旧账回填）",
+      "source": "contracts/pin-points-wave3.md #8；git show 09db9a0f -- packages/services/package.json"
+    },
+    {
+      "id": 9,
+      "file": "tools/bridge/bridge_host.mjs",
+      "kind": "wire",
+      "what": "功能 #42 电子数据取证接线点：createEdiscService 单实例（store.edisc DAO+案件校验+cases 根+审计挂点）+ /api/edisc/* HTTP 分发 + server-info 能力标记 edisc:1",
+      "symbols": [
+        {
+          "name": "createEdiscService",
+          "via": "./edisc_service.mjs（内核=@juscite/edisc，packages/juscite-edisc 相对路径消费）"
+        },
+        {
+          "name": "edisc.httpHandler",
+          "via": "/api/edisc/* 路由分发"
+        }
+      ],
+      "consumedBy": "bridge_store.mjs 迁移 0020_edisc + store.edisc DAO；packages/desktop/scripts/materialize-bridge-bundle.mjs 随包物化",
+      "source": "施工波-20261030 #42"
+    },
+    {
+      "id": 10,
+      "file": "tools/bridge/bridge_host.mjs",
+      "kind": "register",
+      "what": "施工波-20261030 可视化B轨注册点（施工波二轮-20261031 收尾扩至八工具）：#4 大事记表/#19 庭审对抗图桥面一行转发壳——vizbChronicleCheck/vizbChronicleRender/vizbConfrontationCheck/vizbConfrontationRender/vizbIntakeReconcile 五工具（参数形状核验+转发，零几何零文案逻辑）＋收尾三工具 vizbConfrontationPng/vizbChronicleBriefPng（SVG→PNG 光栅化：A9 字体坑机制——换单一族+日志报出+读产物守卫，渲染器缺位跳过 PNG 不拖垮 SVG 交付）＋vizbIntakeFromMaterials（A7 摄入对账接 #6 材料通道只读公开行为契约：真 PDF 解析页文本+卷宗页码锚）",
+      "symbols": [
+        {
+          "name": "composeChronicle",
+          "via": "../../packages/juscite-vizb/src/chronicle/index.ts（@juscite/vizb 相对路径消费）"
+        },
+        {
+          "name": "composeConfrontation",
+          "via": "../../packages/juscite-vizb/src/confrontation/index.ts"
+        },
+        {
+          "name": "reconcileIntake",
+          "via": "同 chronicle 入口（I 组共用前置）"
+        },
+        {
+          "name": "rasterizeSvgToPng",
+          "via": "./vizb_raster.mjs（环境面：已安装字族文件探测注册+Skia SVG 解码+PNG 编码+非空白守卫）"
+        },
+        {
+          "name": "swapFontStackForRaster/guardRasterFontSwapped",
+          "via": "../../packages/juscite-vizb/src/shared/raster.ts（光栅化字体契约纯函数，chronicle/confrontation 双入口同源导出）"
+        },
+        {
+          "name": "pagesFromPdfBlocks/volumeAnchorOf/manifestDocFromMaterial",
+          "via": "../../packages/juscite-vizb/src/chronicle/intake.ts（#6 文本层块→页文本+卷宗页码锚+清单行）"
+        },
+        {
+          "name": "extractPdfTextLayer/decodeTextBuffer/extractDocxMaterial",
+          "via": "./material_service.mjs（#6 公开导出，摄入对账只读消费）"
+        }
+      ],
+      "consumedBy": "agentService Object.assign 注册块（LICENSE_SHAPE 之前）；packages/desktop/scripts/materialize-bridge-bundle.mjs 随包物化；tools/bridge/vizb_synthetic.mts 真桥接线自测（隔离端口）；tools/bridge/vizb_synthetic.mts 收尾三工具自测（C16 光栅化字体契约+真桥光栅化/摄入接#6）",
+      "source": "施工波-20261030 可视化B轨（规格=竞品情报/2026-10-29-规格波/可视化-B轨规格.md，AGPL-3.0 净室）；施工波二轮-20261031 可视化B轨收尾（①光栅化 ②摄入对账接#6）"
+    },
+    {
+      "id": 11,
+      "file": "packages/desktop/scripts/materialize-bridge-bundle.mjs",
+      "kind": "bundle",
+      "what": "施工波-20261030 可视化B轨随包物化：packages/juscite-vizb（package.json+src）入 copy 循环；essentials 断言 chronicle/confrontation 两入口（缺件=打包态桥 spawn 即挂，门禁兜底）",
+      "symbols": [
+        {
+          "name": "VIZB_PACKAGE_DIR",
+          "via": "const join(\"packages\", \"juscite-vizb\")"
+        }
+      ],
+      "consumedBy": "desktop package 门禁（bridge bundle 物化）；本注册点由 pin-points.json 登记",
+      "source": "施工波-20261030 可视化B轨"
+    },
+    {
+      "id": 12,
+      "file": "tools/bridge/bridge_host.mjs",
+      "kind": "register",
+      "what": "功能 #42 电子数据取证·技能注入+agent 工具契约注册点（RE-42 §3.4）：①edisc_skill.mjs 真源读取（skill-presets/edisc 运行时读，缺失 fail-closed）+BUILTIN_SKILLS 条目 juscite-builtin-edisc（触发词族+/edisc，注入正文十节全自写）；②agentService Object.assign 七工具一行转发壳（ediscListSources/ediscSearchRows/ediscReadRows/ediscReadPageCards/ediscProposeClassification/ediscUpdateMetadata/ediscGenerateFixList——read/search 无确认，update_metadata 默认干跑 confirmed=true 落库；bash 类裸执行工具不入面）",
+      "symbols": [
+        {
+          "name": "EDISC_SKILL_META/EDISC_SKILL_MD",
+          "via": "./edisc_skill.mjs（真源=implementation/skill-presets/edisc/）"
+        },
+        {
+          "name": "juscite-builtin-edisc",
+          "via": "BUILTIN_SKILLS 数组条目"
+        },
+        {
+          "name": "edisc* 七工具",
+          "via": "Object.assign(agentService, ...) 转发 createEdiscService 实例"
+        }
+      ],
+      "consumedBy": "skills 通道（#21 真实现 BUILTIN_SKILLS 面）+ agentService RPC 面；面板消费走 /api/edisc/*（pin 9）",
+      "source": "施工波二轮-20261030 取证#42 UI+技能注入"
+    },
+    {
+      "id": 13,
+      "file": "packages/desktop/scripts/materialize-bridge-bundle.mjs",
+      "kind": "bundle",
+      "what": "功能 #42 取证技能随包物化断言：skill-presets/edisc/skill.json 入 essentials（edisc_skill.mjs 桥启动 fail-closed 读真源，缺件=打包态桥 spawn 即挂）",
+      "symbols": [
+        {
+          "name": "essentials",
+          "via": "join(bundleDir, SKILL_PRESETS_DIR, 'edisc', 'skill.json')"
+        }
+      ],
+      "consumedBy": "desktop package 门禁（bridge bundle 物化）",
+      "source": "施工波二轮-20261030 取证#42 UI+技能注入"
+    },
+    {
+      "id": 14,
+      "file": "packages/ui/src/settings/StealthSettingsSection.tsx",
+      "kind": "mount",
+      "what": "设置页工具安全面板挂载（#21 安全层 RE-21 增补 §3.1：toolSecurity.shellEnabled 开关+Allow/Ask/Deny 策略展示；yolo 档不暴露只留设置键=2026-10-30 用户裁决；组件自绘卡片出树 @juscite/legal，此处一行挂载）",
+      "symbols": [
+        {
+          "name": "ToolSecuritySettingsSection",
+          "via": "@juscite/legal/panels/ToolSecuritySettingsSection"
+        }
+      ],
+      "consumedBy": "设置页（隐身模式/安全节）",
+      "source": "施工波二轮-20261030 安全层设置面板+审计tab"
+    },
+    {
+      "id": 15,
+      "file": "packages/ui/src/legal/register.tsx",
+      "kind": "mount",
+      "what": "legalUiKit Switch 端口注入（#21 工具安全面板开关控件；树内唯一注册文件追加一行注册）",
+      "symbols": [
+        {
+          "name": "Switch",
+          "via": "@/components/ui/switch.js → configureLegalUiKit"
+        }
+      ],
+      "consumedBy": "@juscite/legal/ui-kit（ToolSecuritySettingsSection 消费）",
+      "source": "施工波二轮-20261030 安全层设置面板+审计tab"
+    },
+    {
+      "id": 21,
+      "file": "tools/bridge/bridge_host.mjs",
+      "kind": "wire",
+      "what": "功能 #7 证据目录全量面接线（RE-7 §3 技能类附加+流程交付段）：①BUILTIN_SKILLS 两新条目 juscite-builtin-evidence-catalog/-evidence-materials（真源=implementation/skill-presets/{evidence-catalog,evidence-materials}，装载壳 evidence_catalog_skill.mjs/evidence_materials_skill.mjs fail-closed）；②runAssistantTurn 技能指令注入（planTurnSkills→块尾追加+asstRow.injectedSkillIds，kb/调研/学习线程不注入）；③skillsService.buildPromptContext 真实现（激活引擎返回 activatedSkillNames）；④sendText『文件在哪』D4② 本地短路（model=delivery-local 不触模型）；⑤回合收尾 registerTurnDeliveries（路径提取→双层过滤→版本族去重→producer=agent 落附件库+D4① docx 唯一产物落点话术）",
+      "symbols": [
+        { "name": "planSkillInjection", "via": "../../packages/juscite-legal/src/kernel/skillActivationModel.ts（出树自有包，四通道/24000 字节预算/上限 3/双语义检索）" },
+        { "name": "registerTurnDeliveries", "via": "../../packages/juscite-legal/src/kernel/deliveryChainModel.ts（出树自有包，D1/D3/D5/D4 纯内核）" }
+      ],
+      "consumedBy": "对话回合链（技能注入/交付落账）+skills 通道（buildPromptContext）+对话文件浮层（ThreadFilesPanel Agent 产出组）+对拍探针 tools/bridge/re7_fullface_probe.mjs（隔离 :3090）",
+      "source": "施工波三轮-20261031 #7 证据目录·全量面"
+    },
+    {
+      "id": 22,
+      "file": "tools/bridge/bridge_host.mjs",
+      "kind": "wire",
+      "what": "G6 连接器注册面预阻断+runtime 权限门接线（施工波三轮·桥健②；安全层21.md:52 挂账销账）：①runtime.setPermissionGate（oc28 permission.asked 事件→去 juscite_g6_ 命名空间还原域词→decideAndAuditToolCall 同链决策→ask=无交互审批面按拒 fail-closed，deny/ask 均审计入账）；②registerG6Connector（listen 后异步：G6_CONNECTOR_SPECS 两腿先过 decideToolCall 预阻断——deny 不注册不入模型目录但入审计账，放行件经 port registerTools 挂进 oc28 运行时 MCP 面；执行体=tools/bridge/g6_connector_mcp.mjs 由 oc28 拉起，env 路径经 g6ConnectorEnv 组装）；tool_policy v3 同步（两腿入 READ_TOOLS 白名单）。oc28 侧外闸=config experimental.policies（integration.use mcp:* deny+具名放行 mcp:juscite-g6，%APPDATA%/Juscite/config/opencode/opencode.json 本轮追加、备份 .bak-pre-g6-20261031）",
+      "symbols": [
+        {
+          "name": "G6_CONNECTOR_SPECS",
+          "via": "const G6_CONNECTOR_SPECS = ["
+        },
+        {
+          "name": "g6ConnectorEnv",
+          "via": "function g6ConnectorEnv()"
+        },
+        {
+          "name": "registerG6Connector",
+          "via": "async function registerG6Connector()"
+        },
+        {
+          "name": "runtime.setPermissionGate",
+          "via": "runtime.setPermissionGate((request) =>"
+        }
+      ]
+    }
+  ],
+  "bridgeConsumedExports": [
+    {
+      "module": "@zcode/rpc",
+      "trueSource": "packages/rpc/src/index.ts",
+      "symbols": [
+        "ChannelClient",
+        "ChannelServer",
+        "Emitter",
+        "Event",
+        "LoggingChannelServer",
+        "ProxyChannel",
+        "SocketProtocol",
+        "VSBuffer"
+      ],
+      "consumersScope": "tools/bridge（36 处 import 边）",
+      "note": "§八原则1 主合同面之一：IPC/通道协议真源"
+    },
+    {
+      "module": "@zcode/services",
+      "trueSource": "packages/services/src/index.ts",
+      "symbols": [
+        "IConversationShareService",
+        "IOffPeakTaskService",
+        "IOnboardingRecordService",
+        "IPluginManagementService",
+        "IServiceAccessor",
+        "ISettingService",
+        "ISkillsService",
+        "ISubagentsService",
+        "ITaskGroupService",
+        "IZCodeAgentService",
+        "IZCodeSessionService",
+        "IZCodeTaskService",
+        "ServiceCollection"
+      ],
+      "consumersScope": "tools/bridge + packages/juscite-legal（4 处 import 边）",
+      "note": "服务访问器合同面（IServiceAccessor 为面板直依）"
+    },
+    {
+      "module": "@zcode/shared/zcode-protocol-v4",
+      "trueSource": "packages/shared/src/zcode-protocol-v4/index.ts",
+      "symbols": [
+        "TopicWireFrameAssembler",
+        "commandsQueryResultSchema",
+        "conversationSnapshotSchema",
+        "conversationTopicFrameSchema",
+        "conversationTopicWireCandidateSchema",
+        "sessionsIndexTopicWireCandidateSchema"
+      ],
+      "consumersScope": "tools/bridge（5 处 import 边）",
+      "note": "§八原则1 主合同面之二：V4 协议类型/枚举/校验器真源（3.16.2 十几轮卡壳的病根面，快照 diff 即守此面）"
+    },
+    {
+      "module": "@zcode/shared",
+      "trueSource": "packages/shared/src/index.ts",
+      "symbols": [
+        "GitChangeSourceId",
+        "PetBubbleState",
+        "PetConfig",
+        "PetConfigPatch",
+        "PetMotion",
+        "PetRunEventPayload",
+        "PetStatusPayload",
+        "PlatformChannels",
+        "WorkspacePurpose",
+        "resolveWorkspaceKey"
+      ],
+      "consumersScope": "packages/juscite-desktop-pet（6 边）+ 树内注册点（GitChangeSourceId/WorkspacePurpose/resolveWorkspaceKey）",
+      "note": "桌宠包（波4 出树件）与树内注册点对上游 shared 的类型面"
+    },
+    {
+      "module": "@zcode/shared/test-ids",
+      "trueSource": "packages/shared/src/test-ids.ts",
+      "symbols": [
+        "TID_APP_HEADER",
+        "TID_SIDEBAR"
+      ],
+      "consumersScope": "树内注册点（project-sidebar/index.tsx 等）",
+      "note": "UI 测试 id 合同（upgrade 若改测试 id 形态，快照 diff 可见）"
+    }
+  ]
+}

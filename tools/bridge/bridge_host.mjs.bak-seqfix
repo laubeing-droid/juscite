@@ -1,0 +1,959 @@
+#!/usr/bin/env node
+// 律引 M1-B mock Host —— 合成数据，仅 dev 点亮用（WebSocket :3030 + /api/server-info）
+// 协议与注册机制结论见同目录 NOTES.md；骨架照抄上游 server/src/http.ts 挂载模式。
+import http from "node:http";
+import { loadCredentials, makeClient } from "./oc28client.mjs";
+import { randomUUID } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { WebSocketServer } from "ws";
+import { VSBuffer, SocketProtocol, ChannelServer, LoggingChannelServer, ProxyChannel, Event, Emitter } from "@zcode/rpc";
+import {
+  ServiceCollection,
+  ISettingService,
+  IZCodeAgentService,
+  IZCodeSessionService,
+  IZCodeTaskService,
+  IOnboardingRecordService,
+} from "@zcode/services";
+
+const PORT = Number(process.env.BRIDGE_PORT ?? 3030); // 桥固定占 3030（vite 代理指向）
+const MOCK_SETTING_PATH = join(homedir(), "AppData", "Roaming", "Juscite", "config", "mock", "setting.json");
+// 本地演示 workspace：不带 workspaceIdentity——UI 的 isRemoteWorkspaceTarget 把带 identity
+// 的 tab 判为远程断连占位（workspaceServiceResolver.ts:49），任务分片被整段排除，
+// 侧栏任务列表/工作区准备全不启动（现象=“lvyin-demo 重新连接”+任务永远空）。
+const WORKSPACE = { path: "D:\\mock\\lvyin-demo" };
+const WORKSPACE_KEY = WORKSPACE.path; // workspaceKey 口径 = workspaceIdentity ?? workspacePath
+// 对话工作区（“新建对话任务”目标）：真 mkdir 合成目录，目录本身就是合成数据
+const CONVERSATION_DIR = "D:\\mock\\lvyin-conversations";
+
+// ---------- 合成数据（全部合成，无真实材料） ----------
+const NOW_MS = Date.now();
+const HOUR = 3600_000;
+const SYNTH_SESSIONS = [
+  { id: "ses_mock_0001", title: "合成：借款合同审查（利率/期限/违约金）", phase: "completedSuccess", createdAt: NOW_MS - 72 * HOUR, lastActivityAt: NOW_MS - 5 * HOUR },
+  { id: "ses_mock_0002", title: "合成：劳动仲裁时效试算", phase: "running", createdAt: NOW_MS - 26 * HOUR, lastActivityAt: NOW_MS - 20 * 60_000 },
+  { id: "ses_mock_0003", title: "合成：商标近似检索核验", phase: "completedSuccess", createdAt: NOW_MS - 8 * HOUR, lastActivityAt: NOW_MS - 30 * 60_000 },
+];
+const DEFAULT_SETTING = {
+  theme: "zai-dark", uiFontSize: 14, language: "zh-CN", dataBaseDir: undefined,
+  appearance: { theme: "system" }, stealthMode: { enabled: false },
+  providerFamilyDomain: "zai", // 必须合法家族 id（zai|bigmodel）：usePlanIdentitySnapshot 经 getModelProviderFamilySpec 查表，非法值 undefined.individualCodingPlanProviderId 崩输入区
+};
+
+function loadSetting() {
+  try { return JSON.parse(readFileSync(MOCK_SETTING_PATH, "utf-8")); } catch { return DEFAULT_SETTING; }
+}
+function saveSetting(s) {
+  mkdirSync(join(MOCK_SETTING_PATH, ".."), { recursive: true });
+  writeFileSync(MOCK_SETTING_PATH, JSON.stringify(s, null, 2), "utf-8");
+}
+
+// ---------- Event 工厂（帧推送面：先回静默 Event，迭代期按 UI 报错补真帧） ----------
+const silentEvent = () => {
+  const e = new Emitter();
+  return e.event;
+};
+// agentService on* 帧通道表（订阅即静默；M1-D 迭代时逐个换成合成帧发射器）
+// 注：onDynamic* 是"动态事件"——必须 (arg) => Event（ProxyChannel.isDynamicEvent 约定）
+const AGENT_EVENTS = {
+  // 3.16.2 UI 订阅面（缺省会被 ProxyChannel listen 打 Event not found，反复重试）
+  onDynamicLocalTtftFacts: () => silentEvent(),
+  onAgentRuntimeLifecycle: () => ({ dispose() {} }),
+  onConversationDelta: silentEvent(), onConversationSnapshot: silentEvent(),
+  onDynamicStorageStartupState: () => silentEvent(),
+  onConversationTopicCandidates: silentEvent(), onConversationTelemetry: silentEvent(),
+  // runtime 换代通知：Event 直值约定（(listener)=>IDisposable），静默即可
+  onAgentRuntimeRestarted: () => ({ dispose() {} }),
+};
+
+// ---------- sessions-index 真帧发射器（侧栏任务列表实时数据源） ----------
+// UI 链：useWorkspaceTaskLists → sessionsIndexRegistry.acquireSessionsIndex →
+// agentSessionsIndexTransport（helloConversationV4 握手 → subscribeSessionsIndexV4 拿
+// ACK{subscriptionId,mode,logEpoch} → onDynamicSessionsIndexFrame(workspace) 收
+// TopicWireFrameCandidate 帧流）。帧形状按 shared/zcode-protocol-v4：
+// transport.ts sessionsIndexTopicWireCandidateSchema + wire-assembler COMPLETE_WIRE_KEYS
+// （complete 外壳恰好 8 键）、sessions-index.ts sessionsIndexSnapshotSchema、
+// wire.ts V4_WIRE_PROTOCOL_VERSION=3。
+const MOCK_LOG_EPOCH = "mock-log-epoch-1";
+const sessionsIndexFrameEmitter = new Emitter();
+// topic\0subscriptionId → 单调 ordinal（assembler 要求 logicalFrameOrdinal ≥1 且单调）
+const sessionsIndexRouteOrdinals = new Map();
+
+function sessionsIndexTopicOf(params) {
+  const identity = typeof params?.workspaceIdentity === "string" ? params.workspaceIdentity.trim() : "";
+  const workspaceId = identity || params?.workspacePath || WORKSPACE_KEY;
+  return `sessions-index/${workspaceId}`;
+}
+
+function synthSessionSummariesFor(workspaceId) {
+  if (workspaceId !== WORKSPACE_KEY) return [];
+  return SYNTH_SESSIONS.map((s) => ({
+    sessionId: s.id,
+    workspaceId,
+    title: s.title,
+    titleSource: "generated",
+    phase: s.phase,
+    sessionEnded: s.phase !== "running",
+    hasBackgroundWork: false,
+    // §六.A#6：终局结果小圆点事实（main sessionSummarySchema.lastOutcome:
+    // "completed"|"error"|"interrupted" optional）——running 会话无终局，键缺席即诚实。
+    ...(s.phase !== "running" ? { lastOutcome: "completed" } : {}),
+    lastActivityAt: s.lastActivityAt,
+    createdAt: s.createdAt,
+  }));
+}
+
+function emitSessionsIndexSnapshotFrame(topic, subscriptionId) {
+  const routeKey = `${topic}\0${subscriptionId}`;
+  const ordinal = (sessionsIndexRouteOrdinals.get(routeKey) ?? 0) + 1;
+  sessionsIndexRouteOrdinals.set(routeKey, ordinal);
+  const workspaceId = topic.slice("sessions-index/".length);
+  const frame = {
+    topic,
+    subscriptionId,
+    // snapshot 帧区间记账：fromSeq 固定 0，toSeq = 单调水位（store 快照 apply 取 toSeq）
+    fromSeq: 0,
+    toSeq: ordinal,
+    sentAt: Date.now(),
+    payload: {
+      kind: "snapshot",
+      snapshot: {
+        protocolVersion: 1,
+        workspaceId,
+        logEpoch: MOCK_LOG_EPOCH,
+        sessions: synthSessionSummariesFor(workspaceId),
+      },
+    },
+  };
+  sessionsIndexFrameEmitter.fire({
+    wireVersion: 3,
+    kind: "complete",
+    deliveryKind: "initial",
+    logicalFrameId: "lframe_" + randomUUID().slice(0, 8),
+    logicalFrameOrdinal: ordinal,
+    topic,
+    subscriptionId,
+    frame,
+  });
+  console.log(`[mock-host] sessions-index snapshot fired: topic=${topic} sub=${subscriptionId} ordinal=${ordinal}`);
+}
+
+// ---------- 服务实例（合成数据，仅 dev 点亮用） ----------
+const settingService = {
+  get: async () => loadSetting(),
+  update: async (patch) => { const s = { ...loadSetting(), ...patch }; saveSetting(s); return s; },
+  updateDataBaseDir: async () => {},
+};
+
+// file 面精修：ensureConversationWorkspace 是“新建对话任务”链的第一跳
+// （useConversationWorkspaceActions.handleCreateConversationTask → fileService.ensureConversationWorkspace，
+// 失败/undefined 被 UI 空 catch 静默吞掉，表现为点击无反应）。此处按真实返回形状精实现，
+// 其余 file 方法保持静默 stub 行为。
+const fileService = new Proxy(
+  {
+    ensureConversationWorkspace: async () => {
+      const created = mkdirSync(CONVERSATION_DIR, { recursive: true }) !== undefined;
+      return { path: CONVERSATION_DIR, created, workspacePurpose: "conversation" };
+    },
+  },
+  {
+    get: (target, prop) => {
+      if (prop in target) return target[prop];
+      if (typeof prop === "string" && prop.startsWith("onDynamic")) return () => silentEvent();
+      if (typeof prop === "string" && prop.startsWith("on")) return silentEvent();
+      return async () => undefined;
+    },
+  },
+);
+
+const agentService = {
+  ...AGENT_EVENTS,
+  // sessions-index 帧面（动态事件约定：(arg) => Event）
+  onDynamicSessionsIndexFrame: () => sessionsIndexFrameEmitter.event,
+  prepareStorage: async () => {},
+  getStorageStartupState: async () => null,
+  initialize: async () => ({ ok: true, agentVersion: "mock" }),
+  // v4 连接握手（agentSessionsIndexTransport.ensureAgentV4ConnectionHandshake；
+  // hello 返回形状按 transport.ts helloMessageSchema .strict()——顶层多一个未知键整条握手
+  // 失败。§六.A#3：capabilities 只声明已支持键；historyFirst（冷启动先灌持久化历史）桥未
+  // 实现（订阅即全量 snapshot），不声明——真实现冷历史灌注后才加 true 位。UI 侧 clientHello
+  // 的 capabilities 是 strict 的单向声明（host hello 见到 workflowRunDeltas===true 才回带），
+  // 桥不声明该位，UI 不会带；桥侧消费入参天然 strip 不校验。
+  helloConversationV4: async () => ({
+    kind: "hello",
+    protocolVersion: 3,
+    connectionId: "mock-conn-1",
+    clientMode: "desktop-continuous",
+    deliveryProfile: "continuous",
+    serverTime: Date.now(),
+    capabilities: { nativeDialogs: false, localTerminal: false, binaryFrames: true, compression: "none" },
+    auth: {},
+  }),
+  initializeConversationV4: async () => {},
+  // sessions-index 订阅面：ACK-only response + ACK 后推 initial snapshot 帧
+  subscribeSessionsIndexV4: async (rawParams) => {
+    // §六.A#2：白名单剥键容忍演进，unknown 剥掉不拒帧
+    const params = stripUnknownKeys(rawParams, SUBSCRIBE_KNOWN_KEYS, "subscribeSessionsIndexV4");
+    const subscriptionId = "sub_" + randomUUID().slice(0, 8);
+    const topic = sessionsIndexTopicOf(params);
+    setTimeout(() => emitSessionsIndexSnapshotFrame(topic, subscriptionId), 0);
+    return { ack: { subscriptionId, mode: "snapshot", logEpoch: MOCK_LOG_EPOCH } };
+  },
+  resyncSessionsIndexV4: async (rawParams) => {
+    const params = stripUnknownKeys(rawParams, RESYNC_KNOWN_KEYS, "resyncSessionsIndexV4");
+    const topic = sessionsIndexTopicOf(params);
+    if (params?.subscriptionId) {
+      setTimeout(() => emitSessionsIndexSnapshotFrame(topic, params.subscriptionId), 0);
+    }
+    return { ack: { subscriptionId: params?.subscriptionId ?? "", mode: "snapshot", logEpoch: MOCK_LOG_EPOCH } };
+  },
+  // §六.A#6：v4/sessionsIndex/reconcile 合同面（main transport.ts V4_METHODS 新方法，
+  // aac4755 UI 不调用——升版后的兜底查询面）。按明确 ID 查持久事实，不创建/不恢复运行实例；
+  // 结果形状按 main sessionsIndexReconcileResultSchema：exists:false 时 deleted 恒 false
+  // （查询不动持久态，"snapshot 缺席≠删除"）。
+  reconcileSessionsIndexV4: async (rawParams) => {
+    const params = stripUnknownKeys(rawParams, new Set(["workspaceId", "sessionIds"]), "reconcileSessionsIndexV4");
+    const ids = Array.isArray(params?.sessionIds) ? params.sessionIds : [];
+    return {
+      sessions: ids.slice(0, 256).map((sessionId) => {
+        const s = SYNTH_SESSIONS.find((x) => x.id === sessionId);
+        if (!s) return { sessionId, exists: false, deleted: false };
+        return {
+          sessionId,
+          exists: true,
+          deleted: false,
+          title: s.title,
+          titleSource: "generated",
+          createdAt: s.createdAt,
+          updatedAt: s.lastActivityAt,
+          ...(s.phase !== "running" ? { lastOutcome: "completed" } : {}),
+        };
+      }),
+    };
+  },
+  unsubscribeSessionsIndexV4: async () => {},
+  syncAppRuntimePreferences: async () => {},
+  syncDynamicWorkflowUserMode: async () => {},
+  // 本地 workspace：不回 identity（回 identity 会让 UI 把 tab 判成远程断连占位）
+  getWorkspaceRuntimeIdentity: async (p) => {
+    const path = typeof p?.workspacePath === "string" && p.workspacePath ? p.workspacePath : WORKSPACE.path;
+    return { generation: 1, identity: path, workspaceKey: path };
+  },
+  readWorkspacePresentation: async (p) => {
+    const path = typeof p?.workspacePath === "string" && p.workspacePath ? p.workspacePath : WORKSPACE.path;
+    return { workspacePath: path, name: path === WORKSPACE.path ? "律引演示工作区（合成）" : "对话工作区（合成）" };
+  },
+  grantWorkspaceHookTrust: async () => ({ granted: true }),
+  createSession: async () => ({ sessionId: "ses_mock_" + randomUUID().slice(0, 8), rows: [] }),
+  resumeSession: async (p) => ({ sessionId: p?.sessionId ?? "ses_mock_0001", rows: [] }),
+  listSessions: async () => SYNTH_SESSIONS.map((s) => ({
+    id: s.id, title: s.title,
+    updatedAt: new Date(s.lastActivityAt).toISOString(),
+    workspacePath: WORKSPACE.path,
+  })),
+  listSessionSubagents: async () => ({ subagents: [] }),
+  readSession: async (p) => ({ sessionId: p?.sessionId ?? "ses_mock_0001", rows: [] }),
+  readSessionMessages: async () => [],
+  readSessionEvents: async () => [],
+  readSessionDebug: async () => ({ sessions: [] }),
+  getAppUsageStats: async () => ({ tokens: 0, cost: 0 }),
+  getTaskTokenUsage: async () => ({ usage: [] }),
+  listMcpServerStatuses: async () => ({ servers: [] }),
+  listPlugins: async () => ({ plugins: [] }),
+  getPluginReferenceCatalog: async () => ({ refs: [] }),
+  getSkillReferenceCatalog: async () => ({ refs: [] }),
+  readMcpResource: async () => ({ contents: [] }),
+};
+
+const sessionService = {
+  initializeWorkspace: async () => ({ ok: true }),
+  getWorkspaceRuntimeIdentity: async (p) => {
+    const path = typeof p?.workspacePath === "string" && p.workspacePath ? p.workspacePath : WORKSPACE.path;
+    return { generation: 1, identity: path, workspaceKey: path };
+  },
+  readWorkspacePresentation: async (p) => {
+    const path = typeof p?.workspacePath === "string" && p.workspacePath ? p.workspacePath : WORKSPACE.path;
+    return { workspacePath: path, name: path === WORKSPACE.path ? "律引演示工作区（合成）" : "对话工作区（合成）" };
+  },
+  createSession: async () => ({ sessionId: "ses_mock_" + randomUUID().slice(0, 8), rows: [] }),
+  resumeSession: async (p) => ({ sessionId: p?.sessionId ?? "ses_mock_0001", rows: [] }),
+  listSessions: async () => SYNTH_SESSIONS.map((s) => ({
+    id: s.id, title: s.title,
+    updatedAt: new Date(s.lastActivityAt).toISOString(),
+    workspacePath: WORKSPACE.path,
+  })),
+  readSession: async (p) => ({ sessionId: p?.sessionId ?? "ses_mock_0001", rows: [] }),
+  readSessionMessages: async () => [],
+  readSessionEvents: async () => [],
+  promoteDeferredDraftSession: async () => {},
+  closeSession: async () => {},
+  closeDeferredDraftSession: async () => true,
+  setModel: async (p) => ({ sessionId: p?.sessionId ?? "ses_mock_0001", rows: [] }),
+  setThoughtLevel: async (p) => ({ sessionId: p?.sessionId ?? "ses_mock_0001", rows: [] }),
+  setMode: async (p) => ({ sessionId: p?.sessionId ?? "ses_mock_0001", rows: [] }),
+  respondProviderRuntimeHeaders: async () => {},
+};
+
+// zcode-task：侧栏持久行左表（UI fetchTaskListMembershipSets 用
+// listTasks/listPinnedTasks/listArchivedTasks 三分区行集合，sessions-index 帧只补实时
+// activity；三分区任一 RPC 失败 UI 会抛“tasks-index task 行读取不完整”，故此处必须真返回数组）
+function synthTaskMetas(scope) {
+  const pathOk = !scope?.workspacePath || scope.workspacePath === WORKSPACE.path;
+  if (!pathOk) return [];
+  return SYNTH_SESSIONS.map((s) => ({
+    taskId: s.id,
+    traceId: "trace_" + s.id,
+    title: s.title,
+    workspacePath: WORKSPACE.path,
+    createdAt: s.createdAt,
+    updatedAt: s.lastActivityAt,
+    mode: "default",
+    status: s.phase === "running" ? "running" : "completed",
+  }));
+}
+const zcodeTaskService = new Proxy(
+  {
+    listTasks: async (p) => synthTaskMetas(p),
+    listPinnedTaskIds: async () => [],
+    listPinnedTasks: async () => [],
+    listArchivedTasks: async () => [],
+    listDeletedTaskIds: async () => [],
+    listTaskList: async () => ({ items: synthTaskMetas({}), total: SYNTH_SESSIONS.length, hasMore: false }),
+    listGroupedTaskViewStructure: async () => ({ groups: [], members: [], topLevelOrders: [] }),
+    onDynamicWorkspaceEvent: () => silentEvent(),
+    onError: silentEvent(),
+  },
+  {
+    get: (target, prop) => {
+      if (prop in target) return target[prop];
+      if (typeof prop === "string" && prop.startsWith("onDynamic")) return () => silentEvent();
+      if (typeof prop === "string" && prop.startsWith("on")) return silentEvent();
+      return async () => undefined;
+    },
+  },
+);
+
+// onboarding：shouldOnboard=false 跳过首启向导（M1-D 验收主壳用；产品态向导照常走）
+const onboardingService = {
+  shouldOnboard: async () => false,
+  getLatestEntry: async () => ({ occupation: "legal_admin_hr", completedAt: new Date().toISOString() }),
+  appendRecord: async () => {}, dismissOnboarding: async () => {}, claimAnonymousRecord: async () => {},
+  syncSettingsFromRecord: async () => null, updateRecordPreferences: async () => {},
+  getRecords: async () => null, clearRecords: async () => {},
+};
+
+// terminal / git 空 stub（连接即静默，不实现任何功能）
+const silentStub = new Proxy({}, {
+  get: (_t, prop) => {
+    if (typeof prop === "string" && prop.startsWith("onDynamic")) return () => silentEvent();
+    if (typeof prop === "string" && prop.startsWith("on")) return silentEvent();
+    return async () => undefined;
+  },
+});
+
+// ---------- 装配与挂载 ----------
+
+// ---------- M2 桥段：对话流接真后端 oc28（其余面保持合成数据） ----------
+// ---------- §六.A 桥协议对齐（3.16.2 演进，行为对齐不抄码） ----------
+// 依据：竞品情报/targeted-reverse/2026-10-24-zcode-3163/findings.md §六.A 六条。
+// runtimeInitialization 状态机（main snapshot.ts:476 discriminatedUnion）：
+//   initializing{attemptId} | ready{attemptId} | failed{attemptId, reasonCode, message}。
+// 挂 conversationSnapshot 顶层（main:489 optional）。aac4755 UI 的 conversationSnapshotSchema
+// 是 strip 型 z.object——桥多出的这个键会被旧 UI 剥掉不拒帧，升版后即为正式合同。
+// 桥对 UI 永远报 ready（合成数据面自足，不依赖 oc28 存活）；failed 语义由
+// retryInitialization 消费（resync）+ 命令门禁（guard.*）承载，诚实报状态时即用同一套。
+const runtimeInitStates = new Map(); // sessionId -> {status, attemptId, reasonCode?, message?}
+function runtimeInitOf(sessionId) {
+  let st = runtimeInitStates.get(sessionId);
+  if (!st) {
+    st = { status: "ready", attemptId: randomUUID() };
+    runtimeInitStates.set(sessionId, st);
+  }
+  return st;
+}
+// §六.A#4：命令门禁对齐 main v4-gateway guard 语义——桥态非 ready 明确拒收而非静默，
+// reasonCode 用上游同词 guard.runtimeInitializationFailed / guard.runtimeInitializing。
+function guardRuntimeCommand(sid, env) {
+  const ri = runtimeInitStates.get(sid);
+  if (!ri || ri.status === "ready") return null;
+  const failed = ri.status === "failed";
+  console.log("[bridge] command rejected by runtime guard: type=" + (env?.type ?? "") + " status=" + ri.status);
+  return {
+    commandId: env?.commandId ?? "cmd_" + randomUUID().slice(0, 8),
+    status: "rejected",
+    reasonCode: failed ? "guard.runtimeInitializationFailed" : "guard.runtimeInitializing",
+    message: failed ? (ri.message || "runtime initialization failed") : "runtime initializing",
+    revisionAtDecision: 1,
+  };
+}
+// §六.A#2：subscribe/resync 入参容忍演进——白名单剥键，不拒帧（拒帧=整个会话打不开）。
+// 已知新可选键（main transport.ts）：retryInitialization / additionalDirectories / historyFirst。
+const SUBSCRIBE_KNOWN_KEYS = new Set([
+  "topic", "base", "visibility", "connectionId", "clientMode", "workspace", "legacyTaskIds",
+  "resumeThoughtLevel", "workflowRunDeltas", "sessionId", "historyFirst", "additionalDirectories",
+  // workspaceRef 内联展开（agentSessionsIndexTransport:126-130 ...workspace）+ runtimePolicy
+  "workspacePath", "workspaceIdentity", "remoteSessionId", "workspaceKey", "runtimePolicy",
+]);
+const RESYNC_KNOWN_KEYS = new Set([
+  "subscriptionId", "base", "forceSnapshot", "topic", "connectionId", "retryInitialization",
+  "workspacePath", "workspaceIdentity", "remoteSessionId", "workspaceKey", "runtimePolicy",
+]);
+function stripUnknownKeys(rawParams, known, label) {
+  if (!rawParams || typeof rawParams !== "object") return rawParams;
+  const unknown = Object.keys(rawParams).filter((k) => !known.has(k));
+  if (unknown.length) console.log(`[bridge] ${label}: stripped unknown keys: ${unknown.join(",")}`);
+  return rawParams;
+}
+// §六.A#5：通知类演进纪律——产帧口 op 白名单（delta.ts conversationDeltaSchema 闭集 11 op），
+// 未知 op 成员剥键不整帧失败；解析侧同理（桥消费 UI 入参天然 strip，不 strict）。
+const KNOWN_DELTA_OPS = new Set([
+  "row.appended", "row.upserted", "row.removed", "row.delta", "state.updated",
+  "pluginUi.resourceUpdated", "pluginUi.resourceListChanged", "pluginUi.instanceClosed",
+  "pluginUi.appToolCall", "workflowRun.updated", "workflowRun.removed",
+]);
+function sanitizeDeltas(deltas) {
+  if (!Array.isArray(deltas)) return deltas;
+  return deltas.filter((d) => {
+    if (d && KNOWN_DELTA_OPS.has(d.op)) return true;
+    console.log("[bridge] delta op not in closed set, stripped:", d?.op);
+    return false;
+  });
+}
+
+const oc28 = makeClient(loadCredentials());
+const conversationFrameEmitter = new Emitter();
+const conversationRouteOrdinals = new Map();
+const CONV_LOG_EPOCH = "bridge-conv-epoch-1";
+const conversationSubscriptions = new Map();
+const conversationSubTopics = new Map(); // subscriptionId -> topic（UI resync/unsubscribe 只带 subscriptionId，须反查）
+const convStates = new Map();
+const BRIDGE_MODEL = { id: "deepseek-chat", providerID: "deepseek-byok" };
+
+function convStateOf(sessionId) {
+  let st = convStates.get(sessionId);
+  if (!st) { st = { rowSeq: { n: 0 }, oc28Id: null, turn: 0, busy: false, pendingSnapshot: null }; convStates.set(sessionId, st); }
+  return st;
+}
+function emitConvFrame(topic, payload, delivery = "online") {
+  // 2026-10-25 转圈终根因：回复流进行中（busy）插入 snapshot 帧会把 UI 投影重置为空，
+  // 后续 deltas 引用的 rowId 全被丢弃（桥侧 replyLen=458 全推、UI 空转的实证）。busy 期间
+  // snapshot 一律丢弃；turn 结束后由 resync/subscribe 重新触发兜底。
+  if (payload.kind === "snapshot") {
+    const sid = topic.startsWith("conversation/") ? topic.slice("conversation/".length) : null;
+    const st = sid ? convStates.get(sid) : null;
+    if (st && st.busy) {
+      // 2026-10-25 修正：busy 期间不能丢弃 snapshot——UI recovery 靠它收口（wire-assembler:
+      // same-sub recovery 是权威救命帧，可无 fault supersede）。乱序真正的问题只是"旧 snapshot
+      // 清掉刚画的行"，因此延迟到 turn 结束后以 recovery 语义补推，而不是丢弃。
+      st.pendingSnapshot = { topic };
+      console.log("[bridge] snapshot deferred to turn end: " + topic);
+      return;
+    }
+  }
+  const subs = conversationSubscriptions.get(topic);
+  if (!subs || subs.size === 0) return;
+  const safePayload = payload.kind === "deltas" ? { ...payload, deltas: sanitizeDeltas(payload.deltas) } : payload;
+  for (const subscriptionId of subs) {
+    const routeKey = topic + "\0" + subscriptionId;
+    const ordinal = (conversationRouteOrdinals.get(routeKey) ?? 0) + 1;
+    conversationRouteOrdinals.set(routeKey, ordinal);
+    const frame = { topic, subscriptionId, fromSeq: ordinal - 1, toSeq: ordinal, sentAt: Date.now(), payload: safePayload };
+    console.log("[bridge] firing conv frame, listeners=" + conversationFrameEmitter.listeners?.size); conversationFrameEmitter.fire({
+      wireVersion: 3, kind: "complete", deliveryKind: delivery,
+      logicalFrameId: "lframe_" + randomUUID().slice(0, 8),
+      logicalFrameOrdinal: ordinal, topic, subscriptionId, frame,
+    });
+  }
+  console.log("[bridge] conv frame:", topic, payload.kind);
+}
+function baseRow(st, turnId) {
+  return { rowId: ++st.rowSeq.n, turnId, createdAt: Date.now(), createdAtSeq: 0, actions: {} };
+}
+// 最小合法 conversation 快照（启动自检 safeParse 迭代调通，子区形状以 zod 报错为准）
+function buildConvSnapshot(sessionId) {
+  convStateOf(sessionId);
+  return {
+    // §六.A#1：snapshot 顶层产出 runtimeInitialization——桥态恒 ready（合成数据面自足）；
+    // statePatch（state.updated patch）侧同键为已知可选键，桥当前无 state.updated 产径，
+    // 产出口径与 snapshot 同（main delta.ts statePatchSchema 键集）。
+    runtimeInitialization: { status: "ready", attemptId: runtimeInitOf(sessionId).attemptId },
+    protocolVersion: 1, sessionId, logEpoch: CONV_LOG_EPOCH,
+    seq: 0, revision: 1,
+    control: { phase: "running", sessionEnded: false, canStop: false, stopState: "idle", stopTargetKind: "assistant", activeWorks: [], lastError: { code: "", message: "", recoverable: false, at: 0, source: "provider" }, apiRetry: { attempt: 0, maxAttempts: 0, nextRetryAt: 0, reason: "", reasonCode: "" } },
+    availability: { fork: { allowed: true }, compact: { allowed: true }, switchModelConfig: { allowed: true }, setFollowupMode: { allowed: true }, queueEdit: { allowed: true }, sendQueuedNow: { allowed: true }, pauseGoal: { allowed: true }, resumeGoal: { allowed: true }, rewind: { allowed: true }, retry: { allowed: true }, interrupt: { allowed: true }, compactAll: { allowed: true }, forkAll: { allowed: true }, planMode: { allowed: true } },
+    inputRouting: { mode: "startNow" },
+    meta: { title: "", titleSource: "default" },
+    config: { provider: "deepseek-byok", model: "deepseek-chat", thought: "medium", followupMode: "guide" },
+    usage: { contextWindow: { usedTokens: 0, maxTokens: 65536, autoCompactThresholdTokens: 0 }, cumulative: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 } },
+    queue: { items: [], size: 0, admission: {}, capacity: {}, autoDrain: false },
+    pendingInteractions: [], pendingCommands: [], backgroundWorks: [],
+    modelTransition: null, goal: null, plan: null,
+    rows: { rows: [], window: [], totalCount: 0, firstRowId: 0 },
+  };
+}
+
+Object.assign(agentService, {
+  onDynamicConversationFrame: (p) => { console.log("[bridge] onDynamicConversationFrame listener attaching params=" + JSON.stringify(p)); return conversationFrameEmitter.event; },
+  subscribeConversationV4: async (rawParams) => {
+    // §六.A#2：白名单剥键容忍演进（historyFirst/additionalDirectories 等，unknown 剥掉不拒帧）
+    const params = stripUnknownKeys(rawParams, SUBSCRIBE_KNOWN_KEYS, "subscribeConversationV4");
+    const topic = params?.topic || `conversation/${params?.sessionId || "draft"}`;
+    const subscriptionId = "sub_" + randomUUID().slice(0, 8);
+    if (!conversationSubscriptions.has(topic)) conversationSubscriptions.set(topic, new Set());
+    conversationSubscriptions.get(topic).add(subscriptionId);
+    conversationSubTopics.set(subscriptionId, topic);
+    const sid = topic.startsWith("conversation/") ? topic.slice("conversation/".length) : "draft";
+    convStateOf(sid);
+    runtimeInitOf(sid);
+    setTimeout(() => emitConvFrame(topic, { kind: "snapshot", snapshot: buildConvSnapshot(sid) }, "initial"), 0);
+    return { ack: { subscriptionId, mode: "snapshot", logEpoch: CONV_LOG_EPOCH } };
+  },
+  resyncConversationV4: async (rawParams) => {
+    // UI resync 只带 subscriptionId（agentConversationTransport.ts:296）——反查 topic 再推帧；
+    // 推错 topic 会让 UI recovery 超时 fault.subscription.recoveryFrameTimedOut（真机实测根因）
+    const params = stripUnknownKeys(rawParams, RESYNC_KNOWN_KEYS, "resyncConversationV4");
+    const subscriptionId = params?.subscriptionId || "sub_" + randomUUID().slice(0, 8);
+    const topic = conversationSubTopics.get(subscriptionId) || params?.topic || "conversation/draft";
+    const sid = topic.startsWith("conversation/") ? topic.slice("conversation/".length) : "draft";
+    // §六.A#1：retryInitialization 仅消费当前 failed attempt（main gateway 语义：
+    // 校验 failed.attemptId === retryAttempt 才重跑）；attempt 不匹配→剥键照常 snapshot。
+    // 桥态恒 ready，此键正常情况下剥掉无感。
+    const retryAttempt = typeof params?.retryInitialization === "string" ? params.retryInitialization : "";
+    const ri = runtimeInitStates.get(sid);
+    if (retryAttempt && ri?.status === "failed") {
+      if (ri.attemptId === retryAttempt) {
+        ri.status = "ready"; delete ri.reasonCode; delete ri.message;
+        console.log("[bridge] retryInitialization consumed: sid=" + sid + " attempt=" + retryAttempt);
+      } else {
+        console.log("[bridge] retryInitialization attempt mismatch, ignored: " + retryAttempt);
+      }
+    }
+    runtimeInitOf(sid);
+    setTimeout(() => emitConvFrame(topic, { kind: "snapshot", snapshot: buildConvSnapshot(sid) }, "recovery"), 0);
+    return { ack: { subscriptionId, mode: "snapshot", logEpoch: CONV_LOG_EPOCH } };
+  },
+  unsubscribeConversationV4: async (params) => {
+    const sid0 = params?.subscriptionId;
+    const topic0 = sid0 ? conversationSubTopics.get(sid0) : undefined;
+    if (topic0) {
+      conversationSubscriptions.get(topic0)?.delete(sid0);
+      conversationSubTopics.delete(sid0);
+    }
+  },
+  // conversation 查询面全家空实现（UI 会调，Method not found 会进错误重试循环）
+  conversationWorkflowRunsV4: async () => ({ runs: [] }),
+  conversationWorkflowRunEventsV4: async () => ({ events: [] }),
+  conversationWorkflowRunArtifactsV4: async () => ({ artifacts: [] }),
+  conversationWorkflowRunArtifactDataV4: async () => ({ items: [], hasMore: false }),
+  conversationWorkflowRunWorkspaceV4: async () => ({ nodes: [] }),
+  conversationPlansV4: async () => ({ plans: [] }),
+  conversationRowsRangeV4: async () => ({ rows: [], hasMore: false }),
+  conversationFileChangesV4: async () => ({ changes: [] }),
+  conversationFileRewindPreviewV4: async () => ({ preview: null }),
+  sendConversationCommandV4: async (params) => {
+    const env = params?.envelope ?? {};
+    console.log("[bridge] command received: type=" + env.type + " sid=" + env.sessionId + " keys=" + Object.keys(params ?? {}).join(","));
+    const sid = env.sessionId || "ses_bridge_" + randomUUID().slice(0, 6);
+    // §六.A#4：runtime 门禁先行——桥态非 ready 明确拒收（guard.*），不静默吞命令。
+    // 桥态恒 ready 时此路不通，仅诚实报 failed/initializing 时生效。
+    const guardRejection = guardRuntimeCommand(sid, env);
+    if (guardRejection) return guardRejection;
+    // 隐身模式（M4 验收第 3 条）：开启即出站全断——sendText fail-closed 拒绝，UI 显示错误行
+    if (env.type === "sendText" && loadSetting().stealthMode?.enabled) {
+      const topic0 = `conversation/${sid}`;
+      if (!conversationSubscriptions.has(topic0)) conversationSubscriptions.set(topic0, new Set());
+      if (conversationSubscriptions.get(topic0).size === 0) conversationSubscriptions.get(topic0).add("sub_self_" + sid.slice(-6));
+      const st0 = convStateOf(sid);
+      const turnId0 = "turn_" + randomUUID().slice(0, 8);
+      emitConvFrame(topic0, { kind: "deltas", deltas: [{ op: "row.appended", row: { ...baseRow(st0, turnId0), kind: "userInput", text: env.payload?.text ?? "" } }] });
+      emitConvFrame(topic0, { kind: "deltas", deltas: [{ op: "row.appended", row: { ...baseRow(st0, turnId0), kind: "assistantText", text: "隐身模式已开启：出站通道全断，未连接任何模型。请在设置中关闭隐身模式后重试。", state: "failed", model: "stealth" } }] });
+      console.log("[bridge] stealth: outbound blocked for", sid);
+      return { commandId: env.commandId ?? "cmd_" + randomUUID().slice(0, 8), status: "accepted" };
+    }
+    const topic = `conversation/${sid}`;
+    if (!conversationSubscriptions.has(topic)) conversationSubscriptions.set(topic, new Set());
+    if (conversationSubscriptions.get(topic).size === 0) conversationSubscriptions.get(topic).add("sub_self_" + sid.slice(-6));
+    const st = convStateOf(sid);
+    const ack = { commandId: env.commandId ?? "cmd_" + randomUUID().slice(0, 8), status: "accepted" };
+    if (env.type === "createSession") {
+      // M3 补面：draft 发送链需要 createSession ack.result（v4 command.ts commandResultSchema）。
+      // 本地记账不触 oc28；出站仍收敛在 sendText 分支，隐身语义不变。
+      const newSid = "ses_bridge_" + randomUUID().slice(0, 6);
+      console.log("[bridge] createSession ->", newSid);
+      return { ...ack, result: { type: "createSession", sessionId: newSid } };
+    }
+    if (env.type === "setFollowupMode") {
+      // 3.16.2 UI 命令链：createSession→setFollowupMode→sendText 串行，followupMode 的 ack
+      // 带 inputDisposition result 才放行后续发送（commandResult discriminatedUnion）
+      return { ...ack, result: { type: "inputDisposition", delivery: "startNow" } };
+    }
+    if (env.type !== "sendText") return ack;
+    const text = env.payload?.text ?? "";
+    const turnId = "turn_" + randomUUID().slice(0, 8);
+    emitConvFrame(topic, { kind: "deltas", deltas: [{ op: "row.appended", row: { ...baseRow(st, turnId), kind: "userInput", origin: "realUser", text } }] });
+    (async () => {
+      try {
+        console.log("[bridge] turn: begin sid=" + sid);
+      st.busy = true;
+        if (!st.oc28Id) {
+          st.oc28Id = "ses_oc28_" + randomUUID().slice(0, 8);
+          console.log("[bridge] turn: creating oc28 session " + st.oc28Id);
+          await oc28.createSession(st.oc28Id, WORKSPACE.path, BRIDGE_MODEL, "律引导航桥（合成）");
+          console.log("[bridge] turn: oc28 session created");
+        }
+        const asstRow = { ...baseRow(st, turnId), kind: "assistantText", text: "", state: "streaming", model: "deepseek-chat" };
+        emitConvFrame(topic, { kind: "deltas", deltas: [{ op: "row.appended", row: asstRow }] });
+        console.log("[bridge] turn: prompting oc28 (" + text.slice(0, 30) + "...)");
+        await oc28.prompt(st.oc28Id, { id: "msg_" + randomUUID().slice(0, 8), text });
+        console.log("[bridge] turn: prompt submitted");
+        let seen = "", stable = 0;
+        const deadline = Date.now() + 150000;
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 700));
+          const listing = await oc28.listMessages(st.oc28Id).catch(() => null);
+          const msgs = Array.isArray(listing) ? listing : listing?.data ?? [];
+          // 2026-10-25 真机实测：模型可能先发 tool-calls 轮（assistant、空文本）再发正文轮——
+          // 只看"最后一条 assistant"会抓到空文本轮漏掉真回复（replyLen=0 转圈根因）。拼接全部无错
+          // assistant 文本；完成判定取最后一条非空文本消息的 time.completed。
+          const assistantMsgs = msgs.filter((m) => m.type === "assistant" && !m.error);
+          const full = assistantMsgs
+            .map((m) => (m.content ?? []).filter((p) => p.type === "text").map((p) => p.text).join("\n"))
+            .filter(Boolean)
+            .join("\n\n");
+          const last = [...assistantMsgs].reverse().find((m) => (m.content ?? []).some((p) => p.type === "text" && p.text));
+          if (full.length > seen.length) {
+            emitConvFrame(topic, { kind: "deltas", deltas: [{ op: "row.delta", rowId: asstRow.rowId, path: "text", append: full.slice(seen.length) }] });
+            seen = full; stable = 0;
+          } else if (seen && last?.time?.completed) { stable++; if (stable >= 2) break; }
+          const err = [...msgs].reverse().find((m) => m.error);
+          if (err && !seen) {
+            emitConvFrame(topic, { kind: "deltas", deltas: [{ op: "row.upserted", row: { ...asstRow, text: "桥错误：" + (err.error?.message ?? "unknown"), state: "failed" } }] });
+            return;
+          }
+        }
+        st.busy = false;
+        console.log("[bridge] turn: complete, replyLen=" + seen.length);
+        emitConvFrame(topic, { kind: "deltas", deltas: [{ op: "row.upserted", row: { ...asstRow, text: seen || "（空回复）", state: "complete" } }] });
+      } catch (e) {
+        st.busy = false;
+        console.error("[bridge] turn error:", e?.message ?? e);
+      } finally {
+        st.busy = false;
+        if (st.pendingSnapshot) {
+          const sid2 = st.pendingSnapshot.topic.startsWith("conversation/") ? st.pendingSnapshot.topic.slice("conversation/".length) : "draft";
+          st.pendingSnapshot = null;
+          setTimeout(() => emitConvFrame(`conversation/${sid2}`, { kind: "snapshot", snapshot: buildConvSnapshot(sid2) }, "recovery"), 30);
+          console.log("[bridge] deferred snapshot replayed: conversation/" + sid2);
+        }
+      }
+    })();
+    return ack;
+  },
+});
+
+const services = new ServiceCollection();
+services.register(ISettingService, settingService);
+services.register(IZCodeAgentService, agentService);
+services.register(IZCodeSessionService, sessionService);
+services.register(IZCodeTaskService, zcodeTaskService);
+services.register(IOnboardingRecordService, onboardingService);
+
+// 兜底 stub 批量注册：方法静默返回 undefined、on* 返回静默 Event（迭代期按 Unknown channel 报错增补）
+// 精修面（UI 读字段会崩的，返回最小合法形状）：
+const VIEW = { revision: 1 };
+// 模型 config 必须带 optionSpecs.reasoningLevel.values（SessionPane 经
+// validateModelSelectionOptions 读 model.config.optionSpecs.reasoningLevel，缺省会崩主区）
+const SYNTH_MODEL_CONFIG = {
+  enabled: true,
+  properties: {
+    requiresMfjsToolSchema: true,
+    contextWindow: 128000,
+    inputFormat: { supportsText: true },
+    outputFormat: { supportsText: true },
+    supportsToolCall: true,
+    supportsJsonSchemaOutput: true,
+    supportsNativeWebSearch: false,
+    supportsMidConversationSystem: true,
+  },
+  optionSpecs: {
+    reasoningLevel: { values: ["off", "on"], map: "{}" },
+    maxOutputTokens: { max: 8192, map: "{}" },
+  },
+};
+const SYNTH_MODEL = { modelId: "deepseek-chat", config: SYNTH_MODEL_CONFIG };
+const SYNTH_PROVIDER_CFG = {
+  id: "deepseek",
+  name: "DeepSeek（合成 BYOK）",
+  models: [SYNTH_MODEL],
+  // 3.16.2 模型菜单硬门禁（modelSelectionGroups.ts:28）：config.api.type 为空 → 整个供应商被过滤 →
+  // 菜单空 → 无模型可路由（真机"模型都没选择出来"根因）。glm 是 3.16.2 唯一白名单 provider，
+  // 会话级 provider 默认 undefined→displayProvider="glm" 放行，列表项只需 api.type 非空。
+  api: { type: "openai-compatible" },
+  access: { type: "api-key" },
+};
+const modelSelectionService = {
+  onDidChange: silentEvent(),
+  getView: async () => ({
+    ...VIEW,
+    providers: [{ providerId: "deepseek", providerName: "DeepSeek（合成）", config: SYNTH_PROVIDER_CFG, models: [SYNTH_MODEL] }],
+    preferredSelection: { providerId: "deepseek", modelId: "deepseek-chat", options: { reasoningLevel: "on" } },
+    // UI draftConfig.modelSelection 读 effectiveSelection（useDraftConfigControl:effectiveSelection ?? draft）；
+    // 缺省=发送按钮 submissionReady=false 永久禁用（M4 前拔除的头号遗留）
+    effectiveSelection: { providerId: "deepseek", modelId: "deepseek-chat", options: { reasoningLevel: "on" } },
+  }),
+  resolveModelConfig: async () => ({}),
+};
+const providerSettingsService = {
+  onDidChange: silentEvent(),
+  getView: async () => ({
+    ...VIEW, providerTemplates: [], providerOrder: ["deepseek"],
+    providers: [{
+      providerId: "deepseek", providerName: "DeepSeek（合成）", enabled: true, executable: true,
+      effectiveConfig: SYNTH_PROVIDER_CFG, issues: [],
+      models: [{ ...SYNTH_MODEL, config: { ...SYNTH_MODEL_CONFIG, name: "deepseek-chat", label: "DeepSeek Chat（合成）" } }],
+    }],
+  }),
+  refresh: async () => ({
+    ...VIEW, providerTemplates: [], providerOrder: ["deepseek"],
+    providers: [{
+      providerId: "deepseek", providerName: "DeepSeek（合成）", enabled: true, executable: true,
+      effectiveConfig: SYNTH_PROVIDER_CFG, issues: [],
+      models: [{ ...SYNTH_MODEL, config: { ...SYNTH_MODEL_CONFIG, name: "deepseek-chat", label: "DeepSeek Chat（合成）" } }],
+    }],
+  }),
+};
+const oauthService = {
+  onDidChange: silentEvent(),
+  getProviders: async () => [],
+  // 律引无账号体系（BYOK）：登录入口的 OAuth 走"无提供方"优雅空态，不崩 3.16.2 UI
+  startOAuthWithPolling: async () => { throw new Error("律引为本地 BYOK 模式，无 OAuth 登录通道；请在设置→模型供应商填入 API Key。"); },
+  startOAuth: async () => { throw new Error("律引为本地 BYOK 模式，无 OAuth 登录通道。"); },
+  cancelPending: async () => {},
+  pollPendingOAuth: async () => null,
+  restoreCachedSessionState: async () => ({ status: "signed-out" }),
+  getActiveProvider: async () => null,
+  startLogin: () => {}, logout: async () => {},
+  getZCodeJwtToken: () => null,
+};
+// settings-sync 精修：OnboardingDialog 挂 useSettingsSync（detect/getFirstRunPromptState/
+// getClaudeAgentsFileMigrationStatus），批量静默 stub 返 undefined 曾让 OnboardingDialog
+// 子树崩（TypeError reading 'length' → ScopedErrorBoundary:onboarding-dialog crashed，
+// 连带侧栏任务链路停摆）。空 discovery=首启提示已处理，onboarding 不弹。
+const settingsSyncService = {
+  detect: async () => ({ agents: [] }),
+  getFirstRunPromptState: async () => ({ handled: true }),
+  markFirstRunPromptHandled: async () => {},
+  getClaudeAgentsFileMigrationStatus: async () => ({
+    sourcePath: "C:\\Users\\mock\\.claude\\agents",
+    targetPath: "C:\\Users\\mock\\.zcode\\agents",
+    sourceExists: false,
+    targetExists: false,
+    supported: false,
+    unavailableReason: "missingSource",
+  }),
+  copyClaudeAgentsFileToZcodeAgentsFile: async () => ({
+    sourcePath: "C:\\Users\\mock\\.claude\\agents",
+    targetPath: "C:\\Users\\mock\\.zcode\\agents",
+    status: "skipped",
+    overwritten: false,
+    skippedReason: "missingSource",
+  }),
+  importSelected: async () => ({ results: [], totalImported: 0, totalSkipped: 0 }),
+};
+
+for (const name of [
+  "broadcast", "coding-plan-subscription", "fs", "file-watcher", "git", "terminal", "media-preview", "credential", "system",
+  "window-controller", "client-config", "client-scenes", "skills", "skill-sync", "mcp-sync",
+  "plugins", "plugin-sync", "subagents", "commands", "hooks", "memory", "usage-stats",
+  "feedback", "prompt-attachment-transfer", "bots", "highspeed", "marketing-touch",
+  "output-style", "conversation-share", "plugin-ui-bridge", "gen-ui",
+]) {
+  services.register({ channelName: name }, silentStub);
+}
+services.register({ channelName: "model-selection" }, modelSelectionService);
+// 3.16.2 新 UI 面精修：highspeed-card（发送链 prepareTurn/getSnapshot；silentStub 返回 undefined 会让
+// SessionPane 读 serviceSnapshot.card 直接崩子树——用户真机 React subtree crashed 根因）
+const highspeedCardService = {
+  prepareTurn: async () => ({ kind: "fallback", reason: "draw-miss", nextDrawAt: null }),
+  getSnapshot: async () => ({ card: null }),
+  invalidateCard: async () => true,
+  healthy: async () => ({ cardId: "", promptTokens: 0, completionTokens: 0, durationSeconds: 0 }),
+};
+services.register({ channelName: "highspeed-card" }, highspeedCardService);
+// system.info 精修：useWorkspaceHomePath 读 info.homedir（undefined.homedir 崩 uncaught promise）
+const systemServiceExact = new Proxy(
+  { info: async () => ({ homedir: "C:/Users/being", platform: "win32", version: "3.16.2-bridge" }) },
+  { get: (t, prop) => (prop in t ? t[prop] : (typeof prop === "string" && prop.startsWith("on") ? silentEvent() : async () => undefined)) },
+);
+services.register({ channelName: "system" }, systemServiceExact);
+// 3.16.2 发送路径第二阻塞项：project 面（createSession 带 projectId 后查项目目录/树/会话准备）
+// 空态=单项目 lvyin-demo（与 mock 侧栏一致），不伪造多项目。
+const SYNTH_VIRTUAL_PROJECT = () => ({
+  id: "lvyin-demo",
+  hostId: "local",
+  name: "lvyin-demo",
+  nameOverridden: false,
+  roots: [{ rootPath: WORKSPACE.path, position: 0, isPrimary: true }],
+  position: 0,
+  pinned: false,
+  deleted: false,
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+});
+const projectServiceExact = new Proxy(
+  {
+    // 合同（project-storage/contract.ts）：readTree→{projects: VirtualProject[], tasks}
+    readDirectory: async () => ({ path: WORKSPACE.path, entries: [] }),
+    readProjects: async () => [SYNTH_VIRTUAL_PROJECT()],
+    readTree: async () => ({ projects: [SYNTH_VIRTUAL_PROJECT()], tasks: [] }),
+    prepareSession: async () => ({ workspacePath: WORKSPACE.path, additionalDirectories: [], projectId: "lvyin-demo" }),
+    resolveSessionDirectories: async () => ({ workspacePath: WORKSPACE.path, additionalDirectories: [], projectId: "lvyin-demo" }),
+    moveTask: async () => {},
+    saveProject: async () => SYNTH_VIRTUAL_PROJECT(),
+    deleteProject: async () => {},
+    reorderProjects: async () => {},
+  },
+  {
+    get: (t, prop) => (prop in t ? t[prop] : (typeof prop === "string" && prop.startsWith("on") ? silentEvent() : async () => undefined)),
+  },
+);
+services.register({ channelName: "project" }, projectServiceExact);
+// 3.16.2 发送路径阻塞项：remote-projects 面缺失时 UI 调用 1000ms 超时 → 整个发送被判死
+// （真机"发送失败，请稍后重试 / Channel remote-projects timed out"根因）。律引无远端主机，全部空态。
+services.register({ channelName: "remote-projects" }, new Proxy(
+  {
+    readDirectory: async () => ({ hosts: [], entries: [] }),
+    connectHost: async () => { throw new Error("律引未配置远端主机"); },
+    saveHost: async () => { throw new Error("律引未配置远端主机"); },
+    removeHost: async () => {},
+    addEntry: async () => { throw new Error("律引未配置远端主机"); },
+    refreshEntry: async () => {},
+    removeEntry: async () => {},
+  },
+  {
+    get: (t, prop) => (prop in t ? t[prop] : (typeof prop === "string" && prop.startsWith("on") ? silentEvent() : async () => undefined)),
+  },
+));
+// 3.16.2 输入区模型控件崩溃链（V4ComposerModelControls）：依赖 coding-plan 套餐面与配置文件面
+const codingPlanSubscriptionExact = new Proxy(
+  {
+    getDynamicWorkflowClientConfig: async () => ({ enabled: false }),
+    getEnterprisePricing: async () => ({ plans: [] }),
+  },
+  {
+    get: (t, prop) => (prop in t ? t[prop] : (typeof prop === "string" && prop.startsWith("on") ? silentEvent() : async () => undefined)),
+  },
+);
+services.register({ channelName: "coding-plan-subscription" }, codingPlanSubscriptionExact);
+const providerConfigFileExact = new Proxy(
+  { getWorkspaceProviderConfigFile: async () => null },
+  {
+    get: (t, prop) => (prop in t ? t[prop] : (typeof prop === "string" && prop.startsWith("on") ? silentEvent() : async () => undefined)),
+  },
+);
+services.register({ channelName: "zcode-task-config" }, providerConfigFileExact);
+// window-controller 3.16.2 任务列表订阅（windowControllerTaskListRegistry 读 result.ack.subscriptionId；
+// 挂到既有 silentStub 之上——proxy 命中前置方法，其余仍走兜底）
+services.register({ channelName: "window-controller" }, new Proxy(
+  {
+    subscribeControllerV4: async () => ({ ack: { subscriptionId: "sub_wc_" + randomUUID().slice(0, 8), mode: "snapshot", logEpoch: CONV_LOG_EPOCH } }),
+    unsubscribeControllerV4: async () => {},
+  },
+  {
+    get: (target, prop) => {
+      if (prop in target) return target[prop];
+      if (typeof prop === "string" && prop.startsWith("onDynamic")) return () => silentEvent();
+      if (typeof prop === "string" && prop.startsWith("on")) return silentEvent();
+      return async () => undefined;
+    },
+  },
+));
+services.register({ channelName: "provider-settings" }, providerSettingsService);
+services.register({ channelName: "oauth" }, oauthService);
+services.register({ channelName: "file" }, fileService);
+services.register({ channelName: "settings-sync" }, settingsSyncService);
+
+const server = http.createServer((req, res) => {
+  if (req.url === "/api/legal") {
+    // M3 八法律面合成数据（真源接线随 M2 尾巴；fail-closed：缺数据即空数组）
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({
+      materials: [
+        { id: "mat_001", name: "合成：借款合同扫描件.pdf", status: "已解析 · 12 条款" },
+        { id: "mat_002", name: "合成：转账凭证（3 笔）.xlsx", status: "已对账" },
+        { id: "mat_003", name: "合成：微信聊天记录导出.txt", status: "已脱敏" },
+      ],
+      review: [
+        { aspect: "主体资格", finding: "双方主体明确，签署权限未见瑕疵", severity: "通过" },
+        { aspect: "利率条款", finding: "约定年利率 12%，在 LPR 四倍上限内", severity: "通过" },
+        { aspect: "违约金", finding: "日万分之五偏高，诉讼中可能被酌减", severity: "提示" },
+        { aspect: "担保", finding: "仅有保证人签字，未约定保证方式（按一般保证处理）", severity: "风险" },
+        { aspect: "管辖", finding: "约定原告所在地法院管辖，有效", severity: "通过" },
+      ],
+      citations: [
+        { source: "《民法典》第 188 条（三年诉讼时效）", valid: "valid", note: "现行有效" },
+        { source: "《民间借贷司法解释》第 25 条（LPR 四倍上限）", valid: "valid", note: "现行有效" },
+        { source: "某地方高院会议纪要（示例失效条目）", valid: "invalid", note: "已被新纪要替代（fail-closed 示例）" },
+      ],
+      schedule: [
+        { id: "sch_001", title: "举证期限届满", due: "2026-11-05", kind: "举证" },
+        { id: "sch_002", title: "开庭（第一次）", due: "2026-11-20 09:30", kind: "开庭" },
+        { id: "sch_003", title: "上诉期届满", due: "2026-12-05", kind: "上诉" },
+      ],
+      calc: [
+        { name: "违约金试算", input: "本金 200,000 元 × 日万分之五 × 90 天", result: "9,000.00 元" },
+        { name: "诉讼时效剩余", input: "起算 2024-08-01，三年期", result: "剩余约 281 天" },
+      ],
+      documents: [
+        { id: "doc_001", title: "民事起诉状（草稿 v3）", status: "待确认事实部分" },
+        { id: "doc_002", title: "证据清单", status: "已生成" },
+      ],
+    }));
+    return;
+  }
+  if (req.url === "/api/server-info") {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ version: "mock-1.0", workspaces: [WORKSPACE] }));
+    return;
+  }
+  res.writeHead(404); res.end("mock host: only /api/server-info");
+});
+
+const wss = new WebSocketServer({ noServer: true });
+server.on("upgrade", (req, socket, head) => {
+  if (req.url === "/ws") wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
+});
+
+wss.on("connection", (ws) => {
+  const emitters = { data: new Emitter(), close: new Emitter(), end: new Emitter() };
+  ws.binaryType = "arraybuffer";
+  ws.on("message", (buf) => {
+    try {
+      emitters.data.fire(VSBuffer.wrap(new Uint8Array(buf)));
+    } catch (err) {
+      // dev mock：单条消息处理失败只记日志断这条消息，不带崩进程
+      console.error("[mock-host] message handler error (suppressed):", err);
+    }
+  });
+  ws.on("close", () => { emitters.close.fire(); emitters.end.fire(); });
+  ws.on("error", () => { emitters.close.fire(); emitters.end.fire(); });
+
+  const isocket = {
+    onData: emitters.data.event, onClose: emitters.close.event, onEnd: emitters.end.event,
+    write: (b) => { if (ws.readyState === ws.OPEN) ws.send(b.buffer); },
+    end: () => ws.close(), drain: async () => {}, dispose: () => ws.close(),
+  };
+  const protocol = new SocketProtocol(isocket);
+  const rawServer = new ChannelServer(protocol, "mock-server");
+  const channelServer = new LoggingChannelServer(rawServer, (...a) => console.log("[rpc]", ...a));
+  services.exposeOnChannelServer(channelServer);
+  emitters.close.event(() => rawServer.dispose());
+  console.log("[mock-host] channel server attached");
+});
+
+server.listen(PORT, () => {
+  console.log(`[mock-host] listening http+ws on :${PORT} (synthetic data, dev-only)`);
+  console.log(`[mock-host] setting file: ${MOCK_SETTING_PATH}`);
+});

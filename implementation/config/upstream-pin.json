@@ -1,0 +1,14 @@
+{
+  "repository": "https://github.com/anomalyco/opencode",
+  "tag": "v2.0.28",
+  "commit": "026b106bc5d41b679ffc413264229c340871e4d3",
+  "runtime_version": "2.0.28",
+  "desktop": "Electron44.4.5",
+  "ui": "Solid",
+  "legal_business": "Python",
+  "snapshot_hashes": {
+    "packages__desktop__src__main__service__background-service.ts": "e3db8df0b061160a45030bb7b928e5a38f48ccbdfaad5b5f523aef1b0b0fe94d",
+    "packages__desktop__src__main__index.ts": "0ce9bc64d462150634afa0a0f87a3c82b290febf31d228f5bbdc7bd4005bb667"
+  },
+  "runtime_tests": "NOT_RUN"
+}

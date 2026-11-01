@@ -1,0 +1,54 @@
+# W3-U23 · F02-selfhost：自托管 docker-compose 形态（Postgres＋最小管理台）。
+# 06:F02「compose启动真实Host/Python/PG，双用户跨org拒绝，非桌面库复制；
+# 升级恢复保持业务状态」——裁决#3：本机 Docker 宿主。
+#
+# 拓扑（三真实组件）：
+#   Host   = 本机 Docker engine（29.8.2 实测）真编排本栈；
+#   Python = f02-python 容器（python:3.12-alpine，纯 stdlib 最小管理台
+#            f02_selfhost_entry.py，封闭方法表直连 HarnessUnits）；
+#   PG     = harness E08 既有 lh-pg-e08 合成容器（postgres:17-alpine，
+#            127.0.0.1:55432；external 消费，本栈不新建 PG——W3-U23 工单
+#            钦定「compose 栈消费 harness E08（lh-pg-e08 既有）」）。
+#
+# 纪律：端口只绑回环；schema 每轮唯一（合成用毕 DROP）；零桌面库复制
+# （本栈不挂载 %APPDATA%\Juscite 任一路径，状态只在 PG schema＋合成卷）；
+# 全合成材料；lh-pg-e08 为 e08-synth-only 专用容器。
+#
+# 起法（tools/PENDING_OWNER_e25_f02_install_recon.py --profile selfhost
+# 自动执行；手动等价）：
+#   set LH_F02_SCHEMA=f02_selfhost_<uniq>
+#   set LH_F02_HARNESS_SRC=<harness w3-u07 worktree 绝对路径>\src
+#   docker compose -p lh-f02-selfhost -f implementation/deploy/f02-selfhost/docker-compose.selfhost.yml up -d --wait
+# 管理台入口：http://127.0.0.1:55433（GET /health；POST /call）
+
+name: lh-f02-selfhost
+
+services:
+  f02-python:
+    image: python:3.12-alpine
+    container_name: lh-f02-python
+    restart: "no"
+    working_dir: /app
+    environment:
+      LH_F02_PG_DSN: postgresql://lh_app:e08-synth-only@host.docker.internal:55432/legal_harness
+      LH_F02_SCHEMA: ${LH_F02_SCHEMA:?set LH_F02_SCHEMA before starting}
+      PYTHONPATH: /harness/src
+    command: ["python3", "/app/f02_selfhost_entry.py"]
+    ports:
+      - "127.0.0.1:55433:8080"
+    volumes:
+      - ./f02_selfhost_entry.py:/app/f02_selfhost_entry.py:ro
+      - ${LH_F02_HARNESS_SRC}:/harness/src:ro
+      - f02_state:/state
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 5s
+
+volumes:
+  f02_state:
+    name: lh_f02_selfhost_state

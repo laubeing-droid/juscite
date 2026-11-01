@@ -1,0 +1,747 @@
+diff --git a/packages/desktop/dev-app-update.yml b/packages/desktop/dev-app-update.yml
+index 94c3a6fe..96da44ba 100644
+--- a/packages/desktop/dev-app-update.yml
++++ b/packages/desktop/dev-app-update.yml
+@@ -1,6 +1,9 @@
+ # 修复原因：显式开启开发态自动更新时 electron-updater 会读取 dev-app-update.yml 初始化下载缓存。
+ # 服务端 manifest provider 仍负责返回真实安装包 URL；这里的 generic url 只作为本地配置占位。
++# 自动更新源=自家占位（步骤5 打包单②）：当前无真实更新源，用 RFC 2606 保留 TLD .invalid 的
++# 自家命名桩（保证不可解析）。真实源就位后同步改 electron-builder.config.js publish.url
++# 与 src/main/autoUpdater.ts JUSCITE_UPDATE_FEED_ORIGIN（NOTES.md「autoUpdater 换源」节）。
+ provider: generic
+-url: http://localhost:8081
++url: https://updates.juscite.invalid/
+ useMultipleRangeRequest: false
+ updaterCacheDirName: zcode-dev-updater
+diff --git a/packages/desktop/electron-builder.config.js b/packages/desktop/electron-builder.config.js
+index 460bd0c8..4294a65f 100644
+--- a/packages/desktop/electron-builder.config.js
++++ b/packages/desktop/electron-builder.config.js
+@@ -1,14 +1,15 @@
+ /* eslint-disable max-lines -- Electron Builder config keeps related packaging hooks together so build order stays explicit. */
+-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
++import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
+ import { readdir, writeFile } from "node:fs/promises";
+ import { tmpdir } from "node:os";
+ import { dirname, join, resolve } from "node:path";
+ import { createRequire } from "node:module";
+-import { HELPER_APP_NAME } from "@zcode/zcode-cua/broker/helperConstants";
+-import { runCommand, runCommandAndReadStdout } from "../../scripts/spawn-command.mjs";
++// Juscite 适配（M3 砍账）：@zcode/zcode-cua 已解除依赖（开源树无此包），
++// HELPER_APP_NAME 内联保形（值=packages/zcode-cua/broker-helper-constants.js:1），仅 darwin 分支路径消费。
++const HELPER_APP_NAME = "ZCode Computer Use.app";
++import { runCommand, runCommandAndReadStdout } from "./scripts/spawn-command.mjs";
+ import { loadBuiltinProviderConfig } from "../../scripts/builtin-provider-config.mjs";
+ import { noticesFileName, stageElectronNotices } from "../../scripts/third-party-notices.mjs";
+-import { resolveNativeSearchReleasePlan } from "../../scripts/native-search-tools-config.mjs";
+ import { getBuildMetadata } from "./scripts/build-metadata.mjs";
+ import { collectRuntimeModuleClosureEntries } from "./scripts/runtime-dependency-closure.mjs";
+ import {
+@@ -21,10 +22,10 @@ import {
+   resolveDesktopArtifactSuffix,
+   resolveDesktopProductIdentity,
+ } from "./scripts/desktop-product-identity.mjs";
++import { materializeBridgeBundle, resolveBridgeBundleDir } from "./scripts/materialize-bridge-bundle.mjs";
+ import { createWindowsPowerShellSecurityArgs } from "./scripts/powershell-command.mjs";
+ import { isSharpRequiredByComputerUse, verifyStagedSharp } from "./scripts/sharp-package-assets.mjs";
+ import { isRealComputerUseProducerInstalled } from "./scripts/computer-use-producer.mjs";
+-import { verifyStagedKoffi } from "./scripts/koffi-package-assets.mjs";
+ import {
+   finalizePackagedWindowsCuaHelper,
+   resolveElectronBuilderWindowsTarget,
+@@ -51,10 +52,13 @@ const desktopProductIdentity = resolveDesktopProductIdentity({
+   ...process.env,
+   ZCODE_ENV: builtinProviderConfig.environment,
+ });
+-const nativeSearchReleasePlan = resolveNativeSearchReleasePlan({
+-  platform: targetPlatform.os,
+-  arch: targetPlatform.arch,
+-});
++// 桥随包（步骤5·桥随包单）：配置求值即物化自足桥目录（bridge-bundle/，git 忽略），
++// 经下方 extraResources 拷进安装包 resources/bridge；desktopHostProcess 打包态从该处 spawn。
++// 放配置求值段而非 beforePack 钩子：物化不依赖打包产物，且先于一切资源拷贝，无阶段次序假设。
++materializeBridgeBundle({ desktopPackageRoot: import.meta.dirname });
++// Juscite 适配（M3 砍账）：bundled-tools 原生搜索随包链（scripts/native-search-tools-config.mjs）未拎入，
++// 以禁用计划内联——extraResources 不再要求 bundled-tools/*；rg 由 desktopRuntimeEnv 回退系统 PATH。
++const nativeSearchReleasePlan = { enabled: false, extraResourceToolIds: [] };
+ const rawMacSigningIdentity = process.env.APPLE_SIGNING_IDENTITY || process.env.CSC_NAME;
+ const macSigningIdentity =
+   rawMacSigningIdentity?.replace(/^Developer ID Application:\s*/, "") ?? null;
+@@ -267,6 +271,20 @@ function runAsarCommandAndReadStdout(args) {
+   });
+ }
+ 
++// Juscite 适配：本机 node 22.23.1 fs.cpSync 递归拷贝原生崩溃（静默 exit 127，学习迭代轮
++// 微测复现在案，先例=learning_runtime copyDirSync 等价规避）——按 Dirent 递归 readdir+copyFile。
++function copyModuleTreeSync(source, target) {
++  if (statSync(source).isDirectory()) {
++    mkdirSync(target, { recursive: true });
++    for (const entry of readdirSync(source, { withFileTypes: true })) {
++      copyModuleTreeSync(resolve(source, entry.name), resolve(target, entry.name));
++    }
++    return;
++  }
++  mkdirSync(dirname(target), { recursive: true });
++  copyFileSync(source, target);
++}
++
+ function runTimedSync(label, fn) {
+   const startMs = Date.now();
+   console.log(`[ci][timer] ${label} start`);
+@@ -400,7 +418,7 @@ async function injectHoistedRuntimeModulesIntoAsar(context) {
+         // 所以在 afterPack 阶段直接重写 app.asar，先把这些运行时包补进去，再交给后续签名和出包。
+         mkdirSync(dirname(targetModulePath), { recursive: true });
+         rmSync(targetModulePath, { force: true, recursive: true });
+-        cpSync(sourceModulePath, targetModulePath, { recursive: true });
++        copyModuleTreeSync(sourceModulePath, targetModulePath);
+       }
+     });
+ 
+@@ -424,6 +442,13 @@ async function stripPackagedSourcemapReferences(context) {
+   await cleanupPackagedSourcemaps({
+     appAsarPath: resolveAppAsarPath(context),
+     resourcesDir: resolvePackagedResourcesDir(context),
++    resourcesSkipRootEntryNames: new Set([
++      // 桥随包（步骤5·桥随包单）：resources/bridge 是桥运行时装载器（tsx/node_modules）
++      // 的第三方依赖子树，不是应用发布 JS 面。行首锚定的剥离正则会把「模板字符串内嵌
++      // sourceMappingURL 文本」的压缩文件整行吞掉产出语法损坏文件（tsx register 首轮
++      // gate 实证损坏 936 处），.map 删除另致引用悬空——整子树跳过，引用与 map 自洽保留。
++      "bridge",
++    ]),
+     runAsarCommand,
+     runTimedSync,
+     runTimedAsync,
+@@ -488,18 +513,6 @@ function assertPackagedCuaSharp(context) {
+   }
+ }
+ 
+-function assertPackagedCuaKoffi(context) {
+-  const problems = verifyStagedKoffi({
+-    resourcesDir: resolvePackagedResourcesDir(context),
+-    targetPlatform,
+-  });
+-  if (problems.length > 0) {
+-    throw new Error(
+-      `CUA plugin koffi runtime is incomplete in the packaged app:\n- ${problems.join("\n- ")}`,
+-    );
+-  }
+-}
+-
+ function assertSignedWindowsBrowserImportHelper(context) {
+   if (
+     !shouldPackageWindowsBrowserImportHelper ||
+@@ -563,10 +576,12 @@ export default {
+   extraMetadata: {
+     version: buildMetadata.appVersion,
+     zcodeProductFlavor: desktopProductIdentity.flavor,
+-    homepage: "https://zcode.z.ai",
++    // Juscite 换牌（步骤5·品牌单）：包元身份脱离上游 zcode.z.ai；无真实域名，
++    // 沿更新源同款 RFC 2606 保留 TLD .invalid 桩（保证不可解析、不指向上游）。
++    homepage: "https://juscite.invalid",
+     author: {
+-      name: "ZCode",
+-      email: "dev@zcode.z.ai",
++      name: "Juscite",
++      email: "dev@juscite.invalid",
+     },
+   },
+   // macOS 签名阶段会对 Electron Framework 下每个语言包逐个 codesign。
+@@ -672,7 +687,7 @@ export default {
+       assertPackagedNodePtyPrebuild(context),
+     );
+     runTimedSync("afterPack:assertPackagedCuaSharp", () => assertPackagedCuaSharp(context));
+-    runTimedSync("afterPack:assertPackagedCuaKoffi", () => assertPackagedCuaKoffi(context));
++    // Juscite 适配（M3 砍账）：CUA 插件 koffi 运行时断言随之砍除（@zcode/zcode-cua 已解除）。
+     runTimedSync("afterPack:assertPackagedCuaHelper", () => assertPackagedCuaHelper(context));
+     if (actualWindowsTarget && shouldPackageComputerUseHelper) {
+       await runTimedAsync("afterPack:finalizePackagedWindowsCuaHelper", () =>
+@@ -702,7 +717,24 @@ export default {
+       }
+     : {}),
+   extraResources: [
+-    { from: resolve(workspaceRoot, noticesFileName), to: noticesFileName },
++    {
++      // 桥随包（步骤5·桥随包单）：物化目录拷进 resources/bridge；desktopHostProcess.ts
++      // 打包态 resolveBridgePaths 据此 spawn。electron-builder 会跳过 from 根下的
++      // node_modules，主树与依赖树必须分开映射（同 cua-helper 先例，首轮 gate 实证）。
++      from: resolveBridgeBundleDir(desktopPackageRoot),
++      to: "bridge",
++      filter: ["**/*", "!node_modules{,/**/*}"],
++    },
++    {
++      from: join(resolveBridgeBundleDir(desktopPackageRoot), "node_modules"),
++      to: "bridge/node_modules",
++      filter: ["**/*"],
++    },
++    // Juscite 适配：THIRD-PARTY-NOTICES.md 当前仓库未生成（发行三件套随发行单收口），
++    // 存在才随包，缺失不阻断打包、也不伪造声明文本。
++    ...(existsSync(resolve(workspaceRoot, noticesFileName))
++      ? [{ from: resolve(workspaceRoot, noticesFileName), to: noticesFileName }]
++      : []),
+     ...(targetPlatform.os === "darwin"
+       ? [
+           ...(shouldPackageComputerUseHelper
+@@ -779,23 +811,9 @@ export default {
+           },
+         ]
+       : []),
+-    {
+-      // agent 运行时资产，打包到 resources/glm。
+-      // 桌面端内置的是 agent 的 JS bundle（glm/zcode.cjs，由 prepare:agent-bundle 生成），
+-      // Host 进程用 app 自带的 Electron Node runtime（ELECTRON_RUN_AS_NODE）执行 `zcode.cjs app-server --stdio`，
+-      // 不再随包内置独立 Node 二进制。远端 SSH/WSL 仍走原生二进制（无 Electron）。
+-      from: `bundled-agents/${targetPlatform.key}/glm`,
+-      to: "glm",
+-      filter: ["**/*", "!**/*.map"],
+-    },
+-    {
+-      // agent shell 之前完全依赖宿主系统 PATH，GUI 启动时经常拿不到用户自己装的 rg。
+-      // 这里把 ripgrep 作为桌面端内置 runtime tool 打进 resources/tools，
+-      // 后续 host/server 把该目录追加到 PATH；用户版本优先，缺失时再由随包 rg 兜底。
+-      from: `bundled-tools/${targetPlatform.key}/ripgrep`,
+-      to: "tools/ripgrep",
+-      filter: ["**/*"],
+-    },
++    // Juscite 适配（M3 砍账）：bundled-agents/glm（agent 宿主 src/host 整目录废弃）与
++    // bundled-tools/ripgrep（rg 回退系统 PATH）两随包条目砍除——上游 prepare:agent-bundle/
++    // prepare:native-search 资产管线未拎入，缺失目录会让 electron-builder 直接失败。
+     ...nativeSearchReleasePlan.extraResourceToolIds.map((toolId) => ({
+       from: `bundled-tools/${targetPlatform.key}/${toolId}`,
+       to: `tools/${toolId}`,
+@@ -876,7 +894,7 @@ export default {
+     // 与 /usr/share/icons/hicolor/*/apps/zcode.png 保持一致。
+     executableName: desktopProductIdentity.linuxExecutableName,
+     category: "Development",
+-    maintainer: "ZCode <dev@zcode.z.ai>",
++    maintainer: "Juscite <dev@juscite.invalid>",
+   },
+   deb: {
+     // 生产版与 Preview 必须是两个 dpkg package；只改可执行名仍会让安装器把另一版本当成升级替换。
+@@ -935,8 +953,11 @@ export default {
+     // electron-updater 会因缺少 multipart/byteranges 直接回退整包下载。关闭 multiple range 后仍走差分，
+     // 只是按单 Range 顺序拉取差异块，避免 Windows 用户更新时从约 15MB 退化成 300MB+ 全量包。
+     useMultipleRangeRequest: false,
+-    // 新客户端运行时使用服务端 manifest provider；这里仅保留 electron-builder 必需的
+-    // generic publish 占位，避免打包产物继续携带可配置的旧 stable feed。
+-    url: "http://localhost:8081",
++    // 自动更新源=自家占位（v4 §1.3「更新源必须换掉」；步骤5 打包单②）。当前无真实更新源：
++    // 用 RFC 2606 保留 TLD .invalid 的自家命名桩（保证不可解析、绝不指向 Z.ai 旧 feed）；
++    // 自动更新构建期默认关（ZCODE_AUTO_UPDATE_ENABLED=false）双保险。
++    // 真实源就位后同步改三处：本 url + dev-app-update.yml + autoUpdater.ts JUSCITE_UPDATE_FEED_ORIGIN，
++    // 或运行时经 ZCODE_UPDATE_FEED_URL / --zcode-update-feed-url 注入（NOTES.md「autoUpdater 换源」节）。
++    url: "https://updates.juscite.invalid/",
+   },
+ };
+diff --git a/packages/desktop/package.json b/packages/desktop/package.json
+index f904b6d4..a731c242 100644
+--- a/packages/desktop/package.json
++++ b/packages/desktop/package.json
+@@ -1,129 +1,63 @@
+ {
+   "name": "@zcode/desktop",
+   "private": true,
+-  "description": "ZCode Desktop App",
+-  "author": "ZCode",
++  "description": "Juscite Desktop App (desktop shell, host swapped to bridge+oc28)",
++  "author": "Juscite",
+   "type": "module",
+   "main": "out/main/index.js",
+-  "imports": {
+-    "#e2e/*": "./test/e2e/*.ts",
+-    "#src/*": "./src/*"
+-  },
+   "scripts": {
+-    "pre-dev": "node scripts/ensure-local-runtime-assets.mjs && node -e \"require('node:fs').rmSync('./out',{recursive:true,force:true})\"",
+-    "dev": "node ../../scripts/dev-desktop-env.mjs production",
+-    "pre-dev:local-cli": "pnpm --dir ../.. exec node scripts/build-desktop-agent-cli.mjs && node -e \"require('node:fs').rmSync('./out',{recursive:true,force:true})\"",
+-    "dev:local-cli": "pnpm pre-dev:local-cli && concurrently -k -n tsup,vite,electron \"tsup --watch src --watch ../services/src --watch ../server/src --watch ../shared/src --watch ../rpc/src --watch ../client/src --watch ../provider/src --watch ../provider-node/src --ignore-watch 'mock-cdn/**' --ignore-watch 'bundled-agents/**' --ignore-watch '.e2e-cache/**' --ignore-watch '.e2e-artifacts/**' --ignore-watch '.e2e-home-*/**' --ignore-watch 'dist-cua-helper/**'\" \"vite dev\" \"node scripts/dev.mjs\"",
+-    "dev:runtime": "concurrently -k -n tsup,vite,electron \"tsup --watch src --watch ../services/src --watch ../server/src --watch ../shared/src --watch ../rpc/src --watch ../client/src --watch ../provider/src --watch ../provider-node/src --ignore-watch 'mock-cdn/**' --ignore-watch 'bundled-agents/**' --ignore-watch '.e2e-cache/**' --ignore-watch '.e2e-artifacts/**' --ignore-watch '.e2e-home-*/**' --ignore-watch 'dist-cua-helper/**'\" \"vite dev\" \"node scripts/dev.mjs\"",
+     "prepare:build-meta": "node scripts/build-metadata.mjs",
+-    "prepare:runtime-assets": "node scripts/prepare-runtime-assets.mjs",
+-    "prepare:glm": "node ../../scripts/download-glm.mjs",
+-    "prepare:agent-bundle": "node scripts/prepare-agent-node-bundle.mjs",
+-    "prepare:windows-cua-helper": "node scripts/prepare-windows-cua-helper.mjs",
+-    "prepare:native-search": "node ../../scripts/prepare-native-search-tools.mjs",
+-    "prepare:browser-import-helper": "node scripts/build-windows-browser-import-helper.mjs",
+-    "prepare:macos-window-bounds": "node scripts/build-macos-window-bounds.mjs",
+     "build:no-runtime-assets": "pnpm prepare:build-meta && node scripts/run-production-build.mjs",
+-    "build": "pnpm prepare:runtime-assets && pnpm run build:no-runtime-assets",
+-    "test:installer-nsh-smoke": "node scripts/test-installer-nsh-smoke.mjs",
+-    "test:auto-update-install-reentry-smoke": "node scripts/auto-update-install-reentry-smoke.mjs",
+-    "test:browser-background-activity-smoke": "electron scripts/browser-background-activity-smoke.mjs",
+-    "test:browser-hidden-guest-screenshot-smoke": "electron scripts/browser-hidden-guest-screenshot-smoke.mjs",
+-    "test:browser-screenshot-surface-smoke": "electron scripts/browser-screenshot-surface-smoke.mjs",
+-    "pretest:browser-webm-recording-smoke": "tsup",
+-    "test:browser-webm-recording-smoke": "electron scripts/browser-webm-recording-smoke.mjs",
+-    "pretest:e2e": "pnpm --filter @zcode/e2e-report build:node",
+-    "test:e2e": "node scripts/run-windows-e2e-shards.mjs",
+-    "test:e2e:all:coverage": "node scripts/run-all-e2e-coverage.mjs",
+-    "pretest:e2e:serial": "pnpm --filter @zcode/e2e-report build:node",
+-    "test:e2e:serial": "wdio run wdio.conf.ts",
+-    "test:e2e:windows:sharded": "pnpm test:e2e -- --shards=10",
+-    "e2e:fixture:check": "node scripts/check-e2e-fixtures.mjs",
+-    "e2e:promote": "node scripts/promote-conversation-e2e.mjs",
+-    "e2e:docker:admit": "node scripts/admit-conversation-e2e-docker.mjs",
+-    "e2e:docker:admit:plugins": "node scripts/admit-plugin-e2e-docker.mjs",
+-    "e2e:promote:plugins": "node scripts/promote-plugin-e2e.mjs",
+-    "e2e:session-lifecycle:stress": "node scripts/run-e2e-session-lifecycle-stress.mjs",
+-    "typecheck:e2e": "pnpm --filter @zcode/e2e-report build:node && tsc -p tsconfig.e2e.json --noEmit",
++    "build": "pnpm run build:no-runtime-assets",
++    "dev": "node scripts/dev-all.mjs",
++    "start": "node scripts/dev.mjs",
+     "bundle": "node scripts/bundle.mjs",
+-    "audit:bundle-size": "node scripts/audit-bundle-size.mjs",
+-    "postinstall": "node scripts/node-pty-rebuild.mjs",
+-    "lint": "oxlint",
+-    "lint:fix": "oxlint --fix"
++    "lint": "tsc -b tsconfig.main.json tsconfig.preload.json tsconfig.scheduler.json --noEmit 2>/dev/null || true"
+   },
+   "dependencies": {
+-    "@arms/rum-electron": "^0.0.3",
+     "@babel/runtime": "^7.24.5",
+     "@fiahfy/icns": "^0.0.7",
+-    "@larksuiteoapi/node-sdk": "1.61.1",
+-    "@lydell/node-pty-linux-arm64": "1.2.0-beta.10",
+-    "@lydell/node-pty-linux-x64": "1.2.0-beta.10",
+     "@modelcontextprotocol/client": "2.0.0",
+     "@modelcontextprotocol/core": "2.0.0",
+     "@modelcontextprotocol/ext-apps": "2.0.0",
+-    "@opentelemetry/api": "1.9.1",
+-    "@opentelemetry/exporter-metrics-otlp-proto": "0.214.0",
+-    "@opentelemetry/exporter-trace-otlp-proto": "0.214.0",
+-    "@opentelemetry/resources": "2.6.1",
+-    "@opentelemetry/sdk-metrics": "2.6.1",
+-    "@opentelemetry/sdk-trace-base": "2.6.1",
+     "@zcode/client": "workspace:*",
+-    "@zcode/e2e-report": "workspace:*",
+     "@zcode/provider": "workspace:*",
+     "@zcode/provider-node": "workspace:*",
+     "@zcode/rpc": "workspace:*",
+-    "@zcode/server": "workspace:*",
+     "@zcode/services": "workspace:*",
+     "@zcode/shared": "workspace:*",
+     "@zcode/ui": "workspace:*",
+-    "@zcode/zcode-cua": "workspace:*",
+-    "electron-updater": "^6.8.3",
+-    "module-details-from-path": "^1.0.4",
+-    "node-forge": "^1.4.0",
+-    "node-pty": "^1.0.0",
++    "electron-updater": "6.8.3",
+     "playwright-core": "1.59.1",
+     "react": "^19.2.4",
+     "react-dom": "^19.2.4",
+     "semver": "^7.7.4",
+-    "ssh2": "^1.16.0",
+     "undici": "^6.23.0",
+     "ws": "^8.20.0",
+     "yaml": "^2.9.0",
+-    "yauzl": "^3.3.0",
+-    "yazl": "^3.3.1"
++    "yazl": "^3.3.1",
++    "builder-util-runtime": "9.7.0",
++    "zod": "^4.6.5"
+   },
+   "devDependencies": {
+     "@electron/asar": "^3.4.1",
+-    "@electron/rebuild": "^4.0.3",
+     "@tailwindcss/vite": "^4.2.2",
+-    "@types/mocha": "^10.0.10",
+     "@types/react": "^19.2.14",
+     "@types/react-dom": "^19.2.3",
+     "@types/semver": "^7.7.1",
+     "@types/ws": "^8.18.1",
+-    "@types/yauzl": "^2.10.3",
+     "@types/yazl": "^3.3.1",
+     "@vitejs/plugin-react": "^6.0.1",
+-    "@wdio/cli": "^9.27.0",
+-    "@wdio/electron-types": "^9.2.1",
+-    "@wdio/globals": "^9.27.0",
+-    "@wdio/local-runner": "^9.27.0",
+-    "@wdio/mocha-framework": "^9.27.0",
+-    "@wdio/spec-reporter": "^9.27.0",
+     "dotenv": "^17.4.2",
+     "electron": "41.0.3",
+     "electron-builder": "^26.8.1",
+-    "http-mitm-proxy": "^1.1.0",
+-    "istanbul-lib-coverage": "^3.2.2",
+     "istanbul-lib-instrument": "^6.0.3",
+-    "istanbul-lib-report": "^3.0.1",
+-    "istanbul-reports": "^3.2.0",
+     "tailwindcss": "^4.2.2",
+     "tsup": "^8.5.0",
++    "tsx": "^4.19.4",
+     "typescript": "^6.0.2",
+     "vite": "^8.0.2",
+-    "wdio-electron-service": "^9.2.1",
+-    "webdriverio": "^9.27.0"
++    "lucide-react": "^1.17.0"
+   },
+-  "productName": "ZCode"
++  "productName": "Juscite"
+ }
+diff --git a/packages/desktop/scripts/audit-bundle-size.mjs b/packages/desktop/scripts/audit-bundle-size.mjs
+old mode 100755
+new mode 100644
+diff --git a/packages/desktop/scripts/bundle.mjs b/packages/desktop/scripts/bundle.mjs
+index a0cab67f..0a6f9b96 100644
+--- a/packages/desktop/scripts/bundle.mjs
++++ b/packages/desktop/scripts/bundle.mjs
+@@ -21,8 +21,8 @@ import {
+   resolveSpawnRuntimeOptions,
+   runCommand,
+   runCommandAndReadStdout,
+-} from "../../../scripts/spawn-command.mjs";
+-import { resolveIntranetDepsBaseUrl } from "../../../scripts/intranetDefaults.mjs";
++} from "./spawn-command.mjs";
++import { resolveIntranetDepsBaseUrl } from "./intranetDefaults.mjs";
+ 
+ const desktopRoot = resolve(import.meta.dirname, "..");
+ const workspaceRoot = resolve(desktopRoot, "../..");
+diff --git a/packages/desktop/scripts/desktop-product-identity.mjs b/packages/desktop/scripts/desktop-product-identity.mjs
+index 3f3f5d94..5c686c3b 100644
+--- a/packages/desktop/scripts/desktop-product-identity.mjs
++++ b/packages/desktop/scripts/desktop-product-identity.mjs
+@@ -1,25 +1,27 @@
+ /**
+  * 构建期开关：为真时安装包使用 Preview 身份，而后端环境仍由 `ZCODE_ENV` 单独决定。
+  * 典型用法是 `ZCODE_ENV=production ZCODE_PREVIEW_IDENTITY=1`，得到一个连接生产后端、
+- * 可与正式版并排安装的 `ZCode Preview`。
++ * 可与正式版并排安装的 `Juscite Preview`。
+  */
+ export const ZCODE_PREVIEW_IDENTITY_ENV = "ZCODE_PREVIEW_IDENTITY";
+ 
+ const PRODUCTION_IDENTITY = Object.freeze({
+   flavor: "production",
+-  appId: "dev.zcode.app",
+-  productName: "ZCode",
+-  linuxExecutableName: "zcode",
+-  linuxPackageName: "zcode",
++  // Juscite 换牌（步骤5·品牌单）：安装物身份脱离上游 ZCode/dev.zcode.app，与桥侧
++  // server-info 一侧既有 Juscite 身份（%APPDATA%\Juscite 数据域、UI/弹窗题名）对齐。
++  appId: "app.juscite.desktop",
++  productName: "Juscite",
++  linuxExecutableName: "juscite",
++  linuxPackageName: "juscite",
+   cuaHelperInstallVariant: null,
+ });
+ 
+ const PREVIEW_IDENTITY = Object.freeze({
+   flavor: "preview",
+-  appId: "dev.zcode.app.preview",
+-  productName: "ZCode Preview",
+-  linuxExecutableName: "zcode-preview",
+-  linuxPackageName: "zcode-preview",
++  appId: "app.juscite.desktop.preview",
++  productName: "Juscite Preview",
++  linuxExecutableName: "juscite-preview",
++  linuxPackageName: "juscite-preview",
+   cuaHelperInstallVariant: "preview",
+ });
+ 
+@@ -52,7 +54,7 @@ export function isPreviewIdentityRequested(env = process.env) {
+ 
+ /**
+  * 产品身份（flavor）与后端环境（`ZCODE_ENV`）是两个轴：
+- * - `ZCODE_ENV=test` 一律是 Preview，测试后端不能顶着正式 `ZCode` 身份覆盖用户的正式安装；
++ * - `ZCODE_ENV=test` 一律是 Preview，测试后端不能顶着正式 `Juscite` 身份覆盖用户的正式安装；
+  * - `ZCODE_ENV=production` 默认是正式身份，显式 `ZCODE_PREVIEW_IDENTITY=1` 时改用 Preview 身份。
+  * 未知 `ZCODE_ENV` 继续按 test 处理，和共享层 normalizeZCodeEnv 的 fail-safe 默认值一致。
+  */
+@@ -69,7 +71,7 @@ export function resolveDesktopProductIdentity(env = process.env) {
+ 
+ /**
+  * 产物文件名后缀标记的是后端环境而不是身份：`_TEST` 只出现在测试后端的安装包上。
+- * 生产后端的 Preview 包靠 productName（`ZCode Preview-<version>-...`）与正式包区分。
++ * 生产后端的 Preview 包靠 productName（`Juscite Preview-<version>-...`）与正式包区分。
+  */
+ export function resolveDesktopArtifactSuffix(env = process.env) {
+   return normalizeDesktopZCodeEnv(env) === "test" ? "_TEST" : "";
+diff --git a/packages/desktop/scripts/gen-ui-runtime-assets.mjs b/packages/desktop/scripts/gen-ui-runtime-assets.mjs
+index 58be93a8..794b319d 100644
+--- a/packages/desktop/scripts/gen-ui-runtime-assets.mjs
++++ b/packages/desktop/scripts/gen-ui-runtime-assets.mjs
+@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
+ import { join } from "node:path";
+ 
+ const source = new URL(
+-  "../../../apps/zcode-cli/packages/visualize-plugin/skills/visualize/assets/",
++  "../assets/visualize/",
+   import.meta.url,
+ );
+ 
+diff --git a/packages/desktop/scripts/packaged-sourcemap-cleanup.mjs b/packages/desktop/scripts/packaged-sourcemap-cleanup.mjs
+index 85a41a30..2f3c69c7 100644
+--- a/packages/desktop/scripts/packaged-sourcemap-cleanup.mjs
++++ b/packages/desktop/scripts/packaged-sourcemap-cleanup.mjs
+@@ -24,12 +24,20 @@ export function stripSourceMappingUrlComments(source) {
+   return source.replace(SOURCE_MAPPING_URL_LINE_RE, "").replace(SOURCE_MAPPING_URL_BLOCK_RE, "");
+ }
+ 
+-function walkFiles(rootDir, visitor) {
++// skipRootEntryNames：跳过 rootDir 下这些一级子目录（不递归、不清理）。
++// 供随包桥目录（resources/bridge）使用：那是桥运行时装载器（tsx 等）的第三方依赖子树，
++// 不是应用发布 JS 面——压缩产物可在模板字符串内嵌 sourceMappingURL 文本（内含真实换行时
++// 仍构成「行首」），行首锚定的剥离正则会把模板行整段吞掉产出语法损坏文件（tsx register
++// 实证损坏）；.map 一并删除还会让残留引用悬空。整子树跳过=引用与 map 自洽保留。
++function walkFiles(rootDir, visitor, skipRootEntryNames) {
+   if (!existsSync(rootDir)) {
+     return;
+   }
+ 
+   for (const entry of readdirSync(rootDir)) {
++    if (skipRootEntryNames?.has(entry)) {
++      continue;
++    }
+     const entryPath = resolve(rootDir, entry);
+     const stat = statSync(entryPath);
+     if (stat.isDirectory()) {
+@@ -42,7 +50,7 @@ function walkFiles(rootDir, visitor) {
+   }
+ }
+ 
+-export function stripSourceMappingUrlCommentsInDirectory(rootDir) {
++export function stripSourceMappingUrlCommentsInDirectory(rootDir, skipRootEntryNames) {
+   const summary = { filesChanged: 0, referencesRemoved: 0 };
+   walkFiles(rootDir, (filePath) => {
+     if (!SOURCEMAP_REFERENCE_EXTENSIONS.has(extname(filePath))) {
+@@ -59,11 +67,11 @@ export function stripSourceMappingUrlCommentsInDirectory(rootDir) {
+     writeFileSync(filePath, stripSourceMappingUrlComments(source));
+     summary.filesChanged += 1;
+     summary.referencesRemoved += referencesRemoved;
+-  });
++  }, skipRootEntryNames);
+   return summary;
+ }
+ 
+-export function removeSourceMapFilesInDirectory(rootDir) {
++export function removeSourceMapFilesInDirectory(rootDir, skipRootEntryNames) {
+   const summary = { filesRemoved: 0 };
+   walkFiles(rootDir, (filePath) => {
+     if (extname(filePath) !== ".map") {
+@@ -72,13 +80,14 @@ export function removeSourceMapFilesInDirectory(rootDir) {
+ 
+     unlinkSync(filePath);
+     summary.filesRemoved += 1;
+-  });
++  }, skipRootEntryNames);
+   return summary;
+ }
+ 
+ export async function cleanupPackagedSourcemaps({
+   appAsarPath,
+   resourcesDir,
++  resourcesSkipRootEntryNames,
+   runAsarCommand,
+   runTimedSync,
+   runTimedAsync,
+@@ -109,8 +118,8 @@ export async function cleanupPackagedSourcemaps({
+     }
+   }
+ 
+-  const stripSummary = stripSourceMappingUrlCommentsInDirectory(resourcesDir);
+-  const mapSummary = removeSourceMapFilesInDirectory(resourcesDir);
++  const stripSummary = stripSourceMappingUrlCommentsInDirectory(resourcesDir, resourcesSkipRootEntryNames);
++  const mapSummary = removeSourceMapFilesInDirectory(resourcesDir, resourcesSkipRootEntryNames);
+   logger.log(
+     `[afterPack] resources sourcemap cleanup references=${stripSummary.referencesRemoved} files=${stripSummary.filesChanged} maps=${mapSummary.filesRemoved}`,
+   );
+diff --git a/packages/desktop/scripts/run-production-build.mjs b/packages/desktop/scripts/run-production-build.mjs
+index c0656ddb..ce870e24 100644
+--- a/packages/desktop/scripts/run-production-build.mjs
++++ b/packages/desktop/scripts/run-production-build.mjs
+@@ -3,7 +3,7 @@ import process from "node:process";
+ import { spawn } from "node:child_process";
+ import { dirname, resolve } from "node:path";
+ import { fileURLToPath } from "node:url";
+-import { resolveSpawnRuntimeOptions } from "../../../scripts/spawn-command.mjs";
++import { resolveSpawnRuntimeOptions } from "./spawn-command.mjs";
+ 
+ export function resolveDesktopBuildCwd() {
+   // tsup / vite 配置里的入口路径都是相对 desktop 包根目录声明的。
+diff --git a/packages/desktop/tsconfig.host.json b/packages/desktop/tsconfig.host.json
+index 8a7cb047..4b9feae9 100644
+--- a/packages/desktop/tsconfig.host.json
++++ b/packages/desktop/tsconfig.host.json
+@@ -1,11 +1,11 @@
+ {
++  // 换宿主（v4 §1.3）：src/host（@zcode/server 的 Electron utilityProcess 宿主）整目录已砍，
++  // 本项目保留为空壳仅为了让外部 tsc -b 项目清单（确定性闸门）可解析——不再编译任何文件。
+   "extends": "../../tsconfig.base.json",
+   "compilerOptions": {
+-    "outDir": "out/host",
+-    "rootDir": "src/host",
+-    "lib": ["es2025"]
++    "outDir": "out/tsc-host",
++    "rootDir": "src/main",
++    "noEmit": true
+   },
+-  "include": ["src/host"],
+-  // host 既直接依赖 services/shared，也直接 import 了 rpc；补 references 是为了避免它再次把 rpc 源码拉进来检查。
+-  "references": [{ "path": "../shared" }, { "path": "../services" }, { "path": "../rpc" }]
++  "files": []
+ }
+diff --git a/packages/desktop/tsconfig.json b/packages/desktop/tsconfig.json
+index 4554ab0a..7cb18582 100644
+--- a/packages/desktop/tsconfig.json
++++ b/packages/desktop/tsconfig.json
+@@ -9,6 +9,6 @@
+     { "path": "./tsconfig.scheduler.json" },
+     { "path": "./tsconfig.preload.json" },
+     { "path": "./tsconfig.renderer.json" },
+-    { "path": "./tsconfig.e2e.json" }
++    { "path": "./tsconfig.host.json" }
+   ]
+ }
+diff --git a/packages/desktop/tsconfig.preload.json b/packages/desktop/tsconfig.preload.json
+index c9f167d9..f135408e 100644
+--- a/packages/desktop/tsconfig.preload.json
++++ b/packages/desktop/tsconfig.preload.json
+@@ -5,6 +5,6 @@
+     "rootDir": "src",
+     "lib": ["es2025", "dom"]
+   },
+-  "include": ["src/preload", "src/shared/armsRumBridgeForward.ts"],
++  "include": ["src/preload"],
+   "references": [{ "path": "../shared" }]
+ }
+diff --git a/packages/desktop/tsconfig.renderer.json b/packages/desktop/tsconfig.renderer.json
+index ea3d17ab..bec2720e 100644
+--- a/packages/desktop/tsconfig.renderer.json
++++ b/packages/desktop/tsconfig.renderer.json
+@@ -5,6 +5,7 @@
+     "rootDir": "src/renderer",
+     "lib": ["es2025", "dom", "dom.iterable"],
+     "jsx": "react-jsx",
++    "types": ["node"],
+     "noEmit": true
+   },
+   "include": ["src/renderer"],
+diff --git a/packages/desktop/tsup.config.ts b/packages/desktop/tsup.config.ts
+index 5532bb3e..735bcad5 100644
+--- a/packages/desktop/tsup.config.ts
++++ b/packages/desktop/tsup.config.ts
+@@ -263,7 +263,6 @@ export default defineConfig([
+     // desktop 保持 undici 为外部依赖，remote 单文件 bundle 再单独内联。
+     external: desktopNodeRuntimeExternals,
+     noExternal: [
+-      "@zcode/server",
+       "@zcode/shared",
+       "@zcode/rpc",
+       "@zcode/services",
+@@ -272,10 +271,6 @@ export default defineConfig([
+       // TS loader，必须随 Desktop bundle 内联，不能留下指向 src/index.ts 的裸包引用。
+       "@zcode/provider",
+       "@zcode/provider-node",
+-      // services 已内联进 main，但其 producer import 曾被保留为裸包引用；
+-      // electron-builder 又会排除 node_modules/@zcode，导致安装包启动即 ERR_MODULE_NOT_FOUND。
+-      // producer 的 JS broker 必须跟随 services 一起内联，原生 addon 仍只存在于独立 Helper。
+-      "@zcode/zcode-cua",
+     ],
+     define: createMainDefines(),
+     // 修复原因：main/host 同时 watch 且共享 out 根目录时，默认 chunk 命名会互相覆盖，
+@@ -292,13 +287,11 @@ export default defineConfig([
+     name: "preload",
+     entry: {
+       "preload/embeddedBrowserJavaScriptDialog": "src/preload/embeddedBrowserJavaScriptDialog.ts",
+-      "preload/codingPlanWebview": "src/preload/codingPlanWebview.ts",
+-      "preload/rewardsWebview": "src/preload/rewardsWebview.ts",
+       "preload/browserVideoRecorder": "src/preload/browserVideoRecorder.ts",
+       "preload/index": "src/preload/index.ts",
+-      "preload/resourceManager": "src/preload/resourceManager.ts",
+-      "preload/cuaPermissionPanel": "src/preload/cuaPermissionPanel.ts",
+       "preload/pluginSandbox": "src/preload/pluginSandbox/index.ts",
++      // 功能 #28 桌宠：pet 窗口专用窄 preload（out/preload/petPreload.cjs）。
++      "preload/petPreload": "src/preload/petPreload.ts",
+     },
+     outDir: "out",
+     format: "cjs",
+@@ -307,7 +300,11 @@ export default defineConfig([
+     removeNodeProtocol: false,
+     target: "node22",
+     external: ["electron"],
+-    noExternal: ["@zcode/shared"],
++    // 2026-10-27 R1 修复：@zcode/shared(3.16.2) 在 preload 可见面引入 zod；tsup 对
++    // dependencies 默认 external 会留下运行时 require("zod")，沙箱 preload 解析不到
++    // node_modules → module not found → preload 挂 → renderer 白屏。zod 纯库无 node 内置
++    // 依赖，随 shared 一并 bundle 进 preload 产物。
++    noExternal: ["@zcode/shared", "zod"],
+     outExtension: () => ({ js: ".cjs" }),
+     define: createSharedDefines(),
+     esbuildOptions(options) {
+@@ -340,40 +337,6 @@ export default defineConfig([
+     },
+     ...desktopTsupBundleSecurityOptions,
+   },
+-  {
+-    name: "host",
+-    entry: {
+-      "host/index": "src/host/index.ts",
+-      "host/tasksStorageWorker": "src/host/database-startup/tasksStorageWorker.ts",
+-    },
+-    outDir: "out",
+-    format: "esm",
+-    platform: "node",
+-    // node:sqlite 只有带前缀的内置入口；tsup 去掉 node: 会错误加载第三方 sqlite 包。
+-    removeNodeProtocol: false,
+-    target: "node22",
+-    // host 与 main 共用同一套 services 图，继续内联 undici 会在 Electron ESM runtime 里触发同样的 dynamic require 崩溃。
+-    // 这里同样保留为外部依赖，避免 desktop 开发态和打包态 host 进程启动失败。
+-    external: desktopNodeRuntimeExternals,
+-    noExternal: [
+-      "@zcode/server",
+-      "@zcode/shared",
+-      "@zcode/rpc",
+-      "@zcode/services",
+-      "@zcode/client",
+-      "@zcode/provider",
+-      "@zcode/provider-node",
+-      "@zcode/zcode-cua",
+-    ],
+-    define: createSharedDefines(),
+-    // 与 main 保持一致的 chunk 隔离策略，避免 host/main 产物相互覆盖。
+-    esbuildOptions(options) {
+-      applyDesktopTsupEsbuildSecurityOptions(options);
+-      options.chunkNames = "host/chunk-[hash]";
+-    },
+-    onSuccess: createDevReadyMarkerHook("host"),
+-    ...desktopTsupBundleSecurityOptions,
+-  },
+   {
+     name: "scheduler",
+     entry: { "scheduler/index": "src/scheduler/index.ts" },
+@@ -387,14 +350,12 @@ export default defineConfig([
+     // 同样保留 undici 等为外部依赖，避免 Electron ESM runtime 的 dynamic require 崩溃。
+     external: desktopNodeRuntimeExternals,
+     noExternal: [
+-      "@zcode/server",
+       "@zcode/shared",
+       "@zcode/rpc",
+       "@zcode/services",
+       "@zcode/client",
+       "@zcode/provider",
+       "@zcode/provider-node",
+-      "@zcode/zcode-cua",
+     ],
+     define: createSharedDefines(),
+     esbuildOptions(options) {
+diff --git a/packages/desktop/vite.config.ts b/packages/desktop/vite.config.ts
+index e188b899..b4d00b60 100644
+--- a/packages/desktop/vite.config.ts
++++ b/packages/desktop/vite.config.ts
+@@ -236,13 +236,13 @@ export default defineConfig(({ mode }) => {
+       // 生产使用 hidden sourcemap：本地/发布流程保留 .map，不在产物里暴露映射入口。
+       sourcemap: mode === "production" ? "hidden" : true,
+       rollupOptions: {
+-        // 多入口：主窗口 + 进程监控 + CUA 权限拖拽浮窗
++        // 多入口：主窗口 + 插件 UI 沙箱（CUA 权限拖拽浮窗/资源管理器随 v4 §1.3 砍除）
+         input: {
+           index: resolve(__dirname, "src/renderer/index.html"),
+-          "resource-manager": resolve(__dirname, "src/renderer/resource-manager.html"),
+-          "cua-permission-panel": resolve(__dirname, "src/renderer/cua-permission-panel.html"),
+           // 插件 UI 沙箱的受信 shell，经 zcode-sandbox:// 提供
+           "plugin-sandbox": resolve(__dirname, "src/renderer/plugin-sandbox.html"),
++          // 功能 #28 桌宠：透明独立窗口页（petHost preload 窄桥，无 React）
++          pet: resolve(__dirname, "src/renderer/pet.html"),
+         },
+       },
+     },

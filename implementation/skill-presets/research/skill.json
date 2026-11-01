@@ -1,0 +1,12 @@
+{
+  "id": "research",
+  "name": "法律调研助手",
+  "description": "围绕法律课题完成「界定—检索—类案—综合」四层调研，产出带来源与核验标注的结构化调研报告；对话内可经 /research、/调研 触发（内置合成技能，随预装批次分发）。",
+  "triggers": {
+    "commands": ["/research", "/调研"],
+    "promptPatterns": ["法律研究|法律检索|类案研究|法律调研|调研报告"],
+    "fileTypes": [".pdf", ".docx", ".txt", ".md"]
+  },
+  "allowedTools": [],
+  "priority": 0
+}

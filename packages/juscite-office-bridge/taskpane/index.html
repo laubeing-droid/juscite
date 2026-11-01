@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- Juscite 文档助手 · taskpane（S2 双适配页）
+     同一页面两套宿主探测分支（方案 §五 S2）：Word=Office.js（本地同源 vendor）/ WPS=window.wps 注入的 jsapi；
+     独立浏览器打开时进入预览分支（提示启动工作台）。零外呼：本页全部资源同源（127.0.0.1 桥）。
+     声明式监控白名单（逆向吸收波二·条 2）：下方内嵌声明=本页监控契约（词表闭集见 vizb
+     shared/html.ts；运行时执法在 monitor.js——未声明动作丢弃并警告）；宿主桥 API（条 3）=
+     host-bridge.js 的 host.use('db'/'user') 两态（工作台在=真身/不在=演示假身+降级横幅）。 -->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Juscite 文档助手</title>
+  <link rel="stylesheet" href="./app.css" />
+  <!-- 声明式监控声明（数据块非可执行脚本；与 @juscite/vizb MONITORING_* 常量零漂移——合成自测锚定） -->
+  <script type="application/json" id="juscite-monitoring-declaration">{"key":"office-taskpane","monitoring":{"coreActions":["连接","断开","提交","插入","读取"],"outcomes":["成功","失败","中止"],"errorTypes":["local_bridge_unavailable","local_bridge_timeout","host_unsupported","invalid_argument","parse_failed","payload_too_large","storage_unavailable","permission_denied","unknown_error"],"channel":"local"}}</script>
+</head>
+<body>
+  <header class="bar">
+    <span class="brand">Juscite 文档助手</span>
+    <span id="host-badge" class="badge">探测宿主…</span>
+    <span id="link-dot" class="dot off" title="桥连接状态"></span>
+  </header>
+
+  <div id="degrade-banner" class="degrade-banner" hidden></div>
+
+  <main id="chat" class="chat" aria-live="polite">
+    <div class="note" id="boot-note">正在连接本地工作台桥…</div>
+  </main>
+
+  <footer class="composer">
+    <div class="snapshot-row">
+      <button id="btn-snapshot" type="button">抓取选区快照</button>
+      <span id="snapshot-hint" class="hint">选区文字将随下一条消息发送</span>
+    </div>
+    <textarea id="input" rows="3" placeholder="向工作台提问…（Enter 发送，Shift+Enter 换行）"></textarea>
+    <div class="send-row">
+      <button id="btn-insert" type="button" class="ghost">把回复插回光标处</button>
+      <button id="btn-send" type="button" class="primary">发送</button>
+    </div>
+  </footer>
+
+  <script src="./monitor.js"></script>
+  <script src="./host-bridge.js"></script>
+  <script src="./host-adapters.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

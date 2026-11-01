@@ -1,0 +1,13 @@
+{
+  "name": "@juscite/edisc",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./anchor": "./src/anchorKernel.ts",
+    "./table": "./src/tableKernel.ts",
+    "./review": "./src/reviewKernel.ts",
+    "./task": "./src/taskKernel.ts"
+  }
+}

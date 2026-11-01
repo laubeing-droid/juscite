@@ -1,0 +1,11 @@
+{
+  "name": "@juscite/vizb",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "可视化 B 轨（#4 大事记表 / #19 庭审对抗图）：确定性渲染·照录原文·判据守卫（AGPL-3.0 净室，机制契约等量、实现与文案全自写）",
+  "exports": {
+    "./chronicle": "./src/chronicle/index.ts",
+    "./confrontation": "./src/confrontation/index.ts"
+  }
+}

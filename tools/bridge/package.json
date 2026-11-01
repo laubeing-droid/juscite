@@ -1,0 +1,13 @@
+{
+  "name": "@juscite/bridge",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@zcode/rpc": "workspace:*",
+    "@zcode/services": "workspace:*",
+    "@zcode/shared": "workspace:*",
+    "bonjour-service": "^1.4.4",
+    "tsx": "^4.19.4",
+    "ws": "^8.20.0"
+  }
+}

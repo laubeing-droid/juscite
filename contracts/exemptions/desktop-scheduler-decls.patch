@@ -1,0 +1,154 @@
+diff --git a/packages/desktop/src/scheduler/schedulerProtocol.d.ts b/packages/desktop/src/scheduler/schedulerProtocol.d.ts
+index 4c7dc1db..fabd094d 100644
+--- a/packages/desktop/src/scheduler/schedulerProtocol.d.ts
++++ b/packages/desktop/src/scheduler/schedulerProtocol.d.ts
+@@ -1,63 +1,58 @@
+-import type { ModelSelection } from "@zcode/shared";
++import type { ModelSelection, NodeSelfResourceSample } from "@zcode/shared";
+ /** scheduler → main */
+-export type SchedulerToMainMessage =
+-  | {
+-      type: "cron-dispatch-request";
+-      automationId: string;
+-      runId: string;
+-      prompt: string;
+-      targetTaskId?: string;
+-      modelSelection?: ModelSelection;
+-      mode?: string;
+-      workspacePath: string;
+-      workspaceIdentity?: string;
+-    }
+-  | {
+-      type: "offpeak-dispatch-request";
+-      offPeakTaskId: string;
+-      prompt: string;
+-      permissionMode: string;
+-      modelSelection: ModelSelection;
+-      conversationId?: string;
+-      sessionId?: string;
+-      serverTicketId?: string;
+-      workspacePath: string;
+-      workspaceIdentity?: string;
+-    }
+-  | {
+-      type: "scheduler-log";
+-      level: "info" | "warn" | "error";
+-      message: string;
+-    }
+-  | {
+-      type: "offpeak-active-count";
+-      count: number;
+-    };
++export type SchedulerToMainMessage = {
++    type: "cron-dispatch-request";
++    automationId: string;
++    runId: string;
++    prompt: string;
++    targetTaskId?: string;
++    modelSelection?: ModelSelection;
++    mode?: string;
++    workspacePath: string;
++    workspaceIdentity?: string;
++} | {
++    type: "offpeak-dispatch-request";
++    offPeakTaskId: string;
++    prompt: string;
++    permissionMode: string;
++    modelSelection: ModelSelection;
++    conversationId?: string;
++    sessionId?: string;
++    serverTicketId?: string;
++    workspacePath: string;
++    workspaceIdentity?: string;
++} | {
++    type: "scheduler-log";
++    level: "info" | "warn" | "error";
++    message: string;
++} | {
++    type: "offpeak-active-count";
++    count: number;
++} | {
++    type: "scheduler-resource-sample";
++    sample: NodeSelfResourceSample;
++};
+ /** main → scheduler */
+-export type MainToSchedulerMessage =
+-  | {
+-      type: "cron-dispatch-result";
+-      runId: string;
+-      ok: boolean;
+-      taskId?: string;
+-      sessionId?: string;
+-      error?: string;
+-      failureKind?: "transient" | "permanent";
+-    }
+-  | {
+-      type: "offpeak-dispatch-result";
+-      offPeakTaskId: string;
+-      ok: boolean;
+-      conversationId?: string;
+-      sessionId?: string;
+-      error?: string;
+-      failureKind?: "transient" | "permanent";
+-    }
+-  | {
+-      type: "scheduler-dispose";
+-    }
+-  | {
+-      type: "scheduler-wake";
+-      automationId: string;
+-    };
+-//# sourceMappingURL=schedulerProtocol.d.ts.map
++export type MainToSchedulerMessage = {
++    type: "cron-dispatch-result";
++    runId: string;
++    ok: boolean;
++    taskId?: string;
++    sessionId?: string;
++    error?: string;
++    failureKind?: "transient" | "permanent";
++} | {
++    type: "offpeak-dispatch-result";
++    offPeakTaskId: string;
++    ok: boolean;
++    conversationId?: string;
++    sessionId?: string;
++    error?: string;
++    failureKind?: "transient" | "permanent";
++} | {
++    type: "scheduler-dispose";
++} | {
++    type: "scheduler-wake";
++    automationId: string;
++};
++//# sourceMappingURL=schedulerProtocol.d.ts.map
+\ No newline at end of file
+diff --git a/packages/desktop/src/scheduler/schedulerProtocol.d.ts.map b/packages/desktop/src/scheduler/schedulerProtocol.d.ts.map
+index 97f09653..829e8bf0 100644
+--- a/packages/desktop/src/scheduler/schedulerProtocol.d.ts.map
++++ b/packages/desktop/src/scheduler/schedulerProtocol.d.ts.map
+@@ -1 +1 @@
+-{"version":3,"file":"schedulerProtocol.d.ts","sourceRoot":"","sources":["schedulerProtocol.ts"],"names":[],"mappings":"AAIA,uBAAuB;AACvB,MAAM,MAAM,sBAAsB,GAC9B;IACE,IAAI,EAAE,uBAAuB,CAAC;IAC9B,YAAY,EAAE,MAAM,CAAC;IACrB,KAAK,EAAE,MAAM,CAAC;IACd,MAAM,EAAE,MAAM,CAAC;IACf,YAAY,CAAC,EAAE,MAAM,CAAC;IACtB,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,QAAQ,CAAC,EAAE,MAAM,CAAC;IAClB,IAAI,CAAC,EAAE,MAAM,CAAC;IACd,YAAY,CAAC,EAAE,MAAM,CAAC;IACtB,aAAa,EAAE,MAAM,CAAC;IACtB,iBAAiB,CAAC,EAAE,MAAM,CAAC;CAC5B,GACD;IAGE,IAAI,EAAE,0BAA0B,CAAC;IACjC,aAAa,EAAE,MAAM,CAAC;IACtB,MAAM,EAAE,MAAM,CAAC;IACf,cAAc,EAAE,MAAM,CAAC;IACvB,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,YAAY,CAAC,EAAE,MAAM,CAAC;IACtB,cAAc,CAAC,EAAE,MAAM,CAAC;IACxB,SAAS,CAAC,EAAE,MAAM,CAAC;IACnB,cAAc,CAAC,EAAE,MAAM,CAAC;IACxB,aAAa,EAAE,MAAM,CAAC;IACtB,iBAAiB,CAAC,EAAE,MAAM,CAAC;CAC5B,GACD;IACE,IAAI,EAAE,eAAe,CAAC;IACtB,KAAK,EAAE,MAAM,GAAG,MAAM,GAAG,OAAO,CAAC;IACjC,OAAO,EAAE,MAAM,CAAC;CACjB,GACD;IAGE,IAAI,EAAE,sBAAsB,CAAC;IAC7B,KAAK,EAAE,MAAM,CAAC;CACf,CAAC;AAEN,uBAAuB;AACvB,MAAM,MAAM,sBAAsB,GAC9B;IACE,IAAI,EAAE,sBAAsB,CAAC;IAC7B,KAAK,EAAE,MAAM,CAAC;IACd,EAAE,EAAE,OAAO,CAAC;IACZ,MAAM,CAAC,EAAE,MAAM,CAAC;IAChB,SAAS,CAAC,EAAE,MAAM,CAAC;IACnB,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,WAAW,CAAC,EAAE,WAAW,GAAG,WAAW,CAAC;CACzC,GACD;IAEE,IAAI,EAAE,yBAAyB,CAAC;IAChC,aAAa,EAAE,MAAM,CAAC;IACtB,EAAE,EAAE,OAAO,CAAC;IACZ,cAAc,CAAC,EAAE,MAAM,CAAC;IACxB,SAAS,CAAC,EAAE,MAAM,CAAC;IACnB,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,WAAW,CAAC,EAAE,WAAW,GAAG,WAAW,CAAC;CACzC,GACD;IAEE,IAAI,EAAE,mBAAmB,CAAC;CAC3B,GACD;IAEE,IAAI,EAAE,gBAAgB,CAAC;IACvB,YAAY,EAAE,MAAM,CAAC;CACtB,CAAC"}
+\ No newline at end of file
++{"version":3,"file":"schedulerProtocol.d.ts","sourceRoot":"","sources":["schedulerProtocol.ts"],"names":[],"mappings":"AAGA,OAAO,KAAK,EAAE,cAAc,EAAE,sBAAsB,EAAE,MAAM,eAAe,CAAC;AAE5E,uBAAuB;AACvB,MAAM,MAAM,sBAAsB,GAC9B;IACE,IAAI,EAAE,uBAAuB,CAAC;IAC9B,YAAY,EAAE,MAAM,CAAC;IACrB,KAAK,EAAE,MAAM,CAAC;IACd,MAAM,EAAE,MAAM,CAAC;IACf,YAAY,CAAC,EAAE,MAAM,CAAC;IACtB,cAAc,CAAC,EAAE,cAAc,CAAC;IAChC,IAAI,CAAC,EAAE,MAAM,CAAC;IACd,aAAa,EAAE,MAAM,CAAC;IACtB,iBAAiB,CAAC,EAAE,MAAM,CAAC;CAC5B,GACD;IAGE,IAAI,EAAE,0BAA0B,CAAC;IACjC,aAAa,EAAE,MAAM,CAAC;IACtB,MAAM,EAAE,MAAM,CAAC;IACf,cAAc,EAAE,MAAM,CAAC;IACvB,cAAc,EAAE,cAAc,CAAC;IAC/B,cAAc,CAAC,EAAE,MAAM,CAAC;IACxB,SAAS,CAAC,EAAE,MAAM,CAAC;IACnB,cAAc,CAAC,EAAE,MAAM,CAAC;IACxB,aAAa,EAAE,MAAM,CAAC;IACtB,iBAAiB,CAAC,EAAE,MAAM,CAAC;CAC5B,GACD;IACE,IAAI,EAAE,eAAe,CAAC;IACtB,KAAK,EAAE,MAAM,GAAG,MAAM,GAAG,OAAO,CAAC;IACjC,OAAO,EAAE,MAAM,CAAC;CACjB,GACD;IAGE,IAAI,EAAE,sBAAsB,CAAC;IAC7B,KAAK,EAAE,MAAM,CAAC;CACf,GACD;IAGE,IAAI,EAAE,2BAA2B,CAAC;IAClC,MAAM,EAAE,sBAAsB,CAAC;CAChC,CAAC;AAEN,uBAAuB;AACvB,MAAM,MAAM,sBAAsB,GAC9B;IACE,IAAI,EAAE,sBAAsB,CAAC;IAC7B,KAAK,EAAE,MAAM,CAAC;IACd,EAAE,EAAE,OAAO,CAAC;IACZ,MAAM,CAAC,EAAE,MAAM,CAAC;IAChB,SAAS,CAAC,EAAE,MAAM,CAAC;IACnB,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,WAAW,CAAC,EAAE,WAAW,GAAG,WAAW,CAAC;CACzC,GACD;IAEE,IAAI,EAAE,yBAAyB,CAAC;IAChC,aAAa,EAAE,MAAM,CAAC;IACtB,EAAE,EAAE,OAAO,CAAC;IACZ,cAAc,CAAC,EAAE,MAAM,CAAC;IACxB,SAAS,CAAC,EAAE,MAAM,CAAC;IACnB,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,WAAW,CAAC,EAAE,WAAW,GAAG,WAAW,CAAC;CACzC,GACD;IAEE,IAAI,EAAE,mBAAmB,CAAC;CAC3B,GACD;IAEE,IAAI,EAAE,gBAAgB,CAAC;IACvB,YAAY,EAAE,MAAM,CAAC;CACtB,CAAC"}
+\ No newline at end of file
+diff --git a/packages/desktop/src/scheduler/schedulerProtocol.js b/packages/desktop/src/scheduler/schedulerProtocol.js
+index 7bacf8b7..ab0db392 100644
+--- a/packages/desktop/src/scheduler/schedulerProtocol.js
++++ b/packages/desktop/src/scheduler/schedulerProtocol.js
+@@ -1,5 +1,2 @@
+-// scheduler(utilityProcess) ↔ main 的控制消息协议。两端都在 Electron 侧，走 parentPort.postMessage。
+-// 与 host↔main 的 CronRun/CronRunResult(见 @zcode/shared channels + validation)不同：
+-// 这层是 main 与「常驻 cron scheduler 进程」之间的私有通道；main 收到派发请求后再翻译成 CronRun 转发给 host。
+ export {};
+ //# sourceMappingURL=schedulerProtocol.js.map
+\ No newline at end of file
+diff --git a/packages/desktop/src/scheduler/schedulerProtocol.js.map b/packages/desktop/src/scheduler/schedulerProtocol.js.map
+index a57c3102..934992d3 100644
+--- a/packages/desktop/src/scheduler/schedulerProtocol.js.map
++++ b/packages/desktop/src/scheduler/schedulerProtocol.js.map
+@@ -1 +1 @@
+-{"version":3,"file":"schedulerProtocol.js","sourceRoot":"","sources":["schedulerProtocol.ts"],"names":[],"mappings":"AAAA,qFAAqF;AACrF,gFAAgF;AAChF,6EAA6E"}
+\ No newline at end of file
++{"version":3,"file":"schedulerProtocol.js","sourceRoot":"","sources":["schedulerProtocol.ts"],"names":[],"mappings":""}
+\ No newline at end of file

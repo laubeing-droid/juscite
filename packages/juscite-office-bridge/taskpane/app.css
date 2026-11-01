@@ -1,0 +1,42 @@
+/* Juscite 文档助手 taskpane 样式（自写，保持零依赖零外呼） */
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: flex; flex-direction: column;
+  font: 13px/1.6 system-ui, "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: #1c2430; background: #f7f8fa;
+}
+.bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; background: #16324f; color: #fff;
+}
+.brand { font-weight: 600; letter-spacing: .5px; }
+.badge {
+  font-size: 11px; padding: 1px 8px; border-radius: 10px;
+  background: rgba(255,255,255,.18);
+}
+.dot { width: 9px; height: 9px; border-radius: 50%; margin-left: auto; }
+.dot.on { background: #58d68d; }
+.dot.off { background: #e5989b; }
+/* 宿主桥降级提示横幅（逆向吸收波二·条 3；方案 §六风险 4：工作台不在=演示态提示，不白屏不报错） */
+.degrade-banner {
+  padding: 6px 12px; font-size: 12px; line-height: 1.5;
+  background: #fdf3d7; color: #7a5b12; border-bottom: 1px solid #ecd9a0;
+}
+.degrade-banner[hidden] { display: none; }
+.chat { flex: 1; overflow-y: auto; padding: 10px 12px; }
+.msg { margin: 6px 0; padding: 7px 10px; border-radius: 8px; max-width: 92%; white-space: pre-wrap; word-break: break-word; }
+.msg.me { background: #dcebff; margin-left: auto; }
+.msg.them { background: #fff; border: 1px solid #e3e7ee; }
+.msg .meta { display: block; font-size: 11px; color: #7a8699; margin-bottom: 2px; }
+.note { font-size: 12px; color: #7a8699; }
+.warn { color: #9c4221; }
+.composer { border-top: 1px solid #e3e7ee; padding: 8px 12px; background: #fff; }
+.snapshot-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.hint { font-size: 11px; color: #7a8699; }
+textarea { width: 100%; resize: vertical; padding: 7px 9px; border: 1px solid #cfd6e0; border-radius: 6px; font: inherit; }
+.send-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+button { font: inherit; padding: 5px 14px; border-radius: 6px; border: 1px solid #cfd6e0; background: #fff; cursor: pointer; }
+button.primary { background: #16324f; color: #fff; border-color: #16324f; }
+button:disabled { opacity: .55; cursor: not-allowed; }

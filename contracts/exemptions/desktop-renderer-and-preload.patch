@@ -1,0 +1,943 @@
+diff --git a/packages/desktop/src/preload/index.ts b/packages/desktop/src/preload/index.ts
+index 399d00bc..e8dc234e 100644
+--- a/packages/desktop/src/preload/index.ts
++++ b/packages/desktop/src/preload/index.ts
+@@ -4,17 +4,22 @@ import {
+   databaseStartupStateSchema,
+   databaseStartupPortPayloadSchema,
+ } from "@zcode/shared";
++
++// shared 主入口未再导出（platform.ts 内定义）；本地同形声明，运行时载荷不受影响。
++interface DesktopZoomState {
++  zoomLevel: number;
++}
++interface WindowControlsOverlayMetrics {
++  leftPaddingPx?: number;
++  rightPaddingPx?: number;
++  titleBarHeightPx?: number;
++}
++interface WindowControlsOverlayReadyPayload {
++  zoomLevel: number;
++  metrics: WindowControlsOverlayMetrics;
++}
+ /* eslint-disable max-lines -- preload bridge 集中暴露桌面平台 IPC，拆散会让 contextBridge 权限边界更难审计。 */
+ import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
+-import {
+-  installArmsRumBridgeIpcForward,
+-  scheduleArmsEventBridgePatch,
+-} from "../shared/armsRumBridgeForward.js";
+-
+-// ARMS frame preload 闭包内的 send 不会随后序 ipcRenderer.send 补丁生效，须同步包装 Bridge.send
+-installArmsRumBridgeIpcForward(ipcRenderer);
+-scheduleArmsEventBridgePatch();
+-
+ /** 从 command-line 参数中解析 --device-id= */
+ function parseDeviceIdFromArgs(): string {
+   for (const arg of process.argv) {
+@@ -31,8 +36,9 @@ contextBridge.exposeInMainWorld("__ZCODE_DEVICE_ID__", parseDeviceIdFromArgs());
+ import type {
+   AppSettings,
+   ApplicationIconRequest,
+-  BindRemoteWorkspaceSessionContextResult,
+-  BindRemoteWorkspaceSessionContextIpcResult,
++  PetConfigPatch,
++  PetRunEventPayload,
++  PetStatusPayload,
+   BrowserViewOperationPayload,
+   BrowserGuestAttachResult,
+   BrowserViewScreenshotSurfacePreparePayload,
+@@ -46,7 +52,6 @@ import type {
+   BrowserViewRestoredTabShell,
+   BrowserViewRestoreTabsRequest,
+   BrowserViewportSize,
+-  DesktopZoomState,
+   DesktopWindowChromeState,
+   DesktopCommandId,
+   DesktopTitleBarTheme,
+@@ -58,7 +63,6 @@ import type {
+   EmbeddedBrowserSitePermissionsSnapshot,
+   Locale,
+   OAuthStateRegistration,
+-  WebRemoteControlAuthStateChange,
+   OpenInEditorOptions,
+   RemoteTarget,
+   TaskNotificationPayload,
+@@ -68,7 +72,7 @@ import type {
+   RendererHeapSample,
+   PostUpdateReleaseNotesPayload,
+   RemoteSessionClosedEvent,
+-  RemoteSessionReconnectedEvent,
++  BotRemoteWorkspaceReconnectedEvent,
+   UpdateCheckResultPayload,
+   UpdateStatePayload,
+   ZCodeStdioTapDevState,
+@@ -83,35 +87,21 @@ import type {
+   WebRemoteControlReconnectWorkspaceRequest,
+   WebRemoteControlReconnectWorkspaceResult,
+   WebRemoteControlStatus,
++  WebRemoteControlTaskTarget,
+   WebRemoteControlWorkspaceTarget,
+   RemoteConnectionRuntimeLog,
+-  WindowControlsOverlayMetrics,
+-  WindowControlsOverlayReadyPayload,
+   CreateTempTextAttachmentRequest,
+   MaterializeWorkflowArtifactFileRequest,
+   OpenCuaPermissionOnboardingOptions,
+   ConfigureFinalArmsCustomEventE2ERequest,
+   FinalArmsCustomEventE2EEntry,
+ } from "@zcode/shared";
+-import { unwrapRemoteWorkspaceBindResult } from "./remoteWorkspaceBindBridge.js";
+ import {
+   InternalChannels,
+   PlatformChannels,
+   formatZCodeRendererProcessName,
+-  scopedServicePortPayloadSchema,
+   shouldEnableE2ETestBridge,
+ } from "@zcode/shared";
+-import { createOAuthCallbackHandler } from "./oauthCallbackBridge.js";
+-
+-if (shouldEnableE2ETestBridge(process.env)) {
+-  contextBridge.exposeInMainWorld("__zcodeFinalArmsCustomEventsE2E", {
+-    read: (): Promise<FinalArmsCustomEventE2EEntry[]> =>
+-      ipcRenderer.invoke(PlatformChannels.ReadFinalArmsCustomEventsE2E),
+-    clear: (): Promise<void> => ipcRenderer.invoke(PlatformChannels.ClearFinalArmsCustomEventsE2E),
+-    configure: (request: ConfigureFinalArmsCustomEventE2ERequest): Promise<void> =>
+-      ipcRenderer.invoke(PlatformChannels.ConfigureFinalArmsCustomEventsE2E, request),
+-  });
+-}
+ 
+ const updateReadyCallbacks = new Set<(version: string) => void>();
+ const updateStateCallbacks = new Set<(payload: UpdateStatePayload) => void>();
+@@ -266,10 +256,9 @@ contextBridge.exposeInMainWorld("zcode", {
+     options: RemoteTarget,
+     requestId?: string,
+     context?: {
+-      workspacePath?: string;
++      workspacePath: string;
+       workspaceIdentity?: string;
+       connectTrigger?: import("@zcode/shared").RemoteWorkspaceConnectTrigger;
+-      confirmSourceServerInstall?: boolean;
+     },
+   ) =>
+     ipcRenderer.invoke(PlatformChannels.ConnectRemote, {
+@@ -277,10 +266,6 @@ contextBridge.exposeInMainWorld("zcode", {
+       requestId,
+       ...(context ? context : {}),
+     }),
+-  requestSourceSettingsAttachment: (sourceServerId: string) =>
+-    ipcRenderer.invoke(PlatformChannels.RequestSourceSettingsAttachment, {
+-      sourceServerId,
+-    }),
+   cancelPendingRemoteConnection: (requestId?: string): Promise<void> =>
+     ipcRenderer.invoke(PlatformChannels.CancelPendingRemoteConnection, {
+       requestId,
+@@ -289,15 +274,12 @@ contextBridge.exposeInMainWorld("zcode", {
+     remoteSessionId: string;
+     workspacePath: string;
+     workspaceIdentity?: string;
+-    workspacePurpose?: import("@zcode/shared").WorkspacePurpose;
+-  }): Promise<BindRemoteWorkspaceSessionContextResult> =>
+-    ipcRenderer
+-      .invoke(PlatformChannels.BindRemoteWorkspaceSessionContext, context)
+-      .then((result: BindRemoteWorkspaceSessionContextIpcResult) =>
+-        unwrapRemoteWorkspaceBindResult(result),
+-      ),
++  }): Promise<void> =>
++    ipcRenderer.invoke(PlatformChannels.BindRemoteWorkspaceSessionContext, context),
+   startWebRemoteControl: (context: WebRemoteControlContext) =>
+     ipcRenderer.invoke(PlatformChannels.StartWebRemoteControl, context),
++  refreshWebRemoteControlPairing: (context: WebRemoteControlContext) =>
++    ipcRenderer.invoke(PlatformChannels.ResetWebRemoteControlPairing, context),
+   stopWebRemoteControl: (): Promise<void> =>
+     ipcRenderer.invoke(PlatformChannels.StopWebRemoteControl),
+   getWebRemoteControlStatus: () => ipcRenderer.invoke(PlatformChannels.GetWebRemoteControlStatus),
+@@ -328,9 +310,6 @@ contextBridge.exposeInMainWorld("zcode", {
+   /** 打开系统目录选择框，返回选中路径或 null */
+   selectDirectory: (): Promise<string | null> =>
+     ipcRenderer.invoke(PlatformChannels.SelectDirectory),
+-  /** 打开系统多目录选择框；取消时返回空数组 */
+-  selectDirectories: (): Promise<string[]> =>
+-    ipcRenderer.invoke(PlatformChannels.SelectDirectories),
+   /** 打开系统文件选择框，返回选中文件路径或 null */
+   selectFile: (): Promise<string | null> => ipcRenderer.invoke(PlatformChannels.SelectFile),
+   /** 打开系统多文件选择框，返回选中文件路径；取消时返回空数组 */
+@@ -368,12 +347,15 @@ contextBridge.exposeInMainWorld("zcode", {
+     ipcRenderer.on(PlatformChannels.RemoteSessionClosed, handler);
+     return () => ipcRenderer.removeListener(PlatformChannels.RemoteSessionClosed, handler);
+   },
+-  /** 订阅 Source 自动重连后的 logical session 换代事件。 */
+-  onRemoteSessionReconnected: (callback: (event: RemoteSessionReconnectedEvent) => void) => {
++  /** 订阅 Bot 触发的远程 workspace 重连成功事件，返回 disposer */
++  onBotRemoteWorkspaceReconnected: (
++    callback: (event: BotRemoteWorkspaceReconnectedEvent) => void,
++  ) => {
+     const handler = (_event: unknown, payload: unknown) =>
+-      callback(payload as RemoteSessionReconnectedEvent);
+-    ipcRenderer.on(PlatformChannels.RemoteSessionReconnected, handler);
+-    return () => ipcRenderer.removeListener(PlatformChannels.RemoteSessionReconnected, handler);
++      callback(payload as BotRemoteWorkspaceReconnectedEvent);
++    ipcRenderer.on(PlatformChannels.BotRemoteWorkspaceReconnected, handler);
++    return () =>
++      ipcRenderer.removeListener(PlatformChannels.BotRemoteWorkspaceReconnected, handler);
+   },
+   /** 检查目录是否已在其他窗口打开 */
+   activateOrSetWorkspace: (path: string): Promise<{ activated: boolean }> =>
+@@ -383,6 +365,9 @@ contextBridge.exposeInMainWorld("zcode", {
+   /** 同步当前窗口里 Web 远程控制允许切换的 workspace */
+   syncWebRemoteControlWorkspaces: (workspaces: WebRemoteControlWorkspaceTarget[]) =>
+     ipcRenderer.send(PlatformChannels.SyncWebRemoteControlWorkspaces, workspaces),
++  /** 同步当前窗口里 Web 远程控制可展示的 task 快照 */
++  syncWebRemoteControlTasks: (tasks: WebRemoteControlTaskTarget[]) =>
++    ipcRenderer.send(PlatformChannels.SyncWebRemoteControlTasks, tasks),
+   onWebRemoteControlReconnectWorkspace: (
+     callback: (
+       request: WebRemoteControlReconnectWorkspaceRequest,
+@@ -416,6 +401,20 @@ contextBridge.exposeInMainWorld("zcode", {
+     ipcRenderer.send(PlatformChannels.SyncAppSettings, patch),
+   /** 查询关闭驻留托盘能力（Linux 置灰判断；spec：docs/desktop/linux-close-to-tray.md） */
+   getCloseToTrayCapability: () => ipcRenderer.invoke(PlatformChannels.GetCloseToTrayCapability),
++  /** 功能 #28 桌宠：查询全量状态（配置+运行态+几何） */
++  getPetStatus: () => ipcRenderer.invoke(PlatformChannels.PetGetStatus),
++  /** 功能 #28 桌宠：更新配置（设置面五控件），回吐全量状态 */
++  updatePetConfig: (patch: PetConfigPatch) =>
++    ipcRenderer.invoke(PlatformChannels.PetUpdateConfig, patch),
++  /** 功能 #28 桌宠：订阅状态广播（pet://status），返回 disposer */
++  onPetStatus: (handler: (status: PetStatusPayload) => void): (() => void) => {
++    const wrapped = (_e: unknown, status: PetStatusPayload) => handler(status);
++    ipcRenderer.on(PlatformChannels.PetStatusChanged, wrapped);
++    return () => ipcRenderer.removeListener(PlatformChannels.PetStatusChanged, wrapped);
++  },
++  /** 功能 #28 桌宠：主渲染层把 sessions-index 边沿投影转发给桌宠（驱动流 1） */
++  reportPetRunEvent: (event: PetRunEventPayload) =>
++    ipcRenderer.send(PlatformChannels.PetReportRunEvent, event),
+   /** 快捷键设置页录制态开关：main 暂时摘除可配置菜单 accelerator，防止录制按键触发原命令 */
+   setShortcutRecordingActive: (active: boolean) =>
+     ipcRenderer.send(PlatformChannels.SetShortcutRecordingActive, active),
+@@ -702,19 +701,11 @@ contextBridge.exposeInMainWorld("zcode", {
+   /** 从权限浮窗拖拽 Helper.app 到 macOS 权限列表。必须是 send —— invoke 的往返会错过手势。 */
+   startCuaHelperPermissionDrag: () =>
+     ipcRenderer.send(PlatformChannels.StartCuaHelperPermissionDrag),
+-  notifyWebRemoteControlAuthStateChanged: (change: WebRemoteControlAuthStateChange) =>
+-    ipcRenderer.send(PlatformChannels.WebRemoteControlAuthStateChanged, change),
+   /** 上报 OAuth state 用于 deep link 路由 */
+   registerOAuthState: (payload: OAuthStateRegistration) =>
+     ipcRenderer.send(PlatformChannels.OAuthRegisterState, payload),
+-  /** 注册 OAuth deep link 回调，返回 disposer */
+-  onOAuthCallback: (cb: (url: string) => void): (() => void) => {
+-    const handler = createOAuthCallbackHandler(cb, () => {
+-      ipcRenderer.send(PlatformChannels.OAuthCallbackHandled);
+-    });
+-    ipcRenderer.on(PlatformChannels.OAuthCallback, handler);
+-    return () => ipcRenderer.removeListener(PlatformChannels.OAuthCallback, handler);
+-  },
++  /** 注册 OAuth deep link 回调（砍 OAuth/深链 v4 §1.3）：保留签名、空转 fail-closed */
++  onOAuthCallback: (_cb: (url: string) => void): (() => void) => () => {},
+   /** 注册支付 deep link 回调，返回 disposer */
+   onPaymentCallback: (callback: (url: string) => void): (() => void) => {
+     const handler = (_event: unknown, url: string) => callback(url);
+@@ -901,8 +892,7 @@ contextBridge.exposeInMainWorld("zcode", {
+   /** 用户确认重启安装更新 */
+   quitAndInstallUpdate: () => ipcRenderer.invoke(PlatformChannels.QuitAndInstallUpdate),
+   /** 获取已安装的编辑器/终端列表（含图标） */
+-  getInstalledEditors: (filePath?: string) =>
+-    ipcRenderer.invoke(PlatformChannels.GetInstalledEditors, filePath),
++  getInstalledEditors: () => ipcRenderer.invoke(PlatformChannels.GetInstalledEditors),
+   getApplicationIcon: (request: string | ApplicationIconRequest) =>
+     ipcRenderer.invoke(PlatformChannels.GetApplicationIcon, request),
+   /** 用指定编辑器打开路径 */
+@@ -942,42 +932,29 @@ ipcRenderer.on(InternalChannels.ServicePort, (event, payload: unknown) => {
+   else port?.close();
+ });
+ 
+-ipcRenderer.on(InternalChannels.ScopedServicePort, (event, payload: unknown) => {
+-  const [port] = event.ports;
+-  const parsed = scopedServicePortPayloadSchema.safeParse(payload);
+-  if (!port || !parsed.success) return;
+-  // Bug 根因：这里曾用手工字段白名单重建 payload；Main 新增 workspace scope 后
+-  // Preload 未同步白名单，Renderer 因而把 project logical session 原地绑定成 conversation。
+-  window.postMessage(
+-    {
+-      type: InternalChannels.ScopedServicePort,
+-      ...parsed.data,
+-    },
+-    "*",
+-    [port],
+-  );
+-});
+-
+ ipcRenderer.on(
+-  InternalChannels.SourceSettingsServicePort,
++  InternalChannels.ScopedServicePort,
+   (
+     event,
+     payload: {
+       attachmentId?: string;
+-      sourceServerId?: string;
++      sessionId?: string;
++      target?: RemoteTarget;
+     },
+   ) => {
+     const [port] = event.ports;
+-    if (!port) return;
+-    window.postMessage(
+-      {
+-        type: InternalChannels.SourceSettingsServicePort,
+-        attachmentId: payload.attachmentId,
+-        sourceServerId: payload.sourceServerId,
+-      },
+-      "*",
+-      [port],
+-    );
++    if (port) {
++      window.postMessage(
++        {
++          type: InternalChannels.ScopedServicePort,
++          attachmentId: payload.attachmentId,
++          sessionId: payload.sessionId,
++          target: payload.target,
++        },
++        "*",
++        [port],
++      );
++    }
+   },
+ );
+ 
+@@ -1026,9 +1003,6 @@ ipcRenderer.on(
+   },
+ );
+ 
+-// dom-ready autoInject 之后 Bridge 若被重置，再尝试一次包装
+-scheduleArmsEventBridgePatch();
+-
+ // 启动控制面先于普通 RPC；reload 从 Main 的通知镜像补齐，不触发新迁移。
+ ipcRenderer.on(InternalChannels.DatabaseStartupState, (_event, raw: unknown) => {
+   const parsed = databaseStartupStateSchema.safeParse(raw);
+diff --git a/packages/desktop/src/renderer/cuaPermissionPanelMessages.ts b/packages/desktop/src/renderer/cuaPermissionPanelMessages.ts
+index 0473dc13..40a3f1d9 100644
+--- a/packages/desktop/src/renderer/cuaPermissionPanelMessages.ts
++++ b/packages/desktop/src/renderer/cuaPermissionPanelMessages.ts
+@@ -14,7 +14,7 @@ const MESSAGES: Record<
+   Omit<CuaPermissionPanelMessages, "permissionLabel"> & Record<CuaPermissionKind, string>
+ > = {
+   "zh-CN": {
+-    documentTitle: "ZCode Computer Use 权限",
++    documentTitle: "Juscite Computer Use 权限",
+     dragTitle: "拖动我到上面的权限列表",
+     hintPrefix: "把左边的图标拖进上方的",
+     hintSuffix: "列表",
+@@ -23,7 +23,7 @@ const MESSAGES: Record<
+     screen_recording: "屏幕录制",
+   },
+   "en-US": {
+-    documentTitle: "ZCode Computer Use Permissions",
++    documentTitle: "Juscite Computer Use Permissions",
+     dragTitle: "Drag me to the permission list above",
+     hintPrefix: "Drag the icon on the left into the ",
+     hintSuffix: " list above",
+diff --git a/packages/desktop/src/renderer/index.html b/packages/desktop/src/renderer/index.html
+index aa33c419..317d19f0 100644
+--- a/packages/desktop/src/renderer/index.html
++++ b/packages/desktop/src/renderer/index.html
+@@ -3,7 +3,7 @@
+   <head>
+     <meta charset="UTF-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-    <title>ZCode</title>
++    <title>Juscite</title>
+     <style>
+       html,
+       body,
+diff --git a/packages/desktop/src/renderer/public/material-icons/systemd.svg b/packages/desktop/src/renderer/public/material-icons/systemd.svg
+old mode 100755
+new mode 100644
+diff --git a/packages/desktop/src/renderer/public/material-icons/systemd_light.svg b/packages/desktop/src/renderer/public/material-icons/systemd_light.svg
+old mode 100755
+new mode 100644
+diff --git a/packages/desktop/src/renderer/src/desktopBrowserPlatformBridge.ts b/packages/desktop/src/renderer/src/desktopBrowserPlatformBridge.ts
+index e2aaac39..95404bbd 100644
+--- a/packages/desktop/src/renderer/src/desktopBrowserPlatformBridge.ts
++++ b/packages/desktop/src/renderer/src/desktopBrowserPlatformBridge.ts
+@@ -27,7 +27,7 @@ type DesktopBrowserPlatformBridge = Pick<
+ // Rebase 集成：browser bridge 若继续内联在 renderer 入口，会让入口越过 max-lines 门禁。
+ // 独立对象只做 preload 委托与旧 bridge 兼容兜底，不持有 Browser 业务状态。
+ export const desktopBrowserPlatformBridge = {
+-  getPathForFile: (file) => window.zcode.getPathForFile?.(file) ?? null,
++  getPathForFile: (file) => window.zcode.getPathForFile?.(file as File) ?? null,
+   saveFile: (payload) =>
+     window.zcode.saveFile?.(payload) ?? Promise.resolve({ success: false, error: "not_supported" }),
+   // 条件定义而非兜底返回失败：UI 靠方法是否存在做能力检测，旧 preload 下必须保持 undefined
+@@ -42,8 +42,8 @@ export const desktopBrowserPlatformBridge = {
+   onBrowserViewSuspend: (handler) => window.zcode.onBrowserViewSuspend?.(handler) ?? (() => {}),
+   onBrowserViewRestore: (handler) => window.zcode.onBrowserViewRestore?.(handler) ?? (() => {}),
+   browserViewAttachGuest: (payload) =>
+-    window.zcode.browserViewAttachGuest?.(payload) ??
+-    Promise.resolve({ ok: false, reason: "not-found", recoveryRequested: false }),
++    (window.zcode.browserViewAttachGuest?.(payload) as Promise<import("@zcode/shared").BrowserGuestAttachResult> | undefined) ??
++    Promise.resolve({ ok: false as const, reason: "not-found" as const, recoveryRequested: false as const }),
+   browserViewDetachGuest: (payload) =>
+     window.zcode.browserViewDetachGuest?.(payload) ?? Promise.resolve(false),
+   browserViewCloseTab: (payload) =>
+@@ -69,7 +69,7 @@ export const desktopBrowserPlatformBridge = {
+         originsSkipped: 0,
+         originsFailed: 0,
+       },
+-      error: "unsupported",
++      error: "chrome_profile_not_found",
+     }),
+   clearEmbeddedBrowserData: (mode) =>
+     window.zcode.clearEmbeddedBrowserData?.(mode) ??
+diff --git a/packages/desktop/src/renderer/src/desktopPlatform.ts b/packages/desktop/src/renderer/src/desktopPlatform.ts
+index c30d0e33..bee5121e 100644
+--- a/packages/desktop/src/renderer/src/desktopPlatform.ts
++++ b/packages/desktop/src/renderer/src/desktopPlatform.ts
+@@ -4,200 +4,226 @@ import { DesktopCommandIds, buildLocalMediaPreviewUrl, type IPlatformService } f
+ import { desktopBrowserPlatformBridge } from "./desktopBrowserPlatformBridge.js";
+ import { createDesktopPluginSandboxPlatform } from "./plugin-sandbox/desktopPluginSandboxPlatform.js";
+ 
++/**
++ * worktree @zcode/client globals（M1 底座裁剪版）未覆盖本壳 preload 的全部暴露面；
++ * 这里按 packages/desktop/src/preload/index.ts 的实际实现补齐缺失成员形状。
++ */
++type DesktopZcodeBridgeExtras = Required<
++  Pick<
++  IPlatformService,
++  | "createTempTextAttachment"
++  | "loadMcpFromUserDirectory"
++  | "saveMcpToUserDirectory"
++  | "migrateLegacyCommonMcp"
++  | "onShareImport"
++  | "reportArmsCustomEvent"
++  | "reportLocalTtftBatch"
++  | "setShortcutRecordingActive"
++  | "onCloseActiveContextRequest"
++  | "onOpenFeedbackDialog"
++  | "onOpenTicketsPanel"
++  | "getWindowControlsOverlayMetrics"
++  | "onWindowControlsOverlayChanged"
++  | "getZCodeStdioTapDevState"
++  >
++>;
++
+ export function createDesktopPlatform(options: {
+   isLocalDevelopmentRuntime: boolean;
+ }): IPlatformService {
++  const zcodeBridge = window.zcode as NonNullable<Window["zcode"]> & DesktopZcodeBridgeExtras;
+   return {
+     canSelectFilePath: true,
+-    canOpenLocalFiles: true,
+     pluginSandbox: createDesktopPluginSandboxPlatform(),
+     createLocalMediaPreviewUrl: buildLocalMediaPreviewUrl,
+     isLocalDevelopmentRuntime: options.isLocalDevelopmentRuntime,
+-    selectDirectory: () => window.zcode.selectDirectory(),
+-    selectDirectories: () => window.zcode.selectDirectories(),
+-    selectFile: () => window.zcode.selectFile(),
+-    selectFiles: () => window.zcode.selectFiles?.() ?? Promise.resolve([]),
+-    createTempTextAttachment: (payload) => window.zcode.createTempTextAttachment(payload),
++    selectDirectory: () => zcodeBridge.selectDirectory(),
++    selectFile: () => zcodeBridge.selectFile(),
++    selectFiles: () => zcodeBridge.selectFiles?.() ?? Promise.resolve([]),
++    createTempTextAttachment: (payload) => zcodeBridge.createTempTextAttachment(payload),
+     materializeWorkflowArtifactFile: (payload) =>
+-      window.zcode.materializeWorkflowArtifactFile(payload),
+-    onRemoteConnectionLog: (handler) => window.zcode.onRemoteConnectionLog(handler),
+-    onRemoteSessionClosed: (handler) => window.zcode.onRemoteSessionClosed(handler),
+-    // Source 自动重连会替换 logical session；统一由 preload bridge 转发换代事件。
+-    onRemoteSessionReconnected: (handler) =>
+-      window.zcode.onRemoteSessionReconnected?.(handler) ?? (() => {}),
++      zcodeBridge.materializeWorkflowArtifactFile(payload),
++    onRemoteConnectionLog: (handler) => zcodeBridge.onRemoteConnectionLog(handler),
++    onRemoteSessionClosed: (handler) => zcodeBridge.onRemoteSessionClosed(handler),
++    onBotRemoteWorkspaceReconnected: (handler) =>
++      zcodeBridge.onBotRemoteWorkspaceReconnected(handler),
+     activateOrSetWorkspace: (path) =>
+-      window.zcode.activateOrSetWorkspace?.(path) ?? Promise.resolve({ activated: false }),
++      zcodeBridge.activateOrSetWorkspace?.(path) ?? Promise.resolve({ activated: false }),
+     connectRemote: (remoteOptions, requestId, context) =>
+-      window.zcode.connectRemote(remoteOptions, requestId, context),
+-    requestSourceSettingsAttachment: (sourceServerId) =>
+-      window.zcode.requestSourceSettingsAttachment?.(sourceServerId) ??
+-      Promise.reject(new Error("Source settings attachment bridge unavailable")),
++      zcodeBridge.connectRemote(remoteOptions, requestId, context),
+     cancelPendingRemoteConnection: (requestId) =>
+-      window.zcode.cancelPendingRemoteConnection?.(requestId) ?? Promise.resolve(),
++      zcodeBridge.cancelPendingRemoteConnection?.(requestId) ?? Promise.resolve(),
+     bindRemoteWorkspaceSessionContext: (context) =>
+-      window.zcode.bindRemoteWorkspaceSessionContext?.(context) ??
+-      Promise.reject(new Error("Desktop bindRemoteWorkspaceSessionContext bridge unavailable")),
+-    startWebRemoteControl: (context) => window.zcode.startWebRemoteControl(context),
+-    stopWebRemoteControl: () => window.zcode.stopWebRemoteControl(),
+-    getWebRemoteControlStatus: () => window.zcode.getWebRemoteControlStatus(),
++      zcodeBridge.bindRemoteWorkspaceSessionContext?.(context).then(() => undefined) ??
++      Promise.resolve(),
++    startWebRemoteControl: (context) => zcodeBridge.startWebRemoteControl(context),
++    refreshWebRemoteControlPairing: (context) =>
++      zcodeBridge.refreshWebRemoteControlPairing(context),
++    stopWebRemoteControl: () => zcodeBridge.stopWebRemoteControl(),
++    getWebRemoteControlStatus: () => zcodeBridge.getWebRemoteControlStatus(),
+     onWebRemoteControlStatusChanged: (handler) =>
+-      window.zcode.onWebRemoteControlStatusChanged?.(handler) ?? (() => {}),
+-    disposeRemoteSession: (sessionId) => window.zcode.disposeRemoteSession(sessionId),
+-    isDockerAvailable: () => window.zcode.isDockerAvailable(),
+-    listWSLDistros: () => window.zcode.listWSLDistros(),
+-    listDockerContainers: () => window.zcode.listDockerContainers(),
+-    listSSHConfigAliases: () => window.zcode.listSSHConfigAliases(),
+-    loadMcpFromUserDirectory: (payload) => window.zcode.loadMcpFromUserDirectory(payload),
+-    saveMcpToUserDirectory: (payload) => window.zcode.saveMcpToUserDirectory(payload),
+-    migrateLegacyCommonMcp: (payload) => window.zcode.migrateLegacyCommonMcp(payload),
+-    openExternal: (url) => window.zcode.openExternal(url),
+-    openFeedback: () => window.zcode.executeDesktopCommand(DesktopCommandIds.OpenFeedback),
+-    openCommunity: () => window.zcode.executeDesktopCommand(DesktopCommandIds.OpenCommunity),
+-    canOpenCommunity: (locale) => window.zcode.canOpenCommunity(locale),
+-    openInFileManager: (path) => window.zcode.openInFileManager(path),
+-    openExternalFile: (path) => window.zcode.openExternalFile(path),
+-    openCuaPermissionOnboarding: window.zcode.openCuaPermissionOnboarding
++      zcodeBridge.onWebRemoteControlStatusChanged?.(handler) ?? (() => {}),
++    disposeRemoteSession: (sessionId) => zcodeBridge.disposeRemoteSession(sessionId),
++    isDockerAvailable: () => zcodeBridge.isDockerAvailable(),
++    listWSLDistros: () => zcodeBridge.listWSLDistros(),
++    listDockerContainers: () => zcodeBridge.listDockerContainers(),
++    listSSHConfigAliases: () => zcodeBridge.listSSHConfigAliases(),
++    loadMcpFromUserDirectory: (payload) => zcodeBridge.loadMcpFromUserDirectory(payload),
++    saveMcpToUserDirectory: (payload) => zcodeBridge.saveMcpToUserDirectory(payload),
++    migrateLegacyCommonMcp: (payload) => zcodeBridge.migrateLegacyCommonMcp(payload),
++    openExternal: (url) => zcodeBridge.openExternal(url),
++    openFeedback: () => zcodeBridge.executeDesktopCommand(DesktopCommandIds.OpenFeedback),
++    openCommunity: () => zcodeBridge.executeDesktopCommand(DesktopCommandIds.OpenCommunity),
++    canOpenCommunity: (locale) => zcodeBridge.canOpenCommunity(locale),
++    openInFileManager: (path) => zcodeBridge.openInFileManager(path),
++    openExternalFile: (path) => zcodeBridge.openExternalFile(path),
++    openCuaPermissionOnboarding: zcodeBridge.openCuaPermissionOnboarding
+       ? (permissionOptions) =>
+-          window.zcode.openCuaPermissionOnboarding?.(permissionOptions) ??
++          zcodeBridge.openCuaPermissionOnboarding?.(permissionOptions) ??
+           Promise.resolve({ success: false, error: "not_supported" })
+       : undefined,
+-    prepareCuaHelperPermissionDrag: window.zcode.prepareCuaHelperPermissionDrag
++    prepareCuaHelperPermissionDrag: zcodeBridge.prepareCuaHelperPermissionDrag
+       ? () =>
+-          window.zcode.prepareCuaHelperPermissionDrag?.() ??
++          zcodeBridge.prepareCuaHelperPermissionDrag?.() ??
+           Promise.resolve({ success: false, error: "not_supported" })
+       : undefined,
+-    startCuaHelperPermissionDrag: window.zcode.startCuaHelperPermissionDrag
+-      ? () => window.zcode.startCuaHelperPermissionDrag?.()
++    startCuaHelperPermissionDrag: zcodeBridge.startCuaHelperPermissionDrag
++      ? () => zcodeBridge.startCuaHelperPermissionDrag?.()
+       : undefined,
+-    notifyWebRemoteControlAuthStateChanged: (change) =>
+-      window.zcode.notifyWebRemoteControlAuthStateChanged(change),
+-    registerOAuthState: (payload) => window.zcode.registerOAuthState(payload),
+-    onOAuthCallback: (callback) => window.zcode.onOAuthCallback(callback),
+-    onPaymentCallback: (callback) => window.zcode.onPaymentCallback(callback),
+-    onShareImport: (callback) => window.zcode.onShareImport?.(callback) ?? (() => {}),
+-    notifyRendererReady: () => window.zcode.notifyRendererReady(),
+-    reportTelemetryEvent: (payload) => window.zcode.reportTelemetryEvent(payload),
++    registerOAuthState: (payload) => zcodeBridge.registerOAuthState(payload),
++    onOAuthCallback: (callback) => zcodeBridge.onOAuthCallback(callback),
++    onPaymentCallback: (callback) => zcodeBridge.onPaymentCallback(callback),
++    onShareImport: (callback) => zcodeBridge.onShareImport?.(callback) ?? (() => {}),
++    notifyRendererReady: () => zcodeBridge.notifyRendererReady(),
++    reportTelemetryEvent: (payload) => zcodeBridge.reportTelemetryEvent(payload),
+     reportArmsCustomEvent: (payload) => {
+       recordArmsCustomEventForE2E(payload);
+-      return window.zcode.reportArmsCustomEvent(payload);
++      return zcodeBridge.reportArmsCustomEvent(payload);
+     },
+-    getRendererActionTraceConfig: window.zcode.getRendererActionTraceConfig
+-      ? () => window.zcode.getRendererActionTraceConfig!()
++    getRendererActionTraceConfig: zcodeBridge.getRendererActionTraceConfig
++      ? () => zcodeBridge.getRendererActionTraceConfig!()
+       : undefined,
+-    onRendererActionTraceConfigChanged: window.zcode.onRendererActionTraceConfigChanged
+-      ? (callback) => window.zcode.onRendererActionTraceConfigChanged!(callback)
++    onRendererActionTraceConfigChanged: zcodeBridge.onRendererActionTraceConfigChanged
++      ? (callback) => zcodeBridge.onRendererActionTraceConfigChanged!(callback)
+       : undefined,
+-    reportLocalTtftBatch: (batch) => window.zcode.reportLocalTtftBatch(batch),
+-    reportRendererActionTraceBatch: window.zcode.reportRendererActionTraceBatch
+-      ? (batch) => window.zcode.reportRendererActionTraceBatch!(batch)
++    reportLocalTtftBatch: (batch) => zcodeBridge.reportLocalTtftBatch(batch),
++    reportRendererActionTraceBatch: zcodeBridge.reportRendererActionTraceBatch
++      ? (batch) => zcodeBridge.reportRendererActionTraceBatch!(batch)
+       : undefined,
+-    reportRendererHeapSample: window.zcode.reportRendererHeapSample
+-      ? (sample) => window.zcode.reportRendererHeapSample!(sample)
++    reportRendererHeapSample: zcodeBridge.reportRendererHeapSample
++      ? (sample) => zcodeBridge.reportRendererHeapSample!(sample)
+       : undefined,
+-    showTaskNotification: (payload) => window.zcode.showTaskNotification(payload),
+-    syncWindowTabs: (paths) => window.zcode.syncWindowTabs(paths),
++    showTaskNotification: (payload) => zcodeBridge.showTaskNotification(payload),
++    syncWindowTabs: (paths) => zcodeBridge.syncWindowTabs(paths),
+     syncWebRemoteControlWorkspaces: (workspaces) =>
+-      window.zcode.syncWebRemoteControlWorkspaces?.(workspaces),
++      zcodeBridge.syncWebRemoteControlWorkspaces?.(workspaces),
++    syncWebRemoteControlTasks: (tasks) => zcodeBridge.syncWebRemoteControlTasks?.(tasks),
+     onWebRemoteControlReconnectWorkspace: (handler) =>
+-      window.zcode.onWebRemoteControlReconnectWorkspace?.(handler) ?? (() => {}),
+-    syncWindowUnreadCount: (count) => window.zcode.syncWindowUnreadCount(count),
+-    syncActiveTaskSession: (sessionId) => window.zcode.syncActiveTaskSession(sessionId),
+-    syncAppSettings: (patch) => window.zcode.syncAppSettings?.(patch),
++      zcodeBridge.onWebRemoteControlReconnectWorkspace?.(handler) ?? (() => {}),
++    syncWindowUnreadCount: (count) => zcodeBridge.syncWindowUnreadCount(count),
++    syncActiveTaskSession: (sessionId) => zcodeBridge.syncActiveTaskSession(sessionId),
++    syncAppSettings: (patch) => zcodeBridge.syncAppSettings?.(patch),
+     // 桥缺失（旧 preload 升级窗口）时按 supported 兜底，与 Windows 现状一致，设置开关可用。
+     getCloseToTrayCapability: () =>
+-      window.zcode.getCloseToTrayCapability?.() ??
++      zcodeBridge.getCloseToTrayCapability?.() ??
+       Promise.resolve({ supported: true, gnomeLikeWithoutTray: false }),
+-    setShortcutRecordingActive: (active) => window.zcode.setShortcutRecordingActive?.(active),
+-    onFocusTab: (handler) => window.zcode.onFocusTab(handler),
+-    onNewTab: (handler) => window.zcode.onNewTab(handler),
++    // 功能 #28 桌宠：桥缺失（旧 preload）时按离线态兜底，设置页可读不可写坏。
++    getPetStatus: () => zcodeBridge.getPetStatus?.() ?? Promise.reject(new Error("pet bridge unavailable")),
++    updatePetConfig: (patch) =>
++      zcodeBridge.updatePetConfig?.(patch) ?? Promise.reject(new Error("pet bridge unavailable")),
++    onPetStatus: (handler) => zcodeBridge.onPetStatus?.(handler) ?? (() => {}),
++    reportPetRunEvent: (event) => zcodeBridge.reportPetRunEvent?.(event),
++    setShortcutRecordingActive: (active) => zcodeBridge.setShortcutRecordingActive?.(active),
++    onFocusTab: (handler) => zcodeBridge.onFocusTab(handler),
++    onNewTab: (handler) => zcodeBridge.onNewTab(handler),
+     onCloseActiveContextRequest: (handler) =>
+-      window.zcode.onCloseActiveContextRequest?.(handler) ?? (() => {}),
+-    onOpenBrowserUrl: (handler) => window.zcode.onOpenBrowserUrl?.(handler) ?? (() => {}),
++      zcodeBridge.onCloseActiveContextRequest?.(handler) ?? (() => {}),
++    onOpenBrowserUrl: (handler) => zcodeBridge.onOpenBrowserUrl?.(handler) ?? (() => {}),
+     onEmbeddedBrowserPermissionPrompt: (handler) =>
+-      window.zcode.onEmbeddedBrowserPermissionPrompt?.(handler) ?? (() => {}),
++      zcodeBridge.onEmbeddedBrowserPermissionPrompt?.(handler) ?? (() => {}),
+     resolveEmbeddedBrowserPermissionPrompt: (request) =>
+-      window.zcode.resolveEmbeddedBrowserPermissionPrompt?.(request),
++      zcodeBridge.resolveEmbeddedBrowserPermissionPrompt?.(request),
+     getEmbeddedBrowserSitePermissions: () =>
+-      window.zcode.getEmbeddedBrowserSitePermissions?.() ?? Promise.resolve({}),
++      zcodeBridge.getEmbeddedBrowserSitePermissions?.() ?? Promise.resolve({}),
+     setEmbeddedBrowserSitePermission: (request) =>
+-      window.zcode.setEmbeddedBrowserSitePermission?.(request) ?? Promise.resolve({}),
++      zcodeBridge.setEmbeddedBrowserSitePermission?.(request) ?? Promise.resolve({}),
+     clearEmbeddedBrowserSitePermissions: () =>
+-      window.zcode.clearEmbeddedBrowserSitePermissions?.() ?? Promise.resolve({}),
++      zcodeBridge.clearEmbeddedBrowserSitePermissions?.() ?? Promise.resolve({}),
+     resetEmbeddedBrowserSitePermission: (request) =>
+-      window.zcode.resetEmbeddedBrowserSitePermission?.(request) ?? Promise.resolve({}),
++      zcodeBridge.resetEmbeddedBrowserSitePermission?.(request) ?? Promise.resolve({}),
+     onBrowserViewScreenshotSurfacePrepare: (handler) =>
+-      window.zcode.onBrowserViewScreenshotSurfacePrepare?.(handler) ?? (() => {}),
++      zcodeBridge.onBrowserViewScreenshotSurfacePrepare?.(handler) ?? (() => {}),
+     onBrowserViewScreenshotSurfaceRelease: (handler) =>
+-      window.zcode.onBrowserViewScreenshotSurfaceRelease?.(handler) ?? (() => {}),
++      zcodeBridge.onBrowserViewScreenshotSurfaceRelease?.(handler) ?? (() => {}),
+     browserViewScreenshotSurfaceReady: (payload) =>
+-      window.zcode.browserViewScreenshotSurfaceReady?.(payload),
++      zcodeBridge.browserViewScreenshotSurfaceReady?.(payload),
+     ...desktopBrowserPlatformBridge,
+-    onNewTask: (handler) => window.zcode.onNewTask(handler),
++    onNewTask: (handler) => zcodeBridge.onNewTask(handler),
+     onOpenWorkspace: (handler) => {
+       // 开发态或升级后的旧窗口可能仍运行未暴露 onOpenWorkspace 的 preload，
+       // renderer 直接调用会在启动时崩溃。这里和 activateOrSetWorkspace 一样做兼容兜底，
+       // 缺少该 bridge 时只禁用原生菜单回调，不影响应用继续打开。
+-      return window.zcode.onOpenWorkspace?.(handler) ?? (() => {});
++      return zcodeBridge.onOpenWorkspace?.(handler) ?? (() => {});
+     },
+-    onOpenWorkspacePath: (handler) => window.zcode.onOpenWorkspacePath?.(handler) ?? (() => {}),
+-    onOpenFeedbackDialog: (handler) => window.zcode.onOpenFeedbackDialog?.(handler) ?? (() => {}),
+-    onOpenTicketsPanel: (handler) => window.zcode.onOpenTicketsPanel?.(handler) ?? (() => {}),
+-    onWindowFullscreenChanged: (handler) => window.zcode.onWindowFullscreenChanged(handler),
+-    getDesktopWindowChromeState: window.zcode.getDesktopWindowChromeState
+-      ? () => window.zcode.getDesktopWindowChromeState!()
++    onOpenWorkspacePath: (handler) => zcodeBridge.onOpenWorkspacePath?.(handler) ?? (() => {}),
++    onOpenFeedbackDialog: (handler) => zcodeBridge.onOpenFeedbackDialog?.(handler) ?? (() => {}),
++    onOpenTicketsPanel: (handler) => zcodeBridge.onOpenTicketsPanel?.(handler) ?? (() => {}),
++    onWindowFullscreenChanged: (handler) => zcodeBridge.onWindowFullscreenChanged(handler),
++    getDesktopWindowChromeState: zcodeBridge.getDesktopWindowChromeState
++      ? () => zcodeBridge.getDesktopWindowChromeState!()
+       : undefined,
+-    onDesktopWindowChromeStateChanged: window.zcode.onDesktopWindowChromeStateChanged
+-      ? (handler) => window.zcode.onDesktopWindowChromeStateChanged!(handler)
++    onDesktopWindowChromeStateChanged: zcodeBridge.onDesktopWindowChromeStateChanged
++      ? (handler) => zcodeBridge.onDesktopWindowChromeStateChanged!(handler)
+       : undefined,
+-    getWindowControlsOverlayMetrics: () => window.zcode.getWindowControlsOverlayMetrics?.() ?? null,
++    getWindowControlsOverlayMetrics: () => zcodeBridge.getWindowControlsOverlayMetrics?.() ?? null,
+     onWindowControlsOverlayChanged: (handler) =>
+-      window.zcode.onWindowControlsOverlayChanged?.(handler) ?? (() => {}),
++      zcodeBridge.onWindowControlsOverlayChanged?.(handler) ?? (() => {}),
+     getDesktopZoomLevel: () =>
+-      window.zcode.getDesktopZoomLevel?.() ?? Promise.resolve({ zoomLevel: 0 }),
++      zcodeBridge.getDesktopZoomLevel?.() ?? Promise.resolve({ zoomLevel: 0 }),
+     onDesktopZoomLevelChanged: (handler) =>
+-      window.zcode.onDesktopZoomLevelChanged?.(handler) ?? (() => {}),
+-    onTaskNotificationClick: (handler) => window.zcode.onTaskNotificationClick(handler),
+-    exportLogs: () => window.zcode.exportLogs(),
++      zcodeBridge.onDesktopZoomLevelChanged?.(handler) ?? (() => {}),
++    onTaskNotificationClick: (handler) => zcodeBridge.onTaskNotificationClick(handler),
++    exportLogs: () => zcodeBridge.exportLogs(),
+     captureWindowScreenshot: () =>
+-      window.zcode.captureWindowScreenshot?.() ?? Promise.resolve(null),
+-    onUpdateReady: (callback) => window.zcode.onUpdateReady(callback),
+-    onUpdateCheckResult: (callback) => window.zcode.onUpdateCheckResult(callback),
+-    onUpdateStateChanged: (callback) => window.zcode.onUpdateStateChanged?.(callback) ?? (() => {}),
++      zcodeBridge.captureWindowScreenshot?.() ?? Promise.resolve(null),
++    onUpdateReady: (callback) => zcodeBridge.onUpdateReady(callback),
++    onUpdateCheckResult: (callback) => zcodeBridge.onUpdateCheckResult(callback),
++    onUpdateStateChanged: (callback) => zcodeBridge.onUpdateStateChanged?.(callback) ?? (() => {}),
+     getUpdateState: () =>
+-      window.zcode.getUpdateState?.() ?? Promise.resolve({ kind: "idle", enabled: true }),
+-    downloadUpdate: () => window.zcode.downloadUpdate?.() ?? Promise.resolve(),
+-    cancelUpdateDownload: () => window.zcode.cancelUpdateDownload?.() ?? Promise.resolve(),
+-    openUpdateStatusWindow: () => window.zcode.openUpdateStatusWindow?.() ?? Promise.resolve(),
++      zcodeBridge.getUpdateState?.() ?? Promise.resolve({ kind: "idle", enabled: true }),
++    downloadUpdate: () => zcodeBridge.downloadUpdate?.() ?? Promise.resolve(),
++    cancelUpdateDownload: () => zcodeBridge.cancelUpdateDownload?.() ?? Promise.resolve(),
++    openUpdateStatusWindow: () => zcodeBridge.openUpdateStatusWindow?.() ?? Promise.resolve(),
+     getAutoUpdatePreferences: () =>
+-      window.zcode.getAutoUpdatePreferences?.() ??
++      zcodeBridge.getAutoUpdatePreferences?.() ??
+       Promise.resolve({ autoDownloadAndInstallUpdates: false }),
+     setAutoDownloadAndInstallUpdates: (enabled) =>
+-      window.zcode.setAutoDownloadAndInstallUpdates?.(enabled) ?? Promise.resolve(),
++      zcodeBridge.setAutoDownloadAndInstallUpdates?.(enabled) ?? Promise.resolve(),
+     getDesktopSessionActivity: () =>
+-      window.zcode.getDesktopSessionActivity?.() ??
++      zcodeBridge.getDesktopSessionActivity?.() ??
+       Promise.resolve({ runningAgentSessionCount: 0 }),
+     getZCodeStdioTapDevState: () =>
+-      window.zcode.getZCodeStdioTapDevState?.() ??
++      zcodeBridge.getZCodeStdioTapDevState?.() ??
+       Promise.resolve({ enabled: false, visible: false, logDir: "", statePath: "" }),
+-    onSettingsChanged: (callback) => window.zcode.onSettingsChanged?.(callback) ?? (() => {}),
++    onSettingsChanged: (callback) => zcodeBridge.onSettingsChanged?.(callback) ?? (() => {}),
+     onApplicationLocaleChanged: (callback) =>
+-      window.zcode.onApplicationLocaleChanged?.(callback) ?? (() => {}),
+-    onPostUpdateReleaseNotes: (callback) => window.zcode.onPostUpdateReleaseNotes(callback),
++      zcodeBridge.onApplicationLocaleChanged?.(callback) ?? (() => {}),
++    onPostUpdateReleaseNotes: (callback) => zcodeBridge.onPostUpdateReleaseNotes(callback),
+     acknowledgePostUpdateReleaseNotes: (version) =>
+-      window.zcode.acknowledgePostUpdateReleaseNotes(version),
+-    skipUpdateVersion: (version) => window.zcode.skipUpdateVersion?.(version) ?? Promise.resolve(),
+-    quitAndInstallUpdate: () => window.zcode.quitAndInstallUpdate(),
+-    getInstalledEditors: (filePath) => window.zcode.getInstalledEditors(filePath),
++      zcodeBridge.acknowledgePostUpdateReleaseNotes(version),
++    skipUpdateVersion: (version) => zcodeBridge.skipUpdateVersion?.(version) ?? Promise.resolve(),
++    quitAndInstallUpdate: () => zcodeBridge.quitAndInstallUpdate(),
++    getInstalledEditors: () => zcodeBridge.getInstalledEditors(),
+     getApplicationIcon: (bundleId) =>
+-      window.zcode.getApplicationIcon?.(bundleId) ?? Promise.resolve(null),
++      zcodeBridge.getApplicationIcon?.(bundleId) ?? Promise.resolve(null),
+     openInEditor: (editorId, path, editorOptions) =>
+-      window.zcode.openInEditor(editorId, path, editorOptions),
+-    executeDesktopCommand: (command) => window.zcode.executeDesktopCommand(command),
+-    setApplicationLocale: (locale) => window.zcode.setApplicationLocale(locale),
++      zcodeBridge.openInEditor(editorId, path, editorOptions),
++    executeDesktopCommand: (command) => zcodeBridge.executeDesktopCommand(command),
++    setApplicationLocale: (locale) => zcodeBridge.setApplicationLocale(locale),
+     getSystemLocale: () =>
+-      window.zcode.getSystemLocale?.() ??
++      zcodeBridge.getSystemLocale?.() ??
+       Promise.resolve(navigator.language.toLowerCase().startsWith("zh") ? "zh-CN" : "en-US"),
+-    setTitleBarTheme: (theme) => window.zcode.setTitleBarTheme(theme),
++    setTitleBarTheme: (theme) => zcodeBridge.setTitleBarTheme(theme),
+     getDeviceId: () =>
+       (window as Window & { __ZCODE_DEVICE_ID__?: string }).__ZCODE_DEVICE_ID__ ?? "",
+   };
+diff --git a/packages/desktop/src/renderer/src/main.tsx b/packages/desktop/src/renderer/src/main.tsx
+index 770e58cc..8160146c 100644
+--- a/packages/desktop/src/renderer/src/main.tsx
++++ b/packages/desktop/src/renderer/src/main.tsx
+@@ -1,6 +1,6 @@
+-/* eslint-disable max-lines -- Desktop renderer bridge 聚合平台、远端 attachment 与启动编排契约。 */
+ import { DatabaseStartupAdmission } from "./databaseStartupAdmission.js";
+-import { initializeDesktopLocalTtft } from "./localTtftBootstrap.js";
++// window.zcode 等桥类型声明（client 包 globals；side-effect import 触发 declare global）
++import "@zcode/client/globals";
+ import { createRoot } from "react-dom/client";
+ import { useEffect } from "react";
+ import {
+@@ -18,12 +18,15 @@ import {
+   setReactErrorArmsReporter,
+ } from "@zcode/ui";
+ import "@zcode/ui/styles.css";
+-import { connectViaMessagePort, createMessagePortServiceConnection } from "@zcode/client";
++import {
++  connectViaMessagePort,
++  connectViaWebSocket,
++  createMessagePortServiceConnection,
++} from "@zcode/client";
+ import {
+   InternalChannels,
+   databaseStartupStateSchema,
+   type DatabaseStartupControl,
+-  collectTelemetryRendererContext,
+   parseLaunchMarks,
+   LAUNCH_MARKS_QUERY_KEY,
+   type LaunchMarks,
+@@ -31,12 +34,12 @@ import {
+ } from "@zcode/shared";
+ import type { Locale } from "@zcode/shared";
+ import type { IServiceAccessor } from "@zcode/services";
+-import { syncAppTelemetryContext } from "../appTelemetryBridge.js";
+ import { createDesktopPlatform } from "./desktopPlatform.js";
+ import { startPerformanceTimelineCleanup } from "./performanceTimelineCleanup.js";
+-import { initializeDesktopUserActionTrace } from "./userActionTraceBootstrap.js";
+-import { buildRemoteWorkspaceSessionServicesForRegistration } from "./remoteWorkspaceSessionServices.js";
+-import { handleSourceSettingsServicePortMessage } from "./sourceSettingsServicePortBridge.js";
++import {
++  buildRemoteWorkspaceSessionServices,
++  buildServerRemoteWorkspaceSessionServices,
++} from "./remoteWorkspaceSessionServices.js";
+ import {
+   notifyRemoteWorkspaceServicePortReady,
+   parseRemoteWorkspaceServicePortMessage,
+@@ -115,11 +118,8 @@ document.documentElement.classList.toggle("platform-windows-desktop", isWindowsD
+ // 会把标题栏点击区一起拦截。给桌面 Linux 根节点打平台标记，让 UI overlay 能只在 Linux 避开标题栏。
+ document.documentElement.classList.toggle("platform-linux-desktop", isLinuxDesktop);
+ const isLocalDevelopmentRuntime =
+-  (
+-    globalThis as typeof globalThis & {
+-      __ZCODE_LOCAL_DEVELOPMENT_RUNTIME__?: boolean;
+-    }
+-  ).__ZCODE_LOCAL_DEVELOPMENT_RUNTIME__ === true;
++  (globalThis as typeof globalThis & { __ZCODE_LOCAL_DEVELOPMENT_RUNTIME__?: boolean })
++    .__ZCODE_LOCAL_DEVELOPMENT_RUNTIME__ === true;
+ 
+ function readBooleanFlag(name: string, defaultValue: boolean): boolean {
+   const value = new URLSearchParams(window.location.search).get(name);
+@@ -147,11 +147,6 @@ let baseServicesForRemoteSessions: IServiceAccessor | null = null;
+ const pendingRemoteWorkspaceServicePorts: RemoteWorkspaceServicePortRegistration[] = [];
+ 
+ const desktopPlatform = createDesktopPlatform({ isLocalDevelopmentRuntime });
+-initializeDesktopLocalTtft(desktopPlatform);
+-initializeDesktopUserActionTrace({
+-  platform: desktopPlatform,
+-  isLocalDevelopmentRuntime,
+-});
+ 
+ /**
+  * 等待 preload 通过 window.postMessage 转发 MessagePort。
+@@ -197,7 +192,24 @@ function renderDatabaseStartup(): void {
+ function enterAppIfPrepared(): void {
+   if (appInitialized) return;
+   const port = databaseStartupAdmission.takeReadyPort();
+-  if (port) initializeBusinessRoot(port);
++  if (port) initializeBusinessRoot(connectViaMessagePort(port));
++}
++
++function showBridgeFailure(message: string): void {
++  if (databaseStartupAdmission.state) return;
++  databaseStartupAdmission.state = {
++    schemaVersion: 1,
++    startupId: "bridge",
++    attemptId: "bridge-connect",
++    sequence: 0,
++    startedAt: rendererStartedAt,
++    updatedAt: Date.now(),
++    phase: "failed",
++    errorCode: "transport_closed",
++    disk: [],
++  };
++  console.error("[desktop-renderer] bridge connect failed:", message);
++  renderDatabaseStartup();
+ }
+ const firstStartupStateTimer =
+   windowKind === "update-status"
+@@ -226,18 +238,12 @@ function registerRemoteWorkspaceServicePort(params: RemoteWorkspaceServicePortRe
+ 
+   const remoteConnection = createMessagePortServiceConnection(params.port);
+   const remoteServices = remoteConnection.services;
+-  const services = buildRemoteWorkspaceSessionServicesForRegistration({
+-    baseServices: baseServicesForRemoteSessions,
+-    remoteServices,
+-    targetKind: params.target.kind,
+-    sourceServerId: params.sourceServerId,
+-  });
++  const services =
++    params.target.kind === "server"
++      ? buildServerRemoteWorkspaceSessionServices(baseServicesForRemoteSessions, remoteServices)
++      : buildRemoteWorkspaceSessionServices(baseServicesForRemoteSessions, remoteServices);
+   registerRemoteWorkspaceSession({
+     sessionId: params.sessionId,
+-    ...(params.sourceServerId ? { sourceServerId: params.sourceServerId } : {}),
+-    ...(params.workspacePath ? { workspacePath: params.workspacePath } : {}),
+-    ...(params.workspaceIdentity ? { workspaceIdentity: params.workspaceIdentity } : {}),
+-    ...(params.workspacePurpose ? { workspacePurpose: params.workspacePurpose } : {}),
+     target: params.target,
+     services,
+     dispose: (reason) =>
+@@ -289,8 +295,6 @@ function handleServicePortMessage(event: MessageEvent): void {
+     return;
+   }
+ 
+-  if (handleSourceSettingsServicePortMessage(event)) return;
+-
+   const remoteWorkspacePort = parseRemoteWorkspaceServicePortMessage(event);
+   if (remoteWorkspacePort) {
+     if (!baseServicesForRemoteSessions) {
+@@ -316,22 +320,13 @@ function handleServicePortMessage(event: MessageEvent): void {
+   enterAppIfPrepared();
+ }
+ 
+-function initializeBusinessRoot(port: MessagePort): void {
++function initializeBusinessRoot(services: IServiceAccessor): void {
+   appInitialized = true;
+-  const services = connectViaMessagePort(port, {
+-    sourceServerManagementService: true,
+-  });
+   baseServicesForRemoteSessions = services;
+   registerBaseWorkspaceServices(services);
+   flushPendingRemoteWorkspaceServicePorts();
+   const settingService = supportsSettings ? services.settingService : undefined;
+ 
+-  syncAppTelemetryContext({
+-    bridge: {
+-      syncTelemetryContext: (context) => window.zcode.syncTelemetryContext(context),
+-    },
+-    createRendererContext: collectTelemetryRendererContext,
+-  });
+ 
+   // 初始化稳定的设备 ID，确保所有 hook 在首次渲染前就使用正确的值
+   setStreamClientId(desktopPlatform.getDeviceId());
+@@ -375,6 +370,20 @@ if (windowKind !== "update-status") {
+   sendStartupControl({ action: "snapshot" });
+ }
+ 
++const bridgeWsUrl = readStringFlag("bridgeWsUrl");
++if (bridgeWsUrl && windowKind !== "update-status") {
++  // 换宿主（v4 §1.3）：Juscite 桥 WebSocket 直连，替代 utilityProcess 服务端口；
++  // 桥由 main 进程 spawn（tools/bridge/bridge_host.mjs 经 tsx），地址由 loadWindow 注入。
++  if (firstStartupStateTimer) clearTimeout(firstStartupStateTimer);
++  void connectViaWebSocket(bridgeWsUrl)
++    .then((services) => {
++      if (!appInitialized) initializeBusinessRoot(services);
++    })
++    .catch((error: unknown) => {
++      showBridgeFailure(error instanceof Error ? error.message : String(error));
++    });
++}
++
+ if (windowKind === "update-status") {
+   createRoot(document.getElementById("root")!).render(
+     <AppErrorBoundary isDesktop isMacDesktop={isMacDesktop} isWindowsDesktop={isWindowsDesktop}>
+diff --git a/packages/desktop/src/renderer/src/performanceTimelineCleanup.ts b/packages/desktop/src/renderer/src/performanceTimelineCleanup.ts
+index 51a4b0e1..ac06d16d 100644
+--- a/packages/desktop/src/renderer/src/performanceTimelineCleanup.ts
++++ b/packages/desktop/src/renderer/src/performanceTimelineCleanup.ts
+@@ -1,6 +1,6 @@
+ const PERFORMANCE_TIMELINE_CLEANUP_INTERVAL_MS = 10_000;
+ 
+-let cleanupTimer: ReturnType<typeof window.setInterval> | undefined;
++let cleanupTimer: ReturnType<typeof setInterval> | undefined;
+ 
+ export function startPerformanceTimelineCleanup(): void {
+   if (!import.meta.env.DEV || cleanupTimer != null) {
+@@ -10,7 +10,7 @@ export function startPerformanceTimelineCleanup(): void {
+   // React 19.2 的 development build 会把组件渲染写入 Performance timeline。
+   // 这些 PerformanceMeasure 由 window.performance 原生列表强引用，长时间开发会堆到 GB 级；
+   // 这里定时清理只影响 DevTools 性能轨迹，不影响业务逻辑和生产包。
+-  cleanupTimer = window.setInterval(() => {
++  cleanupTimer = setInterval(() => {
+     window.performance.clearMeasures();
+     window.performance.clearMarks();
+   }, PERFORMANCE_TIMELINE_CLEANUP_INTERVAL_MS);

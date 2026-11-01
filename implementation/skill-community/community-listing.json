@@ -1,0 +1,218 @@
+{
+  "schema": "juscite-community-listing/1",
+  "batch": "a-track-20261030",
+  "channel": "public",
+  "position": "long-tail-replenishment",
+  "listing_date": "2026-10-30",
+  "note": "A轨原样上架清单：只登记第三方源pin与标注，不复制第三方内容字节。本目录无catalog.json渠道声明，按F94契约即非安装源（fail-closed）；安装走#21既有面（F94 git_local钉commit/F95 zip预检），第三方原仓无渠道声明需打包侧装配（后续施工）。 2026-10-31 用户裁决：期限四管家改名上架（分发副本 payload/）；dsh 技能数报实测 25。",
+  "redlines": [
+    "AGPL件=标注不搬码（可视化：净室机制等量、文案自写、严禁复制代码与文案）",
+    "监测类（dsh 5托管工作流+晨报）叠#22定时任务运行，不建监测中心",
+    "本轮零JC件：期限/利息对口#17一律过渡档九计算器，JC完整档=修订中挂起；第三方规则候选不进JC",
+    "对口判以竞品情报/2026-10-29-规格波两源深挖台账v2为准；台账无条目的源按蒸馏移交/00-总登记.md+决策台账裁决登记",
+    "功能账/决策台账由落账员统一改，本清单不改账"
+  ],
+  "counts": {
+    "groups": 6,
+    "skills_listed": 39,
+    "skills_loadable_as_is_per_f94_f95_contract": 39,
+    "loadability_exceptions": [
+      "period-manager 四件经用户 2026-10-31 裁决「改名上架」：我方分发副本 payload/legal-period-manager-skills/ 已产（SKILL.md+frontmatter 合 F94；MIT 改动声明+LICENSE/NOTICE 随行），原样件维持原样登记不再作例外"
+    ],
+    "held_crosscheck": "held_records.jsonl=3063行，六源名零命中",
+    "retirements_crosscheck": "retirements.json=903条，六源名零命中"
+  },
+  "entries": [
+    {
+      "id": "dsh-legal-work-bench",
+      "group_label": "dsh 13 域",
+      "source": {
+        "repo_url": "https://github.com/kingselyjoe/dsh-legal-work-bench",
+        "commit": "6cccce5914569c623dcfd8b71f1a86d08a6b9c6b",
+        "commit_date": "2026-08-17",
+        "verified_via": "GitHub API repos/commits/git-trees（2026-10-30，本机代理）；本机无克隆"
+      },
+      "license": {
+        "state": "LICENSE文件=MIT正文+NOTICE附录（致敬claude-for-legal-ZH Apache-2.0，自述独立重写）；GitHub识别=Other/NOASSERTION",
+        "netroom": "MIT可细读，引用注明许可与NOTICE"
+      },
+      "items": {
+        "skills": 25,
+        "layout": "preset/skills/00-24各一SKILL.md：00画像+13领域(01-03,06-15)+04/05双闸门+16审计链+17-21五托管工作流+22案件管理+23门禁审批+24内容联动",
+        "frontmatter_spotcheck": "name/description在，附加键whenToUse（上游容忍）"
+      },
+      "counterpart": {
+        "positions": [
+          "#12",
+          "#32",
+          "#33",
+          "#34",
+          "#35",
+          "#36",
+          "#22"
+        ],
+        "basis": "蒸馏移交/00-总登记.md T1-2（法务域唯一剩源+5监测工作流直喂#32-36）+决策台账2026-10-29⑩（监测类叠#22不建中心）",
+        "ledger_v2_coverage": "两源深挖台账v2均无此源条目"
+      },
+      "annotations": [
+        "监测类5托管工作流（diligence-grid/docket-watcher/launch-radar/reg-monitor/renewal-watcher）叠#22定时任务运行，不建监测中心",
+        "作者商业化说明自称开源版24技能，与树实测25 SKILL.md口径出入，2026-10-31 用户裁决定口径=报树实测 25，上游自述 24 出入注记维持；付费层不在该仓不涉",
+        "配套仓dsh-legal-ip不在本批名单，未上架",
+        "2026-10-31 用户裁决：技能数报树实测 25（上游商业化说明自述 24 与树实测出入维持注记，差额件身份=UNKNOWN）"
+      ]
+    },
+    {
+      "id": "legal-dd-assistant-benchmark",
+      "group_label": "尽调包",
+      "source": {
+        "repo_url": "https://github.com/huangzesen/legal-dd-assistant-benchmark",
+        "commit": "d9ec0e9965eadbdb71935ac742426ea96f45eeb3",
+        "commit_date": "2026-05-18",
+        "verified_via": "GitHub API（2026-10-30，本机代理）；本机无克隆"
+      },
+      "license": {
+        "state": "MIT",
+        "netroom": "MIT可细读，引用注明许可"
+      },
+      "items": {
+        "skills": 1,
+        "layout": "仓根SKILL.md；整仓16文件=reference/{rubric,golden_expectations,scenarios,source_rules,evaluator_guide}+examples+assets+scripts/score_skeleton.py"
+      },
+      "counterpart": {
+        "positions": [
+          "#32"
+        ],
+        "basis": "蒸馏移交/00-总登记.md T1-3（整仓规则手册+12陷阱用例+D1-D10 rubric+金标，直喂#32尽调）",
+        "ledger_v2_coverage": "两源深挖台账v2均无此源条目"
+      },
+      "annotations": [
+        "规则遵循基准形态（rubric+金标+陷阱用例），作#32对拍照料",
+        "法律内容正确性UNKNOWN：未做官方法源独立核验"
+      ]
+    },
+    {
+      "id": "legal-morning-brief",
+      "group_label": "晨报",
+      "source": {
+        "repo_url": "https://github.com/elephantyoung/legal-morning-brief",
+        "commit": "b3ade9118b11eb7f343fc3f3e04a136128ea0198",
+        "commit_date": "2026-08-15",
+        "verified_via": "GitHub API+raw zip下载清点（2026-10-30，本机代理）；本机无克隆"
+      },
+      "license": {
+        "state": "仓根未声明（GitHub API license=None）；随包zip内含MIT LICENSE（elephantyoung, 2026）——双态如实标注",
+        "netroom": "以zip内MIT为分发口径时注明；仓根未声明部分只标注"
+      },
+      "items": {
+        "skills": 1,
+        "layout": "仓=README.md+legal-morning-brief-github.zip（2文件18KB）；zip内skills/legal-morning-brief/SKILL.md+references×3+agents/openai.yaml"
+      },
+      "counterpart": {
+        "positions": [
+          "#22"
+        ],
+        "basis": "决策台账2026-10-29③（legal-morning-brief=融入#22定时任务·技能族叠加）+⑩（监测类叠#22不建监测中心）；蒸馏移交/00-总登记.md点名批2",
+        "ledger_v2_coverage": "两源深挖台账v2均无此源条目"
+      },
+      "annotations": [
+        "监测类叠#22不建中心",
+        "检索/核验能力依赖外部检索通道，我方红线（材料不出域）不随之放开"
+      ]
+    },
+    {
+      "id": "legal-period-manager-skills",
+      "group_label": "期限",
+      "source": {
+        "repo_url": "https://github.com/SimbaCD/legal-period-manager-skills",
+        "commit": "aed17eaff2ca81c9512a1ce2fcf145cfd44abc03",
+        "commit_date": "2026-05-08",
+        "local_clone": "竞品情报/2026-10-29-规格波/repos/period-manager",
+        "verified_via": "本地克隆git rev-parse+find实测（2026-10-30）"
+      },
+      "license": {
+        "state": "MIT（LICENSE:1-3实读，Copyright 2026 Simin）",
+        "netroom": "MIT可细读，引用注明许可"
+      },
+      "items": {
+        "skills": 4,
+        "layout": "skills/{诉讼管家,执行管家,劳动仲裁管家,待办管家}/各一skill.md（小写）",
+        "loadable_as_is": true,
+        "payload": "implementation/skill-community/payload/legal-period-manager-skills/（分发副本：改名+frontmatter+MIT NOTICE，2026-10-31 用户裁决）"
+      },
+      "counterpart": {
+        "positions": [
+          "#17"
+        ],
+        "basis": "决策台账2026-10-29④（深化#17：计算侧已覆盖，法律依据表作对拍口径）；#17-对拍口径-期限与利息.md§2.1已对拍（PM HEAD=aed17ea同pin）",
+        "ledger_v2_coverage": "yuanli台账v2 du-四管系（:53-56）=同文族源头、:180期间管家三源；zhihe台账v2无此源条目"
+      },
+      "annotations": [
+        "格式：原上游入口为小写 skill.md；2026-10-31 用户裁决改名上架，分发副本见 payload/（SKILL.md+frontmatter 合 F94，MIT 改动声明+LICENSE/NOTICE 随行，衍生件逐版同步义务立账）",
+        "期限数值=竞品口径只登记条名不裁真伪；不进JC；过渡档九计算器（JC完整档=修订中挂起）"
+      ]
+    },
+    {
+      "id": "legal-interest-calculator-skill",
+      "group_label": "利息",
+      "source": {
+        "repo_url": "https://github.com/kkaann7744/legal-interest-calculator-skill",
+        "commit": "52fc01dffd60b5fde568b5eccc2b2508da4cfe71",
+        "commit_date": "2026-10-05",
+        "local_clone": "竞品情报/2026-10-29-规格波/repos/interest-calc",
+        "verified_via": "本地克隆git rev-parse+find实测（2026-10-30）"
+      },
+      "license": {
+        "state": "MIT（LICENSE:1-3实读，Copyright 2026 kkaann7744）",
+        "netroom": "MIT可细读，引用注明许可"
+      },
+      "items": {
+        "skills": 1,
+        "layout": "skills/legal-interest-calculator/SKILL.md（frontmatter name/description闭集键实测在）",
+        "loadable_as_is": true
+      },
+      "counterpart": {
+        "positions": [
+          "#17"
+        ],
+        "basis": "决策台账2026-10-29⑤（深化#17利息模块：LPR动态分段/首尾日四口径/360-365-366/迟延履行加倍/独立核验器）；#17-对拍口径-期限与利息.md§2.2已对拍（IC HEAD=52fc01d同pin）",
+        "ledger_v2_coverage": "两源台账v2无此源条目；zhihe台账v2同口部件=zhihe-001 excel-calculation（:21行，九计算器过渡档参照）"
+      },
+      "annotations": [
+        "过渡档九计算器；第三方规则候选不进JC（JC完整档=修订中挂起）"
+      ]
+    },
+    {
+      "id": "new-litigation-visualization",
+      "group_label": "可视化",
+      "source": {
+        "repo_url": "https://github.com/MiaoQichuan/new-litigation-visualization",
+        "commit": "58f70a83350a421dc1571c357efaefb262a82c4b",
+        "commit_date": "2026-10-28",
+        "local_clone": "竞品情报/2026-10-29-规格波/repos/new-litigation-visualization",
+        "verified_via": "本地克隆git rev-parse/git log/LICENSE实读（2026-10-30）"
+      },
+      "license": {
+        "state": "AGPL-3.0（本地克隆LICENSE实读=GNU AGPL v3；git log实证58f70a8『release: v3.0.0·改为AGPL-3.0』2026-10-28改牌；yuanli台账v2:107记MIT属2026-09-17旧快照，许可以现pin为准）",
+        "netroom": "AGPL=标注不搬码：净室机制等量、文案自写、严禁复制代码与文案；我方不分发其字节"
+      },
+      "items": {
+        "skills": 7,
+        "layout": "plugins/mqc-nlv/skills/七SKILL.md（时间轴/法律关系/大事记/庭审对抗/法律图表/法律课件/诉讼图重画）；另plugins/mqc-nlv-dsh=DSH插件形态同七技能随包（AGPL-3.0-only自述），不重复计数",
+        "loadable_as_is": true
+      },
+      "counterpart": {
+        "positions": [
+          "#4",
+          "#19"
+        ],
+        "basis": "决策台账2026-10-29②（B轨：#4时间线/#19关系图深化，确定性渲染+照录原文+判据守卫；AGPL=净室机制等量文案自写不抄码）；yuanli台账v2:107=可视化线第一对口",
+        "ledger_v2_coverage": "yuanli台账v2:107有此源条目（旧MIT快照、吸收候选记录）；zhihe台账v2无"
+      },
+      "annotations": [
+        "AGPL标注不搬码；B轨深化由规格波单元另行施工，本单只上架原样件（用户按pin自取原源）",
+        "DSH插件形态非#21直装面，仅登记",
+        "许可改牌事实（MIT→AGPL-3.0，2026-10-28）已核：任何吸收动作以现许可AGPL净室纪律执行，旧台账MIT记录不得再引用为许可依据"
+      ]
+    }
+  ]
+}

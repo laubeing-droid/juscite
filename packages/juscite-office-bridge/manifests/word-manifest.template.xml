@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Juscite Word Web Add-in manifest 模板（方案 §五 S3，自写；AutoClaw manifest 仅机制参照零文本抄）。
+     端口在 sideload 时以 {{PORT}} 替换写入（桥动态端口 → 每次部署重写本值）。
+     实测状态：本机 Word=2007（无 WEF/Office.js 子系统），本模板未在本机执行 sideload（S3 阻塞证据见
+     docs/evidence/逆向吸收波二-20261101/）。 -->
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:type="TaskPaneApp">
+  <Id>7f4a2c91-6d3b-4e58-9a10-52b6c8d9e3a1</Id>
+  <Version>0.1.0.0</Version>
+  <ProviderName>Juscite</ProviderName>
+  <DefaultLocale>zh-CN</DefaultLocale>
+  <DisplayName DefaultValue="Juscite 文档助手" />
+  <Description DefaultValue="Juscite 工作台的文档内对话侧栏（本地桥，零证书）" />
+  <IconUrl DefaultValue="http://127.0.0.1:{{PORT}}/taskpane/icon.svg" />
+  <HighResolutionIconUrl DefaultValue="http://127.0.0.1:{{PORT}}/taskpane/icon.svg" />
+  <SupportUrl DefaultValue="http://127.0.0.1:{{PORT}}/taskpane/" />
+  <AppDomains>
+    <AppDomain>http://127.0.0.1:{{PORT}}</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Document" />
+  </Hosts>
+  <Requirements>
+    <Sets DefaultMinVersion="1.1">
+      <Set Name="WordApi" MinVersion="1.7" />
+    </Sets>
+  </Requirements>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="http://127.0.0.1:{{PORT}}/taskpane/" />
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Document">
+        <DesktopFormFactor>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <OfficeTab id="TabHome">
+              <Group id="Juscite.Group1">
+                <Label resid="Juscite.Group1.Label" />
+                <Icon><bt:Image xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" size="16" resid="Juscite.Icon.16" /></Icon>
+                <Control xsi:type="Button" id="Juscite.OpenPane">
+                  <Label resid="Juscite.OpenPane.Label" />
+                  <Icon><bt:Image xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" size="32" resid="Juscite.Icon.32" /></Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>Juscite.Taskpane</TaskpaneId>
+                    <SourceLocation resid="Juscite.Taskpane.Url" />
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+    <Resources>
+      <bt:Images xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0">
+        <bt:Image id="Juscite.Icon.16" DefaultValue="http://127.0.0.1:{{PORT}}/taskpane/icon.svg" />
+        <bt:Image id="Juscite.Icon.32" DefaultValue="http://127.0.0.1:{{PORT}}/taskpane/icon.svg" />
+      </bt:Images>
+      <bt:Strings xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0">
+        <bt:String id="Juscite.Group1.Label" DefaultValue="Juscite" />
+        <bt:String id="Juscite.OpenPane.Label" DefaultValue="打开文档助手" />
+        <bt:String id="Juscite.Taskpane.Url" DefaultValue="http://127.0.0.1:{{PORT}}/taskpane/" />
+      </bt:Strings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>

@@ -1,0 +1,32 @@
+{
+  "name": "@juscite/legal",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./ui-kit": "./src/ui-kit.ts",
+    "./panels/SecurityAuditCenter": "./src/panels/SecurityAuditCenter.tsx",
+    "./panels/ToolSecuritySettingsSection": "./src/panels/ToolSecuritySettingsSection.tsx",
+    "./panels/toolSecurityModel": "./src/panels/toolSecurityModel.ts",
+    "./panels/LegalWorkbench": "./src/panels/LegalWorkbench.tsx",
+    "./panels/KnowledgeBasePanel": "./src/panels/KnowledgeBasePanel.tsx",
+    "./panels/ResearchPanel": "./src/panels/ResearchPanel.tsx",
+    "./panels/TeamPanel": "./src/panels/TeamPanel.tsx",
+    "./panels/ConflictPrecheckPanel": "./src/panels/ConflictPrecheckPanel.tsx",
+    "./panels/LearningIterationPanel": "./src/panels/LearningIterationPanel.tsx",
+    "./panels/EdiscPanel": "./src/panels/EdiscPanel.tsx",
+    "./kernel/ediscUiModel": "./src/kernel/ediscUiModel.ts",
+    "./panels/FlowStudioPanel": "./src/panels/FlowStudioPanel.tsx",
+    "./kernel/flowStudioModel": "./src/kernel/flowStudioModel.ts",
+    "./kernel/skillActivationModel": "./src/kernel/skillActivationModel.ts",
+    "./kernel/deliveryChainModel": "./src/kernel/deliveryChainModel.ts"
+  },
+  "dependencies": {
+    "@zcode/services": "workspace:*",
+    "lucide-react": "^1.17.0",
+    "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "evidence-materials",
+  "name": "证据材料整理",
+  "description": "把散装证据材料整理成清单与合集：按读取边界收料（文档表格提字、照片不做 OCR、旧格式转档）、写作规范六条、页码加注与合集页序对齐；对话内可经 /evidencezheng 触发，或在提到 整理证据/制作证据/证据合集/证据材料整理 时激活（内置合成技能，随预装批次分发）。",
+  "triggers": {
+    "commands": ["/evidencezheng"],
+    "promptPatterns": ["整理证据|制作证据|证据合集|证据材料整理|证据清单|证据目录"],
+    "fileTypes": [".pdf", ".docx", ".txt", ".md", ".jpg", ".jpeg", ".png", ".doc"]
+  },
+  "allowedTools": [],
+  "priority": 0
+}

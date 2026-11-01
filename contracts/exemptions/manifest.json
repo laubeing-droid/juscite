@@ -1,0 +1,804 @@
+{
+  "meta": {
+    "wave": "r12-波4 构建外挂+豁免集 patch 化",
+    "generated": "2026-10-29",
+    "repo": "juscite@m1",
+    "worktree": ".local/worktrees/m1-u01",
+    "baseline": {
+      "repo": "zcode-oss/upstream",
+      "ref": "main=3.16.2 原树",
+      "sha": "3c5b227649371507ddc4eb46ac5133afe6db1cab",
+      "note": "m1 树 upstream/main 同 SHA；patch 生成命令 git diff --binary <sha>..HEAD -- <族路径>"
+    },
+    "m_surface_files": 121,
+    "patch_count": 9,
+    "dir_file_budget": "9 patch + manifest.json + verify-apply-check.mjs = 11 文件 ≤ 20",
+    "verify": "node contracts/exemptions/verify-apply-check.mjs",
+    "semantics": "豁免集=对上游文件的全部内容魔改（M 面）；升级重放顺序=取新上游快照→按 mod-map prunes 裁剪单裁剪→git apply contracts/exemptions/*.patch（顺序无关）→按 mod-map A 类+波4 出树账物化新增件→跑 ci_gate fast+package。apply --check 语义=每个 patch 必须能干净打在上游基线树上（verify 脚本在临时 index read-tree 基线后逐个 --cached --check）",
+    "boundary": "A 类新增件（树内新文件，如 pet.html/visualize assets/scripts 拷贝件/desktop-pet.ts）不属 M 面无 patch；升级时按 mod-map A 类清单整文件回拷。桌宠 12 件已出树 @juscite/desktop-pet，升级零重放"
+  },
+  "families": [
+    {
+      "patch": "desktop-build-and-packaging.patch",
+      "title": "desktop 构建/打包链",
+      "why": "桥随包物化接线(materializeBridgeBundle+sourcemap bridge 跳过)、M3 砍账裁剪配套(spawn-command/intranetDefaults 本地化、nativeSearch 内联禁用、koffi/notices 条件化)、Juscite identity 单源(homepage/appId/productName 桩)、桌宠出树接线(vite/tsup 入口+workspace 依赖+tsconfig 引用)、dev 更新源 RFC2606 桩",
+      "files": 15
+    },
+    {
+      "patch": "desktop-installer-and-update.patch",
+      "title": "desktop 安装/更新面",
+      "why": "Juscite 品牌文案(安装向导/关于/强更弹窗)+自家更新源桩(updates.juscite.invalid)；installer.nsh 日志文件名为跨版本卸载清理合同(brand-exemptions #17)保留原文",
+      "files": 1
+    },
+    {
+      "patch": "desktop-shell-host-swap.patch",
+      "title": "desktop 主进程壳（host swap+砍账+桌宠接线）",
+      "why": "上游 host 整目录裁剪的接线面(desktopHostProcess 打包态 spawn 桥)、CUA/ARMS 砍账断言回落、桌宠 createPetModule 接线(@juscite/desktop-pet)、品牌窗题、内部诊断文本",
+      "files": 24
+    },
+    {
+      "patch": "desktop-renderer-and-preload.patch",
+      "title": "desktop 渲染层/preload",
+      "why": "host swap 的 IPC/平台桥面(desktopPlatform/desktopBrowserPlatformBridge/preload petBridge)、资源管理器与 CUA 浮窗砍账回落、品牌文案、图标 mode 归一",
+      "files": 9
+    },
+    {
+      "patch": "desktop-scheduler-decls.patch",
+      "title": "desktop scheduler 声明产物",
+      "why": "F 类：schedulerProtocol 四件(d.ts/.d.ts.map/.js/.js.map)随我方调度面改动的声明漂移，升级机械重放",
+      "files": 4
+    },
+    {
+      "patch": "ui-package-surface.patch",
+      "title": "ui 包合法树内态（品牌/overlay/挂载/协议消费）",
+      "why": "波2 品牌二轮收口面(用户可见文案改 Juscite+overlay 注册点 IntlProvider/ErrorBoundary+白标 provider 展名)+波3 legal 出树挂载面(App/WorkspaceShellLayout/project-sidebar/package.json/tsconfig 工程引用，pin-points-wave3 #2-#7)+v4 协议消费修复与错误匹配面(brand-exemptions #8/#9)+分享面砍账回落与测试收口",
+      "files": 54
+    },
+    {
+      "patch": "web-brand-and-entries.patch",
+      "title": "web 包",
+      "why": "Juscite 品牌面(index.html title/favicon 换装)、分享面砍账路由回落(main.tsx/vite.config)、图标 mode 归一",
+      "files": 5
+    },
+    {
+      "patch": "shared-contracts.patch",
+      "title": "shared 协议/通道合同",
+      "why": "桌宠 4 通道合同(channels.ts)+类型导出面(index.ts/platform.ts)；zcode-protocol-v4/command.ts attachmentIds=RE-6 材料上下文注入现役扩展（原则1 违例在账：波1 §五.1 列入 runtime-port 吸收清单，波2.5 未执行；功能必需故本波如实保留入豁免，收口裁决属波5/主控）",
+      "files": 4
+    },
+    {
+      "patch": "services-client-cua.patch",
+      "title": "services fork 面+client 声明+cua 占位包",
+      "why": "services fork 可选方法(zcodeAgent searchSessionDocuments RE-15、skills installSkillArchive RE-21——可选方法向后兼容，上游消费者不受影响)；client/globals.d.ts 桌宠 window.API 声明；zcode-cua 占位包版本/类型收口(0.6.3 placeholder)",
+      "files": 5
+    }
+  ],
+  "files": [
+    {
+      "path": "packages/client/src/globals.d.ts",
+      "family": "services-client-cua.patch",
+      "modmap_cls": "F",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/build/installer.nsh",
+      "family": "desktop-installer-and-update.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/desktop/dev-app-update.yml",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/electron-builder.config.js",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/package.json",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "G",
+      "modmap_note": "peeked: description/author 换 Juscite、去 #e2e imports——品牌+host swap"
+    },
+    {
+      "path": "packages/desktop/scripts/audit-bundle-size.mjs",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/desktop/scripts/bundle.mjs",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/scripts/desktop-product-identity.mjs",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "E",
+      "modmap_note": "品牌 identity 单源(appId/productName=Juscite)——D5 命中"
+    },
+    {
+      "path": "packages/desktop/scripts/gen-ui-runtime-assets.mjs",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/scripts/packaged-sourcemap-cleanup.mjs",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/scripts/run-production-build.mjs",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/about.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/desktop/src/main/autoUpdater.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/browserView/browserScreenshotSurfaceContracts.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/databaseStartupRelay.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/desktopChromiumHardwareAccelerationBootstrap.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/desktopCommandHandlers.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": "peeked: 摘 cuaOsSupport——desktop 命令面裁剪配套"
+    },
+    {
+      "path": "packages/desktop/src/main/desktopDataBaseDirBootstrap.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/desktopFinderOpenFolderWorkflow.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/desktop/src/main/desktopHostProcess.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/desktopMainIpcPlatform.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/desktopRuntimeEnv.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/desktopSaveFile.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/desktopWindowLifecycle.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/desktopWindowsOpenFolderContextMenu.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/desktop/src/main/forceUpdateGuard.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/desktop/src/main/forceUpdatePrompt.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/desktop/src/main/index.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": "peeked: 摘除上游 ttft/ARMS/crash 引导——desktop host swap"
+    },
+    {
+      "path": "packages/desktop/src/main/openInEditor.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/pluginSandbox/host.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/desktop/src/main/pluginSandbox/permissionGate.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/desktop/src/main/pluginSandbox/permissions.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/desktop/src/main/resourceManagerStorage.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/storageScanWorker.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/main/storageScanWorkerProtocol.ts",
+      "family": "desktop-shell-host-swap.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/preload/index.ts",
+      "family": "desktop-renderer-and-preload.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/renderer/cuaPermissionPanelMessages.ts",
+      "family": "desktop-renderer-and-preload.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/desktop/src/renderer/index.html",
+      "family": "desktop-renderer-and-preload.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/renderer/public/material-icons/systemd.svg",
+      "family": "desktop-renderer-and-preload.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/desktop/src/renderer/public/material-icons/systemd_light.svg",
+      "family": "desktop-renderer-and-preload.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/desktop/src/renderer/src/desktopBrowserPlatformBridge.ts",
+      "family": "desktop-renderer-and-preload.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/renderer/src/desktopPlatform.ts",
+      "family": "desktop-renderer-and-preload.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/renderer/src/main.tsx",
+      "family": "desktop-renderer-and-preload.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/renderer/src/performanceTimelineCleanup.ts",
+      "family": "desktop-renderer-and-preload.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/scheduler/schedulerProtocol.d.ts",
+      "family": "desktop-scheduler-decls.patch",
+      "modmap_cls": "F",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/scheduler/schedulerProtocol.d.ts.map",
+      "family": "desktop-scheduler-decls.patch",
+      "modmap_cls": "F",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/scheduler/schedulerProtocol.js",
+      "family": "desktop-scheduler-decls.patch",
+      "modmap_cls": "F",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/src/scheduler/schedulerProtocol.js.map",
+      "family": "desktop-scheduler-decls.patch",
+      "modmap_cls": "F",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/tsconfig.host.json",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/tsconfig.json",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/tsconfig.preload.json",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/tsconfig.renderer.json",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/tsup.config.ts",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/desktop/vite.config.ts",
+      "family": "desktop-build-and-packaging.patch",
+      "modmap_cls": "D",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/services/src/skills/skills.ts",
+      "family": "services-client-cua.patch",
+      "modmap_cls": "C",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/services/src/zcode-agent/zcodeAgent.ts",
+      "family": "services-client-cua.patch",
+      "modmap_cls": "C",
+      "modmap_note": "peeked: IZCodeAgentService 加 fork 可选方法 searchSessionDocuments?(RE-15)——合同扩展, 波2.5 吸收"
+    },
+    {
+      "path": "packages/shared/src/channels.ts",
+      "family": "shared-contracts.patch",
+      "modmap_cls": "C",
+      "modmap_note": "peeked: 加 PetGetStatus/PetUpdateConfig/PetStatusChanged/PetReportRunEvent 四通道(#28 桌宠)——通道合同扩展, 波2.5 吸收"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "family": "shared-contracts.patch",
+      "modmap_cls": "C",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/shared/src/platform.ts",
+      "family": "shared-contracts.patch",
+      "modmap_cls": "C",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/shared/src/zcode-protocol-v4/command.ts",
+      "family": "shared-contracts.patch",
+      "modmap_cls": "C",
+      "modmap_note": "peeked: send payload 加 attachmentIds 字段(RE-6 材料附件)——原则1 违例面: 上游协议真源在树被扩, 波2.5 runtime-port 重构吸收"
+    },
+    {
+      "path": "packages/ui/package.json",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "G",
+      "modmap_note": "peeked: 加 driver.js 1.10.2(#29 新手引导)——依赖清单, 升级消化"
+    },
+    {
+      "path": "packages/ui/src/App.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": "peeked: 挂 ProductTour(#29)/SecurityAuditCenter(#30) 触发总线——面板挂载"
+    },
+    {
+      "path": "packages/ui/src/CodingPlanUsageRemainingPanel.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/ErrorBoundary.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/NewTaskButtonGroup.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/Root.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/SettingsPage.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/WelcomeScreen.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/WindowsTopLeftLogo.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/WorkspaceHeaderSections/WorkspaceHeaderActionSection.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/WorkspaceSidebarFooter.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/WorkspaceSidebarFooterUsageSummary.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/app-shell/WorkspaceShellLayout.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/app-shell/types.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/chat-input-toolbar/StartPlanContextBalance.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/components/ui/pdf-viewer.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/feedback/feedbackSubmitDescription.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/feedback/feedbackSubmitSubmission.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/highspeed/HighspeedShareNoticeCard.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/highspeed/highspeedShare.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/i18n/IntlProvider.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/lib/builtinSkillI18n.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "A",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/lib/codingPlanUsageSources.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/lib/settingsNavigation.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/lib/zcodeSessionProjection.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/lib/zcodeUiError.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/login/LoginApiKeyForm.helpers.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/onboarding/OnboardingWelcomeView.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/plugin-ui/adapters/useUiPluginRecommendations.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/previewPanePdfContent.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/project-sidebar/ProjectSidebarNavigation.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/project-sidebar/contract.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/project-sidebar/index.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/project-workflow/WorkflowRunPaneSaveSlots.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/root/PostUpdateReleaseNotesDialog.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/root/RootStartupLoading.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/settings/mcpSettingsShared.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/settings/model-provider-section/StartPlanBalanceCard.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/settings/model-provider-section/constants.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/settings/model-provider-section/quotaModelDisplayName.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/settings/model-provider-section/useCodingPlanProducts.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/settings/settingsPageConfig.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/settings/usage-stats/CodingPlanUsagePanel.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/store/conversationShareSelectionStore.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/styles.css",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/v4/ConversationComposer.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "C",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/v4/SessionPane.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "C",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/src/v4/composer/V4ComposerToolbar.tsx",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/v4/conversationProjectionStore.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/src/v4/officeSuggestedPrompts.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/ui/test/conversationShareMenu.test.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/test/conversationSharePopoverState.test.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/test/conversationShareSelection.test.ts",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": "B",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/ui/tsconfig.json",
+      "family": "ui-package-surface.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/web/index.html",
+      "family": "web-brand-and-entries.patch",
+      "modmap_cls": "E",
+      "modmap_note": "peeked: title ZCode→Juscite、favicon 换 Juscite 占位——D5 品牌二轮命中"
+    },
+    {
+      "path": "packages/web/public/material-icons/systemd.svg",
+      "family": "web-brand-and-entries.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/web/public/material-icons/systemd_light.svg",
+      "family": "web-brand-and-entries.patch",
+      "modmap_cls": null,
+      "modmap_note": "mod-map 未载（r8-r11 各单增量）"
+    },
+    {
+      "path": "packages/web/src/main.tsx",
+      "family": "web-brand-and-entries.patch",
+      "modmap_cls": "D",
+      "modmap_note": "peeked: 摘除 share landing 接线——web 壳裁剪配套"
+    },
+    {
+      "path": "packages/web/vite.config.ts",
+      "family": "web-brand-and-entries.patch",
+      "modmap_cls": "D",
+      "modmap_note": "peeked: 加 BRIDGE_PORT 环境变量指向隔离桥——构建外挂"
+    },
+    {
+      "path": "packages/zcode-cua/broker-server.d.ts",
+      "family": "services-client-cua.patch",
+      "modmap_cls": "F",
+      "modmap_note": ""
+    },
+    {
+      "path": "packages/zcode-cua/package.json",
+      "family": "services-client-cua.patch",
+      "modmap_cls": "G",
+      "modmap_note": ""
+    }
+  ]
+}

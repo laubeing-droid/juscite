@@ -1,0 +1,10 @@
+{
+  "cases_root": null,
+  "cases_dataset_version": null,
+  "cases_index_version": null,
+  "cases_contract": null,
+  "cases_url": null,
+  "jc_state_root": null,
+  "skill_catalog_state_root": null,
+  "note": "Later phase only; unconfigured capabilities must show NOT_CONNECTED, never success. No credentials here. jc.* needs jc_state_root (and optional jc_import_path/jc_rule_roots pinned via 14-Python入口证据.csv); anonymizer_contract must equal \"p09/p10\" to enable material.* methods; identity mappings never cross the bridge; skill.catalog.*/skill.zip.* need skill_catalog_state_root (F94/F95 distribution chain; channels public/controlled, controlled content never leaves its root)."
+}
