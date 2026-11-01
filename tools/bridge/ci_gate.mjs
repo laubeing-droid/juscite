@@ -12,7 +12,8 @@
 //               声明式监控契约+消费面接线+host.use('db'/'user') 两态，隔离端口 :3090 段，
 //               末行 MONITORING_SYNTH_PASS）
 //             + 品牌二轮门禁（r12 波2 · D5：全品牌正则用户可见字符串零命中 + locale overlay 覆盖断言，
-//               豁免表 contracts/brand-exemptions.md）
+//               豁免表 contracts/brand-exemptions.md；扫描面含 packages/web/src，并含成对标签静态文本）
+//   brand   = 只跑品牌二轮门禁（stepBrand）。不拉 vitest/e2e/桥进程。
 //   persist = fast + 桥重启不丢案实测（发一句合成消息→杀桥进程→重启→历史会话行完整一致）。
 //             默认对 :3030（破坏性：会杀掉在跑的桥再用注册凭据拉起）；--port N 改在门禁自管的独立实例上自测，不碰 :3030。
 //   full    = fast + persist（persist 已含 fast，等价 persist，不重跑两遍）。
@@ -53,8 +54,8 @@ const VITEST_TESTS = 150; // sessionsIndexStore(基线) + agentV4ConnectionTrans
 const VITEST_LEGAL_TESTS = 96; // vizbPanelContract（施工波二轮·可视化B轨 UI 件：大事记投影 10+摄入载荷 2+对抗摘要 2+下载名净化 1）+ skillActivationModel（施工波三轮·#7 全量面：触发通道/分值/预算/上限/双语义/supplemental/注入格式 17）+ deliveryChainModel（施工波三轮·#7 全量面：路径提取/双层过滤/版本族去重/D4 两层短路 15）+ flowStudioModel（施工波三轮·#35 尾巴②：运行七态闭集/未知态灰具名/双来源只读/运行面摘要/关卡冲突回显/AI-run G1-G3 视图/定义普查与发起门槛 14）+ configWriteModel（施工单-10 单元二·结构化写入防御：safe-quote 纯标量 yaml 对拍/键闭集闸含原型键拒/round-trip 键集合零变化 27）+ tabularExportGuard（施工单-10 单元一·CSV 公式注入防御：闭集判定/20 payload 读回首字符 '/金额豁免/干净值零改写/列名同防 8），独立 vitest 配置独立期望
 
 const mode = process.argv[2];
-if (!["fast", "persist", "full", "package", "upgrade"].includes(mode)) {
-  console.error("用法: node tools/bridge/ci_gate.mjs <fast|persist|full|package|upgrade> [--port N]");
+if (!["fast", "persist", "full", "package", "upgrade", "brand"].includes(mode)) {
+  console.error("用法: node tools/bridge/ci_gate.mjs <fast|persist|full|package|upgrade|brand> [--port N]");
   process.exit(2);
 }
 let persistPort = 3030;
@@ -516,10 +517,11 @@ async function stepDesktopBuild() {
 // ── 步骤（fast）：品牌二轮门禁（r12 波2 · D5，设计 §二/§五④）──
 // 全品牌正则 = 旧品牌 律引|Lvyin + 上游品牌 ZCode|Z.ai|智谱|GLM|ChatGLM|BigModel（大小写敏感：
 // 小写 zcode/z.ai 属代码标识符与 wire 域名命名空间，不属用户可见文案）。
-// 只扫用户可见字符串：剥离注释/模块路径/模板插值后匹配引号字面量；locale 基座（已还原上游）
+// 只扫用户可见字符串：剥离注释/模块路径/模板插值后匹配引号字面量，并匹配成对 HTML/JSX
+// 标签的静态文本（<title>/<span> 等；去掉 {…} 表达式，跳过 script/style）。locale 基座（已还原上游）
 // 不走字面量零命中，走 overlay 覆盖完备性断言；豁免逐项在 contracts/brand-exemptions.md（机读表为 ```json 围栏）。
 const BRAND_RE_SOURCE = "ZCode|Z\\.ai|智谱|GLM|ChatGLM|BigModel|律引|Lvyin";
-const BRAND_SCAN_ROOTS = ["packages/ui/src", "packages/desktop/src"];
+const BRAND_SCAN_ROOTS = ["packages/ui/src", "packages/desktop/src", "packages/web/src"];
 const BRAND_SCAN_FILES = ["packages/web/index.html", "packages/desktop/build/installer.nsh"];
 const BRAND_SCAN_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".json", ".html", ".nsh"]);
 const BRAND_MODULE_SPECIFIER_RE = /^[\w@./~-]+\.(js|jsx|ts|tsx|mjs|cjs|json|css|scss|svg|png|jpe?g|gif|webp|woff2?|md)$/i;
@@ -596,6 +598,44 @@ function extractBrandLiterals(text) {
   return literals;
 }
 
+// 成对标签的静态文本（引号字面量扫不到的 <title>…</title> / <span>品牌</span>）。
+// 块注释与 HTML 注释、script/style 正文先抹掉（保行号）；标签属性与正文都不跨 `<`/`>`，
+// 因此比较运算和嵌套标签不会被当成一整段文案。JSX `{…}` 表达式抹成空格后再匹配品牌正则。
+function stripBrandJsxExpressions(value) {
+  let out = "";
+  let i = 0;
+  while (i < value.length) {
+    if (value[i] !== "{") { out += value[i]; i++; continue; }
+    let depth = 1;
+    i++;
+    while (i < value.length && depth > 0) {
+      if (value[i] === "{") depth++;
+      else if (value[i] === "}") depth--;
+      i++;
+    }
+    out += " ";
+  }
+  return out;
+}
+
+function extractBrandMarkupTextNodes(text) {
+  const blanked = text
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/<!--[\s\S]*?-->/g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, (m) => m.replace(/[^\n]/g, " "));
+  const nodes = [];
+  const re = /<([A-Za-z][\w:.-]*)\b[^<>]*>([^<>]*)<\/\1>/g;
+  let m;
+  while ((m = re.exec(blanked)) !== null) {
+    const value = stripBrandJsxExpressions(m[2]).replace(/\s+/g, " ").trim();
+    if (!value) continue;
+    const contentAt = m.index + m[0].indexOf(">") + 1;
+    nodes.push({ value, line: blanked.slice(0, contentAt).split(/\r?\n/).length });
+  }
+  return nodes;
+}
+
 // locale 基座词条解析（扁平 Record，键行冒号后换行的续行值合并；与波2 生成器同法）。
 function parseBrandLocaleEntries(text) {
   const BS = String.fromCharCode(92);
@@ -655,11 +695,16 @@ function stepBrand() {
     let text = readFileSync(join(REPO_ROOT, ...rel.split("/")), "utf-8");
     if (rel.endsWith(".nsh")) text = text.split(/\r?\n/).filter((l) => !/^\s*[;#]/.test(l)).join(String.fromCharCode(10));
     if (rel.endsWith(".html")) text = text.replace(/<!--[\s\S]*?-->/g, " ");
-    for (const lit of extractBrandLiterals(text)) {
+    const seen = new Set();
+    for (const lit of [...extractBrandLiterals(text), ...extractBrandMarkupTextNodes(text)]) {
       brandRe.lastIndex = 0;
       if (!brandRe.test(lit.value)) continue;
       if (BRAND_MODULE_SPECIFIER_RE.test(lit.value.trim())) continue; // 模块路径=标识符命名空间
-      rawHits.push({ rel, line: lit.line, value: lit.value.slice(0, 120) });
+      const value = lit.value.slice(0, 120);
+      const key = `${lit.line}\0${value}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rawHits.push({ rel, line: lit.line, value });
     }
   }
 
@@ -695,7 +740,7 @@ function stepBrand() {
   }
   return {
     ok: true,
-    msg: `品牌二轮检查 ${relFiles.length} 文件字面量零漏（豁免 ${waived} 项逐条在案）；locale 基座品牌键 overlay 覆盖 en ${coverage.en.brandKeys}/${coverage.en.brandKeys}、zh ${coverage.zh.brandKeys}/${coverage.zh.brandKeys}`,
+    msg: `品牌二轮检查 ${relFiles.length} 文件字面量与标签文本零漏（豁免 ${waived} 项逐条在案）；locale 基座品牌键 overlay 覆盖 en ${coverage.en.brandKeys}/${coverage.en.brandKeys}、zh ${coverage.zh.brandKeys}/${coverage.zh.brandKeys}`,
   };
 }
 
@@ -828,7 +873,9 @@ function stepMonitoring() {
 // ── 主流程 ──
 async function main() {
   let steps;
-  if (mode === "package") {
+  if (mode === "brand") {
+    steps = [["brand", stepBrand]];
+  } else if (mode === "package") {
     // 放行条件④（RE-B3 §5）：license 步骤随行进打包门禁；桌面构建=步骤5 打包单①③。
     steps = [["nodecheck", stepNodecheck], ["license", stepLicense], ["desktop-build", stepDesktopBuild]];
   } else if (mode === "upgrade") {
