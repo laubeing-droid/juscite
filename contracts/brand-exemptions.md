@@ -34,6 +34,11 @@
 | 15 | ui/src/assets/provider-icons/model-provider-logo-sources.json | `"…128x128 ZCode application PNG…"` / `"brand": "BigModel"` 等 4 条 | 4 | 图标资产来源出处元数据（资产溯源记录，非 UI 渲染文案）。 |
 | 16 | ui/src/components/cloud-content-dialog/mocks/weekendPlanResultDialog.zh-CN.json | `"GLM-5.3-Flash 每日额度"` 等 2 条 | 4 | 云内容对话框开发夹具（mocks/ 目录，树内无 import 引用，不随安装物分发）。 |
 | 17 | desktop/build/installer.nsh | `"$TEMP\ZCode-installer.log"` / `"$WINDIR\Logs\ZCode-installer.log"` / `"$TEMP\ZCode-uninstaller.log"` | 3 | 安装/卸载日志**文件名**（NSIS define 路径）：旧版本卸载器与新版本安装器按同一物理路径对账清理，跨版本文件名合同；安装向导**页面文案**（DetailPrint/MUI_HEADER_TEXT）已全部改 Juscite（本轮）。 |
+| 18 | web/src/auth/webAuthLocale.ts | `"连接 Z.ai 继续使用"` / `"Connect to Z.ai"` / `"连接 BigModel 继续使用"` / `"Connect to BigModel"` | 1 | 第三方登录渠道展示名（Z.ai / BigModel IdP）。产品品牌是否改中性「登录」待主人裁定；本轮不改写，只登记以免 `packages/web/src` 进扫描面后把门禁打红。 |
+| 19 | web/src/web-remote-control/ui/webRemoteControlDeviceListPage.tsx | `"Z.ai"` / `"BigModel"` | 1 | 设备列表账号行的渠道标签，与 #18 同一 IdP 展示名。待主人裁定保留或中性化；本轮不改写。 |
+| 20 | ui/src/highspeed/HighspeedShareNoticeCard.tsx | `GLM-5.3-Highspeed` | 1 | 侧栏模型名展示。第三方型号 vs 产品品牌待主人裁定；标签文本节点进门禁后必须登记，本轮不改写该型号字符串。 |
+| 21 | desktop/src/main/desktopCommandHandlers.ts | `<title>ZCode Endpoint</title>` / `ZCode endpoint origin` | 2 | 仅 `ZCODE_ENV===test` 的自定义 endpoint 覆盖对话框（窗口标题与表单标签）。命名的是上游 endpoint 覆盖，不是产品名牌；不随正式安装菜单分发。 |
+| 22 | web/src/web-remote-control/contract.ts | `"getZCodeJwtToken"` | 1 | `Pick<WebAuthService, "getZCodeJwtToken">` 的方法名字符串。标识符命名空间，不是用户文案；改名即断登录边界类型。 |
 
 不在表内亦不豁免的判定：
 - **代码标识符**（`ZCodeIntlProvider`/`useZCodeTaskService`/`zcodeSessionProjection` 类型导出名、`/zcode-plugins-official/` 路径标记、`normalizeAgentProviderToZCodeAgent` 等 ≈4,690 处）：非字符串文案，出口在标识符命名空间（改名=跨包断线），属设计 §二"协议合同标识符"总豁免——门禁按"仅扫字符串字面量"天然不涉及。
@@ -69,15 +74,23 @@
     { "file": "ui/src/components/cloud-content-dialog/mocks/weekendPlanResultDialog.zh-CN.json", "literal": "GLM", "why": "开发夹具" },
     { "file": "desktop/build/installer.nsh", "literal": "ZCode-installer.log", "why": "安装/卸载日志文件名（跨版本卸载器清理对同一物理路径的合同）" },
     { "file": "desktop/build/installer.nsh", "literal": "ZCode-uninstaller.log", "why": "卸载日志文件名（同上）" },
-    { "file": "desktop/build/installer.nsh", "literal": "$ZCodeInstallerProcessRole", "why": "NSIS 变量名引用（DetailPrint 诊断载荷，运行时取值为 outer/elevated-inner）" }
+    { "file": "desktop/build/installer.nsh", "literal": "$ZCodeInstallerProcessRole", "why": "NSIS 变量名引用（DetailPrint 诊断载荷，运行时取值为 outer/elevated-inner）" },
+    { "file": "web/src/auth/webAuthLocale.ts", "literal": "Z.ai", "why": "第三方 IdP 渠道展示名，待主人裁定保留或中性化" },
+    { "file": "web/src/auth/webAuthLocale.ts", "literal": "BigModel", "why": "第三方 IdP 渠道展示名，待主人裁定保留或中性化" },
+    { "file": "web/src/web-remote-control/ui/webRemoteControlDeviceListPage.tsx", "literal": "Z.ai", "why": "设备列表渠道标签，同登录页 IdP 展示名，待主人裁定" },
+    { "file": "web/src/web-remote-control/ui/webRemoteControlDeviceListPage.tsx", "literal": "BigModel", "why": "设备列表渠道标签，同登录页 IdP 展示名，待主人裁定" },
+    { "file": "ui/src/highspeed/HighspeedShareNoticeCard.tsx", "literal": "GLM-5.3-Highspeed", "why": "侧栏模型名展示，第三方型号待主人裁定，本轮不改写" },
+    { "file": "desktop/src/main/desktopCommandHandlers.ts", "literal": "ZCode Endpoint", "why": "ZCODE_ENV===test 的 endpoint 覆盖对话框窗口标题" },
+    { "file": "desktop/src/main/desktopCommandHandlers.ts", "literal": "ZCode endpoint origin", "why": "ZCODE_ENV===test 的 endpoint 覆盖对话框表单标签" },
+    { "file": "web/src/web-remote-control/contract.ts", "literal": "getZCodeJwtToken", "why": "Pick 键上的方法名字符串，标识符命名空间，非用户文案" }
   ]
 }
 ```
 
 ## 四、门禁语义（tools/bridge/ci_gate.mjs fast 链 brand 步）
 
-1. **扫描面**：`packages/ui/src`、`packages/desktop/src`、`packages/web/index.html`、`packages/desktop/build/installer.nsh`（安装向导）。
-2. **只扫用户可见字符串**：剥离注释（`//`、`/* */`、NSIS `;`）、import/export 行、模板串 `${…}` 插值后，再在 `"…"`/`'…'`/`` `…` `` 字面量内匹配全品牌正则 `ZCode|Z\.ai|智谱|GLM|ChatGLM|BigModel|律引|Lvyin`（大小写敏感——小写 `zcode`/`z.ai` 属标识符与 wire 域名命名空间）。
+1. **扫描面**：`packages/ui/src`、`packages/desktop/src`、`packages/web/src`、`packages/web/index.html`、`packages/desktop/build/installer.nsh`（安装向导）。
+2. **只扫用户可见字符串**：剥离注释（`//`、`/* */`、NSIS `;`、HTML `<!-- -->`）、import/export 行、模板串 `${…}` 插值后，再在 `"…"`/`'…'`/`` `…` `` 字面量内匹配全品牌正则 `ZCode|Z\.ai|智谱|GLM|ChatGLM|BigModel|律引|Lvyin`（大小写敏感——小写 `zcode`/`z.ai` 属标识符与 wire 域名命名空间）。另扫成对 HTML/JSX 标签的静态文本（去掉 `{…}` 表达式，跳过 `script`/`style`），因此 `<title>…</title>`、`<span>品牌</span>` 这类无引号文本节点也进门禁。
 3. **locale 基座覆盖断言**：对 `packages/ui/src/i18n/locales/{en-US,zh-CN}.ts` 逐键提取含品牌字样的键，逐一断言 `i18n/jusciteOverlay.ts` 存在同键（运行时 overlay 覆盖后才到用户眼前），缺键即红。
 4. **豁免**：命中项按 §三 机读表（file 前缀 + literal 全文/前缀匹配）豁免；表外命中即 FAIL exit 1。
 5. 本清单与机读表同源同改：改豁免先改本文件（含 §三 JSON），门禁每轮实时解析。
