@@ -47,7 +47,12 @@ const targetPlatform = getTargetPlatform();
 // 代码和完整供应链保留在显式 opt-in 后，便于未来恢复而不影响当前发布流程。
 const shouldPackageWindowsBrowserImportHelper =
   targetPlatform.os === "win32" && process.env.ZCODE_ENABLE_WINDOWS_BROWSER_IMPORT === "1";
-const builtinProviderConfig = await loadBuiltinProviderConfig();
+// 锁断言 import 本模块只为读取 REQUIRED_ASAR_RUNTIME_MODULES。
+// 桥物化、内置 provider 校验、asar 解析只在 electron-builder 进程跑。
+const packConfigForBuilder = process.argv.some((arg) => arg.includes("electron-builder"));
+const builtinProviderConfig = packConfigForBuilder
+  ? await loadBuiltinProviderConfig()
+  : { environment: "test" };
 const desktopProductIdentity = resolveDesktopProductIdentity({
   ...process.env,
   ZCODE_ENV: builtinProviderConfig.environment,
@@ -55,7 +60,7 @@ const desktopProductIdentity = resolveDesktopProductIdentity({
 // 桥随包（步骤5·桥随包单）：配置求值即物化自足桥目录（bridge-bundle/，git 忽略），
 // 经下方 extraResources 拷进安装包 resources/bridge；desktopHostProcess 打包态从该处 spawn。
 // 放配置求值段而非 beforePack 钩子：物化不依赖打包产物，且先于一切资源拷贝，无阶段次序假设。
-materializeBridgeBundle({ desktopPackageRoot: import.meta.dirname });
+if (packConfigForBuilder) materializeBridgeBundle({ desktopPackageRoot: import.meta.dirname });
 // Juscite 适配（M3 砍账）：bundled-tools 原生搜索随包链（scripts/native-search-tools-config.mjs）未拎入，
 // 以禁用计划内联——extraResources 不再要求 bundled-tools/*；rg 由 desktopRuntimeEnv 回退系统 PATH。
 const nativeSearchReleasePlan = { enabled: false, extraResourceToolIds: [] };
@@ -91,12 +96,14 @@ let nsisInstallSectionPatched = false;
 let nsisInstallSectionOriginalSource = null;
 let nsisInstallSectionPath = null;
 const desktopElectronVersion = requireFromConfig("./package.json").devDependencies.electron;
-const asarCliPath = resolve(
-  dirname(requireFromConfig.resolve("@electron/asar/package.json")),
-  "bin",
-  "asar.js",
-);
-const REQUIRED_ASAR_RUNTIME_MODULES = [
+const asarCliPath = packConfigForBuilder
+  ? resolve(
+      dirname(requireFromConfig.resolve("@electron/asar/package.json")),
+      "bin",
+      "asar.js",
+    )
+  : "";
+export const REQUIRED_ASAR_RUNTIME_MODULES = [
   "pngjs",
   // Bugfix: @zcode/services 的代理连通性探测会动态 require("undici") 取 ProxyAgent。
   // tsup 虽然把 services 代码并进了主/host 产物，但不会把这个运行时 require 的包内联进去，

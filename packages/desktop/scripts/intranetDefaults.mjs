@@ -1,5 +1,14 @@
-import { loadEndpointEnv } from "./load-endpoint-env.mjs";
-const endpointEnv = await loadEndpointEnv();
+const endpointEnv = await loadEndpointEnvIfPresent();
+
+async function loadEndpointEnvIfPresent() {
+  try {
+    const { loadEndpointEnv } = await import("./load-endpoint-env.mjs");
+    return await loadEndpointEnv();
+  } catch (error) {
+    if (error?.code === "ERR_MODULE_NOT_FOUND") return {};
+    throw error;
+  }
+}
 export const DEFAULT_INTRANET_MACHINE_HOST = "";
 export function resolveIntranetMachineHost(env = { ...endpointEnv, ...process.env }) {
   // 自建镜像机器地址统一从 INTRANET_MACHINE_HOST 读取，避免多处硬编码漏改。
