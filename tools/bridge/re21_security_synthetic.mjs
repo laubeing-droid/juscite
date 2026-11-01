@@ -204,6 +204,15 @@ const BASE = { permissionMode: "smart", shellEnabled: false };
   const c7 = gateCommand("type a.txt > ..\\out.txt", ON);
   const c8 = gateCommand("type sub\\a.txt > out.txt", ON);
   const c9 = gateCommand("/usr/bin/curl http://x.example", ON); // 带路径按裸名识别仍拒
+  // 原先只认「空格 + >」。无空格、n>、引号目标、cmd 的 &、find -exec、--output= 都能绕过。
+  const c10 = gateCommand("echo hi>..\\out.txt", ON);
+  const c11 = gateCommand("echo hi >\"..\\out.txt\"", ON);
+  const c12 = gateCommand("echo hi 1> ..\\out.txt", ON);
+  const c13 = gateCommand("echo hi & curl http://x.example", ON);
+  const c14 = gateCommand("find . -exec cat {} ;", ON);
+  const c15 = gateCommand("sort --output=..\\out.txt a.txt", ON);
+  const c16 = gateCommand("echo %COMSPEC%", ON);
+  const c17 = gateCommand("echo hi > out.txt", ON);
   if (!c0.ok && c0.code === "shell_disabled"
     && !c1.ok && c1.code === "command_substitution"
     && !c2.ok && c2.code === "sensitive_path"
@@ -213,9 +222,17 @@ const BASE = { permissionMode: "smart", shellEnabled: false };
     && !c6.ok && c6.code === "arg_path_escape"
     && !c7.ok && c7.code === "redirect_escape"
     && c8.ok && c8.code === "ok"
-    && !c9.ok && c9.code === "network_command")
-    ok(9, "命令闸七连+重定向写闸+链式逐段+带路径裸名识别");
-  else fail(9, "命令闸不过", JSON.stringify({ c0, c1, c2, c3, c4, c5, c6, c7, c8, c9 }));
+    && !c9.ok && c9.code === "network_command"
+    && !c10.ok && c10.code === "redirect_escape"
+    && !c11.ok && c11.code === "redirect_escape"
+    && !c12.ok && c12.code === "redirect_escape"
+    && !c13.ok && c13.code === "network_command"
+    && !c14.ok && c14.code === "command_not_allowed"
+    && !c15.ok && c15.code === "arg_path_escape"
+    && !c16.ok && c16.code === "command_substitution"
+    && c17.ok && c17.code === "ok")
+    ok(9, "命令闸七连+重定向写闸+链式逐段+带路径裸名识别+&/n>/引号目标/find -exec");
+  else fail(9, "命令闸不过", JSON.stringify({ c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17 }));
 }
 
 // ── 10（对拍 #22/#29 组合面）：shell 审批不可越过宿主闸——策略 ask/allow 后

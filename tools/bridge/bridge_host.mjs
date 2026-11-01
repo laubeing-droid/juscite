@@ -82,7 +82,7 @@ import { createDiligenceService } from "./diligence_service.mjs";
 // 【#21 安全层】Allow/Ask/Deny 工具策略决策函数+审批缓存（RE-21 增补 §3.2）+宿主最后闸（§3.4）。
 // 审计表单实例在 bridge_store（迁移 0021）；shell 默认=关（2026-10-30 主控裁定），用户可翻设置 toolSecurity.shellEnabled。
 import { TOOL_POLICY_VERSION, PERMISSION_MODES, decideToolCall, createApprovalCache } from "./tool_policy.mjs";
-import { gateCommand, gateWorkspacePath } from "./host_gate.mjs";
+import { gateCommand, gateContainedPath, gateWorkspacePath } from "./host_gate.mjs";
 // 功能 #11 Word 红线改稿（施工单-03 任务一）：docx 提取与终稿装配（确定性小件，回合走 oc28 会话通道）。
 import { extractDocxText, applyRedlineDecisions } from "./redline_service.mjs";
 // 功能 #10 文书起草技能（自写 SKILL.md；随 #21 技能安装线分发——内置合成技能，禁抄竞品文案）
@@ -164,7 +164,7 @@ import {
   isMetaSidecar, normalizeQuery, planQueries, tokenize, chunkText, scoreChunk, rankReasonOf, rerank,
   rrfFuse, isMetaExpired, buildRetrievalContext, buildAskPrompt, threadTitle, isKbThreadTitle,
   safeRelPath, extOf, ruleClassify, KB_CATEGORIES, inferDocLayer, routeLayer, cleanAnswer, sha256,
-  kbShellBypassGuard, KB_BYPASS_ADVISORY,
+  kbShellBypassGuard, KB_BYPASS_ADVISORY, kbIndexRemovals,
 } from "./kb_service.mjs";
 // 【步骤4·#16 调研报告】调研纯模型（RE-16 §3）：即时规划/规划评分器/三桶切分/报告完整性/
 // 证据门/工具剔除/配额错误/裸话题/导出预处理/编辑落账/导出命名/提示词装配/法规库兜底——
@@ -302,7 +302,8 @@ function resolveMaterialPath(workspacePath, name, exts = MATERIALS_TEXT_EXT) {
   if (/[\\/]|\.\./.test(name)) throw new Error(`材料名不得含路径分隔符或 ..：${name.slice(0, 40)}`);
   if (!exts.has(extname(name).toLowerCase())) throw new Error(`仅支持纯文本材料（.txt/.md）：${name.slice(0, 40)}`);
   const p = join(dir, name);
-  if (!p.toLowerCase().startsWith(dir.toLowerCase() + "\\")) throw new Error("材料落点越出 materials 目录");
+  // 分隔符跟平台走（硬编码 "\\" 在 POSIX 上会把一切合法落点判越界），并跟随已存在祖先的符号链接。
+  if (!gateContainedPath(dir, p).ok) throw new Error("材料落点越出 materials 目录");
   return p;
 }
 function readMaterialText(workspacePath, name) {
@@ -472,7 +473,7 @@ function kbReadTextIfIndexable(absPath, ext) {
 function kbAbs(rel) {
   const relNorm = safeRelPath(rel);
   const abs = join(KB_ROOT, ...relNorm.split("/"));
-  if (!abs.toLowerCase().startsWith(KB_ROOT.toLowerCase() + "\\")) throw new Error("知识库路径越出托管根（逃逸拒绝）");
+  if (!gateContainedPath(KB_ROOT, abs).ok) throw new Error("知识库路径越出托管根（逃逸拒绝）");
   return { rel: relNorm, abs };
 }
 // 同步遍历：返回 [{rel, abs, sizeBytes, mtimeMs}]（跳过 index.json/*.meta.json/SKIP_DIRS/隐藏项，B62/B61）
@@ -2489,8 +2490,10 @@ const agentService = {
         chunksTotal += chunks.length;
       }
     }
-    for (const rel of known) {
-      if (!seen.has(rel)) store.kbDeleteDocument(rel);
+    // 截断批次不是全量目录：未扫到的尾部不能当成已删除，否则每轮同步都会丢掉上限之外的索引。
+    const cutoff = batch.length ? batch[batch.length - 1].rel : "";
+    for (const rel of kbIndexRemovals(known, seen, { truncated, cutoff })) {
+      store.kbDeleteDocument(rel);
     }
     // 盘上目录登记为文集行（同步以盘为真源；上传通道外的文件夹也进树）
     const seenDirs = new Set();

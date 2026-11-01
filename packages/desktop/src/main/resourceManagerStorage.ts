@@ -6,7 +6,7 @@
  */
 import { BrowserWindow, ipcMain, shell, type IpcMainInvokeEvent, type WebContents } from "electron";
 import { homedir } from "node:os";
-import { isAbsolute, relative, resolve } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { PlatformChannels, type StorageCleanRequest, type StorageRootSpec } from "@zcode/shared";
 import {
   createFsStorageCleaner,
@@ -54,12 +54,17 @@ function bindSubscriber(event: IpcMainInvokeEvent): void {
   });
 }
 
+/** `..hidden` 是合法目录名，不能把「以 .. 开头」当成越界。 */
+function isRelativeEscape(back: string): boolean {
+  return back === ".." || back.startsWith(`..${sep}`) || back.startsWith("../");
+}
+
 /** 纯函数：定位路径必须落在某个数据根内，防止 renderer 传任意路径让系统文件管理器打开。 */
 export function isPathInsideStorageRoots(absolutePath: string, roots: StorageRootSpec[]): boolean {
   const target = resolve(absolutePath);
   return roots.some((root) => {
     const back = relative(resolve(root.path), target);
-    return back === "" || (!back.startsWith("..") && !isAbsolute(back));
+    return back === "" || (!isRelativeEscape(back) && !isAbsolute(back));
   });
 }
 

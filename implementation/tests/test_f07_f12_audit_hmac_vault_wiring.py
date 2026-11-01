@@ -158,6 +158,34 @@ class VaultRoundtripTests(unittest.TestCase):
                 cv.vault_put(vault_root, "s", "a", b"x" * 4097)
             self.assertIn("vault_secret_oversized", str(ctx.exception))
 
+    def test_ref_rejects_traversal_and_ads(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for service, account in (
+                ("../x", "a"),
+                ("a", ".."),
+                ("a/b", "c"),
+                ("a", "b:stream"),
+                ("a..b", "c"),
+                ("", "a"),
+            ):
+                with self.assertRaises(cv.VaultError) as ctx:
+                    cv._entry_path(root, service, account)
+                self.assertEqual(str(ctx.exception), "vault_ref_invalid")
+            kept = cv._entry_path(root, "lvyin.audit", "hmac-sha256-v1")
+            self.assertEqual(
+                kept.name, "hmac-sha256-v1.json")
+
+    def test_corrupt_registry_json_is_typed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = cv._entry_path(root, "s", "a")
+            path.parent.mkdir(parents=True)
+            path.write_text("{", encoding="utf-8")
+            with self.assertRaises(cv.VaultError) as ctx:
+                cv.vault_get(root, "s", "a")
+            self.assertEqual(str(ctx.exception), "vault_schema_unknown")
+
     def test_keyring_backend_branch_honest(self):
         # keyring 未装＝具名缺（本机实态）；装了＝真往返。两分支都如实。
         with tempfile.TemporaryDirectory() as tmp:

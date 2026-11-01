@@ -15,12 +15,15 @@
 
 from __future__ import annotations
 
+import base64
+import io
 import json
 import sqlite3
 import sys
 import tempfile
 import unittest
 import uuid
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,7 +32,8 @@ sys.path.insert(0, str(ROOT / "python"))
 import legal_entry  # noqa: E402
 from bridge_errors import NotConnected  # noqa: E402
 from backup_restore import (  # noqa: E402
-    PACKAGE_SUFFIX, SET_LEDGER, JOB_LEDGER, _digest_tree)
+    PACKAGE_MAGIC, PACKAGE_SUFFIX, SET_LEDGER, JOB_LEDGER, _digest_tree,
+    _fernet)
 
 HARNESS_ROOT = Path(
     r"D:\Codex\1.法律工作区\legal-harness工作区\legal-harness-repo"
@@ -211,6 +215,44 @@ class F11BackupRestoreWiringTests(unittest.TestCase):
         after = {tid: _digest_tree(self.tmp / "live" / tid)
                  for tid in ("anonymizer", "product")}
         self.assertEqual(before, after)  # 现根零触碰
+
+    def test_restore_rejects_member_path_escape(self):
+        """解密后的清单仍不可信：`..` / 绝对路径不得写到恢复根之外。"""
+        row = self._create()
+        package = Path(self.config["backup_state_root"]) / "packages" / (
+            row["backup_id"] + PACKAGE_SUFFIX)
+        raw = package.read_bytes()
+        newline = raw.index(b"\n", len(PACKAGE_MAGIC))
+        header = json.loads(raw[len(PACKAGE_MAGIC):newline].decode("utf-8"))
+        salt = base64.b64decode(header["kdf"]["salt_b64"])
+        inner = _fernet(self.config["backup_passphrase"], salt).decrypt(
+            raw[newline + 1:])
+        with zipfile.ZipFile(io.BytesIO(inner)) as archive:
+            manifest = json.loads(archive.read("manifest.json").decode("utf-8"))
+            payload = {name: archive.read(name) for name in archive.namelist()}
+        for target in manifest["targets"]:
+            if target["kind"] != "dir":
+                continue
+            target["files"]["../../escaped-f11.txt"] = {
+                "sha256": "0" * 64, "size": 4}
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for name, data in payload.items():
+                if name == "manifest.json":
+                    continue
+                archive.writestr(name, data)
+            archive.writestr(
+                "manifest.json",
+                json.dumps(manifest, ensure_ascii=False, sort_keys=True))
+        token = _fernet(self.config["backup_passphrase"], salt).encrypt(
+            buf.getvalue())
+        package.write_bytes(raw[:newline + 1] + token)
+        marker = self.tmp / "escaped-f11.txt"
+        with self.assertRaises(NotConnected) as caught:
+            self._restore(row["backup_id"])
+        self.assertEqual(_code(caught.exception), "f11_member_path_invalid")
+        self.assertFalse(marker.exists())
+        self.assertFalse(any(self.tmp.rglob("escaped-f11.txt")))
 
     def test_wrong_passphrase_same_named_refusal(self):
         row = self._create()
