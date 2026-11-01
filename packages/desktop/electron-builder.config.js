@@ -40,6 +40,11 @@ import {
   patchNsisInstallSectionFile,
   restoreNsisInstallSectionFileSync,
 } from "./scripts/patch-nsis-install-section.mjs";
+import { assertAsarInjectRootsMatchLockfile } from "./scripts/check-asar-inject-roots.mjs";
+
+// 注入根对锁/安装根的干跑对拍。死名不能靠 afterPack 的「解析不到就跳过」悄悄回到名单。
+// 飞书 @larksuiteoapi/node-sdk 允许解析癖性，不许删名单过检。
+console.log(assertAsarInjectRootsMatchLockfile());
 
 const buildMetadata = getBuildMetadata();
 const targetPlatform = getTargetPlatform();
@@ -96,6 +101,7 @@ const asarCliPath = resolve(
   "bin",
   "asar.js",
 );
+// 名单对拍见 scripts/check-asar-inject-roots.mjs。飞书保留，即使安装根解析有癖性。
 const REQUIRED_ASAR_RUNTIME_MODULES = [
   "pngjs",
   // Bugfix: @zcode/services 的代理连通性探测会动态 require("undici") 取 ProxyAgent。
@@ -320,6 +326,8 @@ function resolveMissingRuntimeModules(appAsarPath) {
       // 不同平台/安装布局下，部分运行时依赖可能被裁剪或未落到本次打包工作区。
       // 之前这里直接在 copy 阶段抛错会中断整个平台出包；改为记录告警并跳过该模块，
       // 让 afterPack 只处理当前环境确实可解析的依赖，避免 CI 因单个可选依赖缺失全量失败。
+      // 死注入根（锁和安装根都没有）由 check-asar-inject-roots.mjs 在出包前失败。
+      // 这里仍跳过当前工作区解析不到的项，飞书安装布局癖性不在这一层改行为。
       console.warn(
         `[afterPack] runtime module not found, skip injection: ${entry.moduleName}; searched=${runtimeModuleLookupRoots
           .map((lookupRoot) => resolve(lookupRoot, "node_modules", entry.moduleName))

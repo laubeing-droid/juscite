@@ -23,6 +23,7 @@ import {
   runCommandAndReadStdout,
 } from "./spawn-command.mjs";
 import { resolveIntranetDepsBaseUrl } from "./intranetDefaults.mjs";
+import { assertAsarInjectRootsMatchLockfile } from "./check-asar-inject-roots.mjs";
 
 const desktopRoot = resolve(import.meta.dirname, "..");
 const workspaceRoot = resolve(desktopRoot, "../..");
@@ -85,6 +86,7 @@ const artifactArchHintsByArch = {
   arm64: ["arm64", "aarch64"],
 };
 const commandStdoutMaxBuffer = 64 * 1024 * 1024;
+// 名单对拍见 check-asar-inject-roots.mjs。飞书保留，即使安装根解析有癖性。
 const requiredRuntimeModules = [
   "pngjs",
   // services 里的代理探测会在运行时 require("undici")。
@@ -661,6 +663,8 @@ function verifyPackagedRuntimeDependencies(os, arch) {
     if (!entry.sourceModulePath) {
       // afterPack 会按当前平台实际可解析依赖注入；bundle 校验也需保持同口径。
       // 否则在某些 CI 安装布局中会出现“注入阶段已跳过，但校验阶段仍硬失败”的误报。
+      // 死注入根（锁和安装根都没有）由 check-asar-inject-roots.mjs 在出包前失败。
+      // 这里仍跳过当前工作区解析不到的项，飞书安装布局癖性不在这一层改行为。
       console.warn(
         `[bundle] runtime module not found in workspace, skip verify: ${entry.moduleName}; searched=${runtimeModuleLookupRoots
           .map((lookupRoot) => resolve(lookupRoot, "node_modules", entry.moduleName))
@@ -689,6 +693,8 @@ function verifyPackagedRuntimeDependencies(os, arch) {
 
 async function main() {
   const { os, arch, skipPrepare, skipBuild, dryRun } = parseArgs(process.argv.slice(2));
+  // dry-run 也先对拍注入根，死名在真正打包前失败。electron-builder 配置求值会再跑一次。
+  console.log(assertAsarInjectRootsMatchLockfile());
   const buildArgs = [
     "exec",
     "electron-builder",
