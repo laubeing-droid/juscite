@@ -287,6 +287,27 @@ describe("ChannelServer + ChannelClient", () => {
     dispose();
   });
 
+  it("should not replay unknown-channel requests after the client already timed out", async () => {
+    const [serverProtocol, clientProtocol] = createQueuePair();
+    const server = new ChannelServer(serverProtocol, "test-ctx", 30);
+    const client = new ChannelClient(clientProtocol);
+    const call = vi.fn(() => Promise.resolve("late"));
+    const resultPromise = client.getChannel("very-late").call<string>("getValue");
+    await expect(resultPromise).rejects.toThrow(/timed out after 30ms/);
+    expect(call).not.toHaveBeenCalled();
+
+    server.registerChannel("very-late", {
+      call,
+      listen() {
+        return Event.None;
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(call).not.toHaveBeenCalled();
+    server.dispose();
+    client.dispose();
+  });
+
   it("should queue requests for channels registered later", async () => {
     const { server, client, dispose } = createPair();
 

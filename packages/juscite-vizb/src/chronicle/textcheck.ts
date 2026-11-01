@@ -20,13 +20,15 @@ export function stripPunct(s: string): string {
   return out;
 }
 
-/** 保序子序列判定（双指针）。 */
+/** 保序子序列判定（双指针，与 stripPunct / firstDivergence 同用码点）。 */
 export function isSubsequence(needle: string, haystack: string): boolean {
+  const n = [...needle];
+  const h = [...haystack];
   let i = 0;
-  for (let j = 0; i < needle.length && j < haystack.length; j++) {
-    if (needle[i] === haystack[j]) i++;
+  for (let j = 0; i < n.length && j < h.length; j++) {
+    if (n[i] === h[j]) i++;
   }
-  return i === needle.length;
+  return i === n.length;
 }
 
 /** 首个分歧点（报错定位用）：返回 needle 中第一个无法在 haystack 保序匹配到的下标。 */

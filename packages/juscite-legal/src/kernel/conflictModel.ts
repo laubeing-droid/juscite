@@ -282,7 +282,17 @@ export function buildConflictQueries(client: ClientLike | null, parties: PartyLi
   for (const p of parties) {
     const name = String(p.name ?? "").trim();
     if (!name) continue;
-    queries.push({ role: p.role, name, idNumber: normalizeIdNumber(p.idNumber ?? "") });
+    let idNumber = normalizeIdNumber(p.idNumber ?? "");
+    if (
+      client &&
+      p.role === "CLIENT" &&
+      name === client.name.trim() &&
+      !idNumber &&
+      normalizeIdNumber(client.idNumber ?? "")
+    ) {
+      idNumber = normalizeIdNumber(client.idNumber ?? "");
+    }
+    queries.push({ role: p.role, name, idNumber });
   }
   // 同名同角色消并：组内任一带证件则以带证件者为准
   const byRoleName = new Map<string, ConflictQuery>();

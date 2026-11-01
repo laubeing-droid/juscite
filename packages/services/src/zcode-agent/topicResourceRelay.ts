@@ -23,7 +23,7 @@ export interface TopicResourceRelayDependencies {
 interface Transfer {
   request: ZCodeTopicResourceRelayRequest;
   controller: AbortController;
-  timer: ReturnType<typeof setTimeout>;
+  timer?: ReturnType<typeof setTimeout>;
   data?: Buffer;
 }
 
@@ -59,7 +59,6 @@ export function createTopicResourceRelay(deps: TopicResourceRelayDependencies) {
       const entry: Transfer = {
         request,
         controller,
-        timer: setTimeout(() => release(request.requestId), 120_000),
       };
       transfers.set(request.requestId, entry);
       try {
@@ -85,6 +84,7 @@ export function createTopicResourceRelay(deps: TopicResourceRelayDependencies) {
         await deps.validate(request, controller.signal);
         controller.signal.throwIfAborted();
         entry.data = data;
+        entry.timer = setTimeout(() => release(request.requestId), 120_000);
         return metadata;
       } catch (error) {
         release(request.requestId, entry);

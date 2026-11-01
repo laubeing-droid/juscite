@@ -236,6 +236,12 @@ export class ChannelServer<TContext = string> implements IChannelServer<TContext
 
     const timer = setTimeout(() => {
       console.error(`Unknown channel: ${request.channelName}`);
+      const pending = this.pendingRequests.get(request.channelName);
+      if (pending) {
+        const index = pending.findIndex((entry) => entry.request.id === request.id);
+        if (index >= 0) pending.splice(index, 1);
+        if (pending.length === 0) this.pendingRequests.delete(request.channelName);
+      }
       if (request.type !== RequestType.Promise) {
         return;
       }

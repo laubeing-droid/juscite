@@ -187,6 +187,12 @@ const call = (m, a) => ch.call(m, a === undefined ? [] : [a]);
     q1.length === 2 && q1[0].role === "CLIENT" && q1[0].name === "合成委托公司"
     && q1[1].role === "OPPOSING_PARTY" && q1[1].idNumber === "X2",
     JSON.stringify(q1));
+  const qClientId = buildConflictQueries({ name: "合成委托公司", idNumber: "CID-1" }, [
+    { role: "CLIENT", name: "合成委托公司" },
+  ]);
+  check("E10b 委托方 Party 行缺证件时合并客户档案证件",
+    qClientId.length === 1 && qClientId[0].idNumber === "CID-1",
+    JSON.stringify(qClientId));
   // E11 预检规范化：空行过滤/全空拦/缺省对方/证件大写
   const nq1 = normalizePrecheckQueries([{ name: "合成甲", idNumber: " x9 " }, {}]);
   const nq2 = normalizePrecheckQueries([{ name: "  " }]);
