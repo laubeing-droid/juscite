@@ -88,20 +88,13 @@ const commandStdoutMaxBuffer = 64 * 1024 * 1024;
 const requiredRuntimeModules = [
   "module-details-from-path",
   "pngjs",
-  // Bugfix: telemetry 的 OTLP exporter 在启动阶段依赖 sdk-metrics；开发态 hoist 会掩盖
-  // electron-builder 漏包。最终产物必须机械校验该闭包，禁止可生成但无法启动的安装包流出。
-  "@opentelemetry/sdk-metrics",
-  // 与 afterPack 注入名单同口径：校验 OTLP proto 导出链（exporter → otlp-transformer → protobufjs）完整进包，
-  // 缺包产物在打包阶段直接失败，而不是等安装后启动崩溃。
-  "@opentelemetry/exporter-trace-otlp-proto",
-  "@opentelemetry/exporter-metrics-otlp-proto",
   // Bugfix: @arms/rum-core 运行时会从 CJS 入口继续 require('@babel/runtime/helpers/*')。
   // 它把 @babel/runtime 挂在 peerDependencies，pnpm workspace 开发态通常能解析，
   // 但如果生产包没把该 peer 运行时带进 app.asar，已安装应用会在主进程启动阶段直接崩溃。
   // 这里把 @babel/runtime 纳入 bundle 后机械校验，防止坏包继续流出。
   "@babel/runtime",
   // services 里的代理探测会在运行时 require("undici")。
-  // 如果这里只校验 pngjs/ssh2 依赖，打包链路就会放过“产物能生成但主进程启动即缺 undici”的坏包。
+  // 如果这里只校验 pngjs 等既有依赖，打包链路就会放过“产物能生成但主进程启动即缺 undici”的坏包。
   // 这里把 undici 纳入机械校验，让 bundle 阶段就能把问题拦下来。
   "undici",
   // app 自签 CA 生成用 node-forge，它内部动态 require("crypto") 内联进 ESM main bundle 会崩，
@@ -112,12 +105,6 @@ const requiredRuntimeModules = [
   // Bugfix: 飞书 SDK 为了避开 Electron ESM 动态 require 崩溃会作为外部依赖保留，
   // 生产包必须显式校验 app.asar 中存在该 scoped 包。
   "@larksuiteoapi/node-sdk",
-  // ssh2 的关键依赖链（asn1/bcrypt-pbkdf/tweetnacl）若缺失，
-  // 连接远程 workspace 时会在 keyParser 阶段直接抛 MODULE_NOT_FOUND。
-  // 这里把 ssh2 关键依赖链纳入机械校验，避免坏包流出。
-  "asn1",
-  "bcrypt-pbkdf",
-  "tweetnacl",
 ];
 const electronBuilderRetryCount = 3;
 const electronBuilderRetryDelayMs = 5_000;
