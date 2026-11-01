@@ -64,6 +64,7 @@ python scripts/launch_desktop_trial.py  # 以产物模式拉起桌面应用（Wi
 
 ### 开发者
 - [快速上手](docs/getting-started.md)：环境、命令与验证门禁。
+- [合入纪律](docs/合入纪律.md)：**本机 `ci_gate` 为硬门槛**；在 Actions 缺席前不要用「GitHub CI 绿」当合入证明。
 - [架构概览](docs/architecture.md)：组件分层、一次请求的旅程、边界合同与门禁。
 - [自有包一览](docs/packages.md)：每个 `@juscite/*` 包的职责、版本与依赖关系。
 
@@ -72,7 +73,7 @@ python scripts/launch_desktop_trial.py  # 以产物模式拉起桌面应用（Wi
 
 ## 参与贡献
 
-在 BSL 1.1 许可下（见下节），你可以自由阅读、修改和再分发本代码（非生产使用）。提交改进前请确保 `pnpm typecheck` 与 `node tools/bridge/ci_gate.mjs fast` 全绿；本仓库尚小，暂无独立贡献指南，以本 README 与 `docs/` 为准。反馈与协作渠道以项目发布页公告为准。
+在 BSL 1.1 许可下（见下节），你可以自由阅读、修改和再分发本代码（非生产使用）。提交改进前请确保 `pnpm typecheck` 与 `node tools/bridge/ci_gate.mjs fast` 全绿（合入门槛见 [合入纪律](docs/合入纪律.md)）；本仓库尚小，暂无独立贡献指南，以本 README 与 `docs/` 为准。反馈与协作渠道以项目发布页公告为准。
 
 ## 许可证
 
