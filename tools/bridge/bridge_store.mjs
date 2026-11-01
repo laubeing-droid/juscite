@@ -646,6 +646,49 @@ const MIGRATIONS = [
   { id: "0024_diligence", sql: DILIGENCE_DDL },
 ];
 
+// 进程死在写盘之后：已提交的 running/streaming 行不会被事务回滚。打开库时收成终态，避免重启后仍是僵尸。
+function sweepCrashZombies(db) {
+  const nowIso = new Date().toISOString();
+  const nowMs = Date.now();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare(`UPDATE async_tasks SET status = 'FAILED', error_code = 'BRIDGE_RESTART',
+      error_message = '桥重启导致任务中断，可重试', finished_at = ?
+      WHERE status IN ('QUEUED','RUNNING')`).run(nowIso);
+    const researches = db.prepare("SELECT id, record_json FROM research_records WHERE status = 'running'").all();
+    const updResearch = db.prepare("UPDATE research_records SET status = 'error', record_json = ?, updated_at = ? WHERE id = ?");
+    for (const row of researches) {
+      let doc;
+      try { doc = JSON.parse(row.record_json || "{}"); } catch { doc = {}; }
+      if (!doc || typeof doc !== "object" || Array.isArray(doc)) doc = {};
+      doc.status = "error";
+      if (!doc.id) doc.id = row.id;
+      if (typeof doc.error !== "string" || !doc.error) doc.error = "桥重启导致调研中断";
+      updResearch.run(JSON.stringify(doc), nowMs, row.id);
+    }
+    const rows = db.prepare(`SELECT workspace_key, session_id, row_seq, row_json FROM session_rows
+      WHERE state IN ('running','streaming')`).all();
+    const updRow = db.prepare(`UPDATE session_rows SET state = 'failed', row_json = ?
+      WHERE workspace_key = ? AND session_id = ? AND row_seq = ?`);
+    for (const row of rows) {
+      let doc;
+      try { doc = JSON.parse(row.row_json || "{}"); } catch { doc = null; }
+      if (doc && typeof doc === "object" && !Array.isArray(doc)) doc.state = "failed";
+      updRow.run(doc ? JSON.stringify(doc) : row.row_json, row.workspace_key, row.session_id, row.row_seq);
+    }
+    db.prepare("UPDATE edisc_tasks SET status = 'canceled', updated_at = ? WHERE status = 'running'").run(nowIso);
+    db.prepare(`UPDATE flow_runs SET status = 'FAILED', error_code = 'BRIDGE_RESTART',
+      error_message = '桥重启导致运行中断', finished_at = ?
+      WHERE status IN ('QUEUED','RUNNING')`).run(nowIso);
+    db.prepare(`UPDATE sessions SET phase = 'error', busy = 0, last_outcome = 'interrupted'
+      WHERE phase = 'running' OR busy = 1`).run();
+    db.exec("COMMIT");
+  } catch (error) {
+    try { db.exec("ROLLBACK"); } catch { /* 未开事务 */ }
+    throw error;
+  }
+}
+
 export function openBridgeStore(port) {
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(`bridge_store: 非法端口 ${port}`);
   const dir = join(homedir(), "AppData", "Roaming", "Juscite", "bridge");
@@ -680,6 +723,7 @@ export function openBridgeStore(port) {
       throw new Error(`bridge_store 迁移失败 ${m.id}: ${e?.message ?? e}`);
     }
   }
+  sweepCrashZombies(db);
   const qSession = db.prepare(`
     INSERT INTO sessions (workspace_key, session_id, oc28_id, title, project_id, workspace_path,
       last_outcome, phase, seq, row_seq, busy, last_command_id, meta_json, created_at, updated_at, deleted)

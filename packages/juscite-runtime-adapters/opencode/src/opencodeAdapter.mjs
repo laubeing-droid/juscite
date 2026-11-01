@@ -142,20 +142,23 @@ const OC28_EVENT_KIND_MAP = {
 
 // 任务二：oc28 /api/event SSE 长连接（RE-B2 §2 实测契约）。
 // 线格式：data: {id,type,created,data,...} 行，帧间 \n\n；": heartbeat" 注释帧保活。
-// Last-Event-ID 重连不重放（实测带 id 重连只回 server.connected）→ 断线窗增量由调用方
-// 经 pullTranscript 对账补齐，本函数只负责"连着+事件即达+断线自动重连"。
+// 重连带上已见事件的 Last-Event-ID，让会重放的服务端补齐断线窗。
+// 不重放的服务端仍由调用方经 pullTranscript 对账（断线窗不能只靠活流）。
 // 生命周期经 onUp/onDown 映射为 port 的 stream.up/down 域事件；close() 永久关闭；
 // drop() 只断当前连接（自动重连，供 e2e 注入断线）。
 export function openEventStream({ onEvent, onDown, onUp, log } = {}) {
   let closed = false;
   let delay = 500;
   let abort = null;
+  let lastEventId = "";
   async function loop() {
     while (!closed) {
       try {
         const cred = loadCredentials();
         abort = new AbortController();
-        const res = await fetch(cred.baseUrl + "/api/event", { headers: cred.headers, signal: abort.signal });
+        const headers = { ...cred.headers };
+        if (lastEventId) headers["Last-Event-ID"] = lastEventId;
+        const res = await fetch(cred.baseUrl + "/api/event", { headers, signal: abort.signal });
         if (!res.ok || !res.body) throw new Error(`SSE -> ${res.status}`);
         delay = 500;
         onUp?.();
@@ -172,7 +175,11 @@ export function openEventStream({ onEvent, onDown, onUp, log } = {}) {
             buf = buf.slice(i + 2);
             const line = chunk.split("\n").find((l) => l.startsWith("data: "));
             if (!line) continue; // 心跳等注释帧
-            try { onEvent?.(JSON.parse(line.slice(6))); } catch { /* 单帧损坏只弃帧 */ }
+            try {
+              const evt = JSON.parse(line.slice(6));
+              if (evt?.id != null && String(evt.id) !== "") lastEventId = String(evt.id);
+              onEvent?.(evt);
+            } catch { /* 单帧损坏只弃帧 */ }
           }
         }
       } catch (e) {

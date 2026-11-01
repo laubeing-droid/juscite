@@ -9,17 +9,8 @@
 // 布局分离/导入导出/开关）+桥 RPC 方法装配。错误沿通道异常文本回（code 随消息）。
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import {
-  compileDefinition, createCapabilityRegistry, registerBuiltinLineCapabilities,
-  createFlowEngine, createDryRunExecutors, dryRunLineManifest,
-  parseLineManifest, validateLineManifest, lineManifestToDefinition, buildDecisionSheet,
-  FlowEngineError,
-} from "../../packages/juscite-flow/src/index.mjs";
-// 【#34 事实核验】领域件（RE-34 §3）：五组 21 节点流水线定义/14 能力控权/确定性步骤/合成执行器/面板投影
-import {
-  registerFactVerificationCapabilities, createFactVerificationExecutors,
-  composeExecutors, dryRunFactVerification,
-} from "../../packages/juscite-flow/src/fact-verification.mjs";
+// 引擎入口 index.mjs / engine.mjs / dsl.mjs 不在本分支。DDL 字符串不依赖它们，
+// 所以桥库可以打开；真正装配流程时在 createFlowEngineService 入口拒绝，不发明引擎。
 
 export const STUDIO_BUNDLE_FORMAT = "juscite-workflow-studio"; // 自写格式名（E3 导入导出对应物，不建内置商店）
 export const STUDIO_BUNDLE_VERSION = 1;
@@ -155,7 +146,11 @@ export function createFlowEngineService({
   db, gate, trustDir = null, config = {}, studioEnabled = () => true, loadPersistedCapabilities = true,
   agentExecutor = null, // 【#35 尾巴①】真模型 agent 执行器（runtime-port 域面注入；null=全合成旧状）
 } = {}) {
-  if (!db || !gate) throw new FlowEngineError("VALIDATION", "flow_engine_service 需要 db 与 flow gate 机制件");
+  void db; void gate; void trustDir; void config; void studioEnabled; void loadPersistedCapabilities; void agentExecutor;
+  const missing = new Error("Flow 引擎入口缺失：packages/juscite-flow/src/index.mjs、engine.mjs、dsl.mjs 不在本分支，拒绝装配");
+  missing.code = "ERR_MODULE_NOT_FOUND";
+  throw missing;
+  if (!db || !gate) throw new Error("flow_engine_service 需要 db 与 flow gate 机制件");
   const capabilities = createCapabilityRegistry();
   const builtinIds = registerBuiltinLineCapabilities(capabilities);
   // 【#34 事实核验】能力面追加注册（14 实例；write 类恰 4——见 fact-verification.mjs 控权表）
