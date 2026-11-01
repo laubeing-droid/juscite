@@ -97,7 +97,7 @@ Juscite 把"自有代码与基础壳之间的接面"钉成机器可读文件，�
 |---|---|
 | `fast` | 语法检查、UI 合同测试、桥端到端测试、合成自测、品牌检查 |
 | `persist` | `fast` + 桥进程重启后会话数据不丢的实测 |
-| `package` | 打包门禁：桌面构建、安装器产物断言、随包桥探针 |
+| `package` | 打包门禁，且仅 Windows：NSIS（`electron-builder --win --x64`）+ 随包桥探针 `bridge_bundle_synthetic`。Linux 构建/产物不得称作 package 绿 |
 | `upgrade` | 基础壳升级门禁：接面 patch 干净应用、类型快照 diff、适配层规模、品牌全量检查 |
 
 ## 实现锚点

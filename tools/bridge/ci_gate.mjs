@@ -17,8 +17,11 @@
 //   persist = fast + 桥重启不丢案实测（发一句合成消息→杀桥进程→重启→历史会话行完整一致）。
 //             默认对 :3030（破坏性：会杀掉在跑的桥再用注册凭据拉起）；--port N 改在门禁自管的独立实例上自测，不碰 :3030。
 //   full    = fast + persist（persist 已含 fast，等价 persist，不重跑两遍）。
-//   package = 打包门禁（步骤5 打包单③；RE-B3 §5 放行条件④）：
-//             nodecheck（桥 .mjs 语法面）→ license（放行条件④随行）→ 桌面构建
+//   package = 打包门禁（步骤5 打包单③；RE-B3 §5 放行条件④）。
+//             绿口径：仅 Windows NSIS（electron-builder --win --x64 nsis）
+//             + 随包桥探针 bridge_bundle_synthetic。Linux 构建或任何 Linux 产物
+//             都不得称作 package 门禁绿；本模式须在 Windows 上跑，Linux 上构建成功 ≠ package PASS。
+//             步骤：nodecheck（桥 .mjs 语法面）→ license（放行条件④随行）→ 桌面构建
 //             （build-metadata → production build(tsup+vite) → electron-builder --win --x64 nsis）
 //             → 产物断言（exe/blockmap/latest.yml 存在+新鲜 + app-update.yml 携自家更新源桩
 //             + 随包桥探针 bridge_bundle_synthetic：resources/bridge 物化要件与 ELECTRON_RUN_AS_NODE spawn）。
@@ -426,6 +429,8 @@ function stepSupport() {
 // ── 步骤（package）：桌面构建 + 产物断言（步骤5 打包单①③）──
 // 链路：build-metadata（版本/commit 落盘，About 可追溯）→ production build（tsup+vite，先清 out）
 //       → electron-builder --win --x64（nsis 目标，electron-builder.config.js）。
+// 口径：package 绿只认本步的 Windows NSIS 产物 + bridge_bundle_synthetic。
+//       Linux 构建/产物即使成功，也不是 package 门禁绿（package 须在 Windows 上跑）。
 // 产物新鲜闸：断言 exe/blockmap mtime 晚于构建起点，防旧产物冒充本轮构建。
 function freshExeOf(distDir, notBeforeMs) {
   const out = [];
@@ -877,6 +882,7 @@ async function main() {
     steps = [["brand", stepBrand]];
   } else if (mode === "package") {
     // 放行条件④（RE-B3 §5）：license 步骤随行进打包门禁；桌面构建=步骤5 打包单①③。
+    // 绿只认 Windows NSIS + bridge_bundle_synthetic；Linux ≠ package 绿。
     steps = [["nodecheck", stepNodecheck], ["license", stepLicense], ["desktop-build", stepDesktopBuild]];
   } else if (mode === "upgrade") {
     // 设计 §五 ①→⑤：豁免 apply --check → 合同面类型快照 diff → adapter 行数纪律 → 品牌正则 → fast 全量

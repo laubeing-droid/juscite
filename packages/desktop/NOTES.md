@@ -86,7 +86,8 @@ pnpm --filter @zcode/desktop dev
   剥离会整行吞掉产出语法损坏文件（首轮 gate 实证 tsx register 损坏、子树 936 文件被改）——
   该子树引用与 .map 自洽保留，app.asar/app 侧清理行为不变。
   ci_gate package 增随包桥探针（bridge_bundle_synthetic.mjs：物化要件 + ELECTRON_RUN_AS_NODE +
-  包内 tsx spawn，/api/server-info 应答即过）。**真机安装器安装+装机首跑验收仍缺（如实）**——
+  包内 tsx spawn，/api/server-info 应答即过）。package 绿只认 Windows NSIS + 该探针，
+  Linux 构建/产物 ≠ package 门禁绿。**真机安装器安装+装机首跑验收仍缺（如实）**——
   门禁探针=win-unpacked 树直接以打包分支同款 spawn 参数验证，等价 spawn 径，非装机验收。
 - 产物身份换牌（步骤5 r8 品牌单，收口上轮 ③）：构建期 identity 单源
   scripts/desktop-product-identity.mjs 改 Juscite——appId `app.juscite.desktop`
