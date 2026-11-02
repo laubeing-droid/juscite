@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 逐个跑 S01–S12。S12 的 blocker 是已核实的缺失模块，不把整组打成失败。
+// 逐个跑 tests/adversarial/sNN-*.mjs（含 S13–S15）。blocker 只跳过该文件，其余失败把整组打成失败。
 import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
