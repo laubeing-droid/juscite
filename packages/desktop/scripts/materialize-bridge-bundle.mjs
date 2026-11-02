@@ -33,6 +33,9 @@ const EDISC_PACKAGE_DIR = join("packages", "juscite-edisc");
 // 施工波-20261030 可视化B轨：#4 大事记表/#19 庭审对抗图机制契约包（@juscite/vizb），桥以相对路径
 // import（vizbChronicle*/vizbConfrontation*/vizbIntakeReconcile 五工具面），随包同法（essentials 断言兜底）。
 const VIZB_PACKAGE_DIR = join("packages", "juscite-vizb");
+// 功能 #32 尽调：diligence_service 静态 import @juscite/flow quote-back（bridge_host 装载期即解析）。
+// 随包同 vizb/edisc 法（package.json + src）；缺失=打包态 ERR_MODULE_NOT_FOUND，essentials 断言兜底。
+const FLOW_PACKAGE_DIR = join("packages", "juscite-flow");
 const KNOWLEDGE_BASE_DIR = "knowledge-base";
 // RE-13 法条手册内置包：lawbook 服务与 kb 同款 cwd 向上扫描，随包必须带上（§3.1 随产品分发）。
 const LAWBOOK_PACKS_DIR = "lawbook-packs";
@@ -107,7 +110,7 @@ function copyBridgeSources(repoRoot, bundleDir) {
   copyFileSync(join(servicesDir, "package.json"), join(destServices, "package.json"));
   copyTreeVerified(join(servicesDir, "src"), join(destServices, "src"));
   // runtime-port 两包同法（r12 波2.5）：package.json + src。
-  for (const pkgDir of [RUNTIME_PORT_DIR, RUNTIME_ADAPTER_OPENCODE_DIR, LEGAL_PACKAGE_DIR, EDISC_PACKAGE_DIR, VIZB_PACKAGE_DIR]) {
+  for (const pkgDir of [RUNTIME_PORT_DIR, RUNTIME_ADAPTER_OPENCODE_DIR, LEGAL_PACKAGE_DIR, EDISC_PACKAGE_DIR, VIZB_PACKAGE_DIR, FLOW_PACKAGE_DIR]) {
     const srcPkg = resolve(repoRoot, pkgDir);
     const destPkg = join(bundleDir, pkgDir);
     mkdirSync(destPkg, { recursive: true });
@@ -162,6 +165,7 @@ function assertBundleEssentials(bundleDir, platformKey) {
     join(bundleDir, EDISC_PACKAGE_DIR, "src", "index.ts"),
     join(bundleDir, VIZB_PACKAGE_DIR, "src", "chronicle", "index.ts"),
     join(bundleDir, VIZB_PACKAGE_DIR, "src", "confrontation", "index.ts"),
+    join(bundleDir, FLOW_PACKAGE_DIR, "src", "quote-back.mjs"),
     join(bundleDir, KNOWLEDGE_BASE_DIR),
     join(bundleDir, LAWBOOK_PACKS_DIR, "base", "pack.meta"),
     join(bundleDir, SKILL_PRESETS_DIR, "timeline-generation", "skill.json"),
