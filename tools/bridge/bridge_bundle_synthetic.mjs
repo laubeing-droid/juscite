@@ -10,6 +10,7 @@
 //      ELECTRON_RUN_AS_NODE=1 + 包内 tsx——desktopHostProcess.ts 打包分支的同款 spawn 参数。
 // 全合成材料：许可走 BRIDGE_LICENSE_FILE 临时文件，oc28 走 BRIDGE_OC28_SSE=0 隔离；
 // 杀前核验命令行含 bridge_host.mjs（宁停不误杀，同 ci_gate/license_synthetic 纪律）；
+// #14 收场须端口已释放且自家 pid 已退出，短落静后才开 #15（不放宽 90s 探针，不扩杀）；
 // 收场自清自家 %APPDATA%\Juscite\bridge\bridge-<port>.db*（只碰 Juscite 域）。
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -65,6 +66,38 @@ function commandLineLooksLikeBridge(pid) {
   return String(r.stdout ?? "").includes("bridge_host.mjs");
 }
 
+function portListening(port) {
+  const r = spawnSync("netstat", ["-ano"], { encoding: "utf-8", timeout: 15000 });
+  return new RegExp(`\\sTCP\\s+\\S*:${port}\\s+\\S+\\s+LISTENING`).test(String(r.stdout ?? ""));
+}
+
+/** tasklist CSV 的 PID 列（第 2 字段）。去掉 NUL，避免 UTF-16 管道被当成「已退出」。 */
+function tasklistShowsPid(stdout, pid) {
+  const text = String(stdout ?? "").replace(/\0/g, "");
+  const id = String(Number(pid));
+  if (!/^\d+$/.test(id)) return false;
+  for (const line of text.split(/\r?\n/)) {
+    const fields = [...line.matchAll(/"([^"]*)"/g)].map((m) => m[1]);
+    if (fields[1] === id) return true;
+  }
+  return false;
+}
+
+/** 只查询自家 pid。口径同 cli_shim_synthetic.pidAlive（看 stdout，无匹配即不在）。
+ *  spawn 失败或超时无法确认 → 不当成已退出。不扩杀。 */
+function ownPidGone(pid) {
+  const id = Number(pid);
+  if (!Number.isInteger(id) || id <= 0) return false;
+  const r = spawnSync("tasklist", ["/FI", `PID eq ${id}`, "/FO", "CSV", "/NH"], {
+    encoding: "utf-8", timeout: 15000, windowsHide: true,
+  });
+  if (r.error || r.status == null) return false;
+  if (tasklistShowsPid(r.stdout, id)) return false;
+  // 出现了别的 pid 行：不能把「不是这一行」当成自家已退出。
+  if (/"[^"]*","\d+"/.test(String(r.stdout ?? "").replace(/\0/g, ""))) return false;
+  return true;
+}
+
 const storeDir = join(homedir(), "AppData", "Roaming", "Juscite", "bridge");
 function cleanupBridgeFiles(port) {
   for (const suffix of [".db", ".db-wal", ".db-shm"]) {
@@ -75,14 +108,34 @@ function cleanupBridgeFiles(port) {
 async function killOwnBridge(pid, port) {
   if (!commandLineLooksLikeBridge(pid)) throw new Error(`pid=${pid} 命令行不含 bridge_host.mjs，宁停不误杀`);
   spawnSync("taskkill", ["/PID", String(pid), "/F", "/T"], { timeout: 15000 });
+  // 端口不再 LISTENING 不够：自家进程还在时同口复用会踩着未释放的 bridge-<port>.db。
+  // 只等、只核这一棵 pid；超时仍不净就抛，不二次扩杀。
   const deadline = Date.now() + 20000;
+  let released = false;
   while (Date.now() < deadline) {
-    const r = spawnSync("netstat", ["-ano"], { encoding: "utf-8", timeout: 15000 });
-    if (!new RegExp(`\\sTCP\\s+\\S*:${port}\\s+\\S+\\s+LISTENING`).test(String(r.stdout ?? ""))) break;
+    if (!portListening(port) && ownPidGone(pid)) { released = true; break; }
     await new Promise((res) => setTimeout(res, 500));
+  }
+  if (!released) {
+    if (portListening(port)) throw new Error(`:${port} 杀后仍 LISTENING`);
+    if (!ownPidGone(pid)) throw new Error(`pid=${pid} 杀后仍在`);
   }
   cleanupBridgeFiles(port);
 }
+
+/** #14 → #15：收场未净、端口仍听、或自家 pid 仍在，都不许开 ELECTRON spawn。 */
+function electronHandoffBlockReason(s) {
+  if (!s || !s.teardownClean) {
+    const detail = s && s.teardownError ? `：${s.teardownError}` : "";
+    return `前序收场未净${detail}`;
+  }
+  if (s.portListening) return `前序 :${s.port} 仍 LISTENING`;
+  if (s.pidAlive) return `前序 pid=${s.pid} 仍在`;
+  return "";
+}
+
+// 落静在 90s 探针之外。重跑9：#14 后立刻拉 ELECTRON 冷启动贴着 90s（约 89.5s）。
+const ELECTRON_HANDOFF_SETTLE_MS = 2000;
 
 async function probeServerInfo(port, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
@@ -116,6 +169,13 @@ function formatStderrTail(raw) {
   return lines.length > 800 ? lines.slice(-800) : lines;
 }
 
+function formatProbeFailure(port, elapsedMs, exitCode, stderrRaw) {
+  const code = exitCode == null ? "null" : String(exitCode);
+  const head = `:${port} 90s 不可探（随包 spawn 失败 elapsed_ms=${elapsedMs} exitCode=${code}）`;
+  const tail = formatStderrTail(stderrRaw);
+  return tail ? `${head}\n--- child stderr tail ---\n${tail}` : head;
+}
+
 /** spawnArgs/env 由调用方决定（B=system node，C=Electron-as-node），其余纪律共用。 */
 async function spawnBundleBridge(n, label, electronExe) {
   const port = pickFreePort();
@@ -130,31 +190,45 @@ async function spawnBundleBridge(n, label, electronExe) {
     BRIDGE_LICENSE_FILE: licenseFile,
     ...(isElectronRun ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
   };
+  // windowsHide 对齐 desktopHostProcess.ts 打包分支。
+  const startedAt = Date.now();
   const child = spawn(electronExe ?? process.execPath, [tsxCli, entry], {
-    cwd: bridgeDir, env, stdio: ["ignore", "ignore", "pipe"],
+    cwd: bridgeDir, env, stdio: ["ignore", "ignore", "pipe"], windowsHide: true,
   });
   const stderrTail = collectStderrTail(child);
+  let teardownError = null;
   try {
     const info = await probeServerInfo(port, 90000);
     if (!info) {
-      const tail = formatStderrTail(stderrTail());
-      const why = tail
-        ? `:${port} 90s 不可探（随包 spawn 失败）\n--- child stderr tail ---\n${tail}`
-        : `:${port} 90s 不可探（随包 spawn 失败）`;
-      return fail(n, label, why);
+      fail(n, label, formatProbeFailure(port, Date.now() - startedAt, child.exitCode, stderrTail()));
+    } else {
+      const problems = [];
+      if (info.store !== "sqlite") problems.push(`store=${info.store} 期望 sqlite`);
+      if (info.taskshell !== 1) problems.push("taskshell 能力代缺失");
+      if (info.flowgate !== 1) problems.push("flowgate 能力代缺失");
+      if (info.kb !== 1) problems.push("kb 能力代缺失");
+      if (!info.license) problems.push("license 字段缺失");
+      if (!Array.isArray(info.workspaces) || info.workspaces.length === 0) problems.push("workspaces 缺失");
+      if (problems.length > 0) fail(n, label, problems.join("; "));
+      else ok(n, label);
     }
-    const problems = [];
-    if (info.store !== "sqlite") problems.push(`store=${info.store} 期望 sqlite`);
-    if (info.taskshell !== 1) problems.push("taskshell 能力代缺失");
-    if (info.flowgate !== 1) problems.push("flowgate 能力代缺失");
-    if (info.kb !== 1) problems.push("kb 能力代缺失");
-    if (!info.license) problems.push("license 字段缺失");
-    if (!Array.isArray(info.workspaces) || info.workspaces.length === 0) problems.push("workspaces 缺失");
-    if (problems.length > 0) return fail(n, label, problems.join("; "));
-    ok(n, label);
   } finally {
-    try { await killOwnBridge(child.pid, port); } catch (e) { fail(n, label, `收场异常: ${e.message}`); }
+    try { await killOwnBridge(child.pid, port); }
+    catch (e) {
+      teardownError = e instanceof Error ? e.message : String(e);
+      fail(n, label, `收场异常: ${teardownError}`);
+    }
   }
+  return { port, pid: child.pid, teardownClean: teardownError == null, teardownError };
+}
+
+function handoffSnapshot(prev) {
+  if (!prev || !prev.teardownClean) return prev ?? { teardownClean: false };
+  return {
+    ...prev,
+    portListening: portListening(prev.port),
+    pidAlive: !ownPidGone(prev.pid),
+  };
 }
 
 // ── 跑 ──
@@ -171,15 +245,24 @@ writeFileSync(licenseFile, JSON.stringify({
 }), "utf-8");
 
 n += 1;
-await spawnBundleBridge(n, "随包 spawn（system node + 包内 tsx）", null);
+const systemSpawn = await spawnBundleBridge(n, "随包 spawn（system node + 包内 tsx）", null);
 
 const electronExe = process.env["BRIDGE_BUNDLE_ELECTRON_EXE"];
+const electronLabel = "打包 spawn（ELECTRON_RUN_AS_NODE + 包内 tsx）";
 if (electronExe) {
   n += 1;
   if (!existsSync(electronExe)) {
     fail(n, "打包 spawn（ELECTRON_RUN_AS_NODE）", `BRIDGE_BUNDLE_ELECTRON_EXE 不在物：${electronExe}`);
   } else {
-    await spawnBundleBridge(n, "打包 spawn（ELECTRON_RUN_AS_NODE + 包内 tsx）", electronExe);
+    const block = electronHandoffBlockReason(handoffSnapshot(systemSpawn));
+    if (block) {
+      fail(n, electronLabel, `拒绝开打包 spawn（${block}）`);
+    } else {
+      await new Promise((res) => setTimeout(res, ELECTRON_HANDOFF_SETTLE_MS));
+      const afterSettle = electronHandoffBlockReason(handoffSnapshot(systemSpawn));
+      if (afterSettle) fail(n, electronLabel, `落静后仍不净，拒绝开打包 spawn（${afterSettle}）`);
+      else await spawnBundleBridge(n, electronLabel, electronExe);
+    }
   }
 } else {
   console.log(`skip - 打包 spawn（未设 BRIDGE_BUNDLE_ELECTRON_EXE；ci_gate package 会传 win-unpacked 桌面 exe）`);
