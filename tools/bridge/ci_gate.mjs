@@ -498,8 +498,13 @@ async function stepDesktopBuild() {
     (f) => f.toLowerCase().endsWith(".exe") && !f.toLowerCase().startsWith("uninstall"),
   );
   if (!unpackedExe) return { ok: false, msg: `win-unpacked 桌面 exe 缺失：${unpackedDir}` };
+  // 探针预算不动：bridge_bundle_synthetic 里 #15 仍是字面量 90000。
+  // 计时前对同一 Preview.exe 做一轮 ELECTRON_RUN_AS_NODE 预热（上限 130s，探到即停），
+  // 再收场才开 #15。冷带约 98–120s，热路径约 55s。本步窗要装下 #14 + 预热 + #15
+  //（各含探针过冲与最多 20s 收场，再加两段 2s 落静）≈ 400s；300s 会在预热收场前误杀。
+  // 放到 480s。杀掉的是整段 synth，不是把探针放宽。
   const r3 = runChild("bridge-bundle-synth", [join("tools", "bridge", "bridge_bundle_synthetic.mjs")], {
-    timeoutMs: 300000,
+    timeoutMs: 480000,
     env: {
       ...process.env,
       BRIDGE_BUNDLE_DIR: join(unpackedDir, "resources", "bridge"),

@@ -10,7 +10,10 @@
 //      ELECTRON_RUN_AS_NODE=1 + 包内 tsx——desktopHostProcess.ts 打包分支的同款 spawn 参数。
 // 全合成材料：许可走 BRIDGE_LICENSE_FILE 临时文件，oc28 走 BRIDGE_OC28_SSE=0 隔离；
 // 杀前核验命令行含 bridge_host.mjs（宁停不误杀，同 ci_gate/license_synthetic 纪律）；
-// #14 收场须端口已释放且自家 pid 已退出，短落静后才开 #15（不放宽 90s 探针，不扩杀）；
+// #14 收场须端口已释放且自家 pid 已退出，短落静后才开打包 exe（不放宽 90s 探针，不扩杀）。
+// #15 计时前对同一 BRIDGE_BUNDLE_ELECTRON_EXE 做一轮 ELECTRON_RUN_AS_NODE 预热
+// （探到 /api/server-info，或用满预热预算），再按同一纪律收场，计时探针才落在热路径。
+// 预热不计断言，不改 bridge_host / g6。探针字面量仍是 90000。
 // 收场自清自家 %APPDATA%\Juscite\bridge\bridge-<port>.db*（只碰 Juscite 域）。
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -137,6 +140,11 @@ function electronHandoffBlockReason(s) {
 // 落静在 90s 探针之外。重跑9：#14 后立刻拉 ELECTRON 冷启动贴着 90s（约 89.5s）。
 const ELECTRON_HANDOFF_SETTLE_MS = 2000;
 
+// 预热预算也在 90s 探针之外，且不是探针。rerun10（tip 3566aad2）：同一 Preview.exe
+// 冷执行常要 98–120s 才听口（120s 未听口的那一轮仍把下一轮热到约 55s）；静态扫描不够。
+// 上限盖过这条冷带。探到即收场，不等满。#15 仍调用 probeServerInfo(port, 90000)。
+const ELECTRON_WARMUP_BUDGET_MS = 130000;
+
 async function probeServerInfo(port, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -176,9 +184,9 @@ function formatProbeFailure(port, elapsedMs, exitCode, stderrRaw) {
   return tail ? `${head}\n--- child stderr tail ---\n${tail}` : head;
 }
 
-/** spawnArgs/env 由调用方决定（B=system node，C=Electron-as-node），其余纪律共用。 */
-async function spawnBundleBridge(n, label, electronExe) {
-  const port = pickFreePort();
+/** 与 desktopHostProcess.ts 打包分支同款：exe + 包内 tsx + bridge_host，windowsHide。
+ *  electronExe 空则 system node（#14）。预热与 #15 必须走这一处，避免参数漂移。 */
+function launchBundleChild(electronExe, port) {
   const isElectronRun = Boolean(electronExe);
   const tsxCli = join(BUNDLE_DIR, "node_modules", "tsx", "dist", "cli.mjs");
   const entry = join(BUNDLE_DIR, "tools", "bridge", "bridge_host.mjs");
@@ -190,12 +198,41 @@ async function spawnBundleBridge(n, label, electronExe) {
     BRIDGE_LICENSE_FILE: licenseFile,
     ...(isElectronRun ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
   };
-  // windowsHide 对齐 desktopHostProcess.ts 打包分支。
-  const startedAt = Date.now();
   const child = spawn(electronExe ?? process.execPath, [tsxCli, entry], {
     cwd: bridgeDir, env, stdio: ["ignore", "ignore", "pipe"], windowsHide: true,
   });
-  const stderrTail = collectStderrTail(child);
+  return { child, stderrTail: collectStderrTail(child) };
+}
+
+/** #15 计时前的冷路径付款。同一 exe、同一参数；探活或到预热预算后只杀自家树。
+ *  不计 ok/not ok。收场不净则调用方拒绝开计时探针。 */
+async function warmElectronExe(electronExe) {
+  const port = pickFreePort();
+  const startedAt = Date.now();
+  const { child, stderrTail } = launchBundleChild(electronExe, port);
+  let teardownError = null;
+  let listened = false;
+  try {
+    listened = Boolean(await probeServerInfo(port, ELECTRON_WARMUP_BUDGET_MS));
+  } finally {
+    try { await killOwnBridge(child.pid, port); }
+    catch (e) {
+      teardownError = e instanceof Error ? e.message : String(e);
+    }
+  }
+  const elapsed = Date.now() - startedAt;
+  const code = child.exitCode == null ? "null" : String(child.exitCode);
+  const line = `warmup - 同一 exe ELECTRON_RUN_AS_NODE 预热 elapsed_ms=${elapsed} listened=${listened ? 1 : 0} exitCode=${code}（不计断言；#15 探针仍 90000）`;
+  const tail = formatStderrTail(stderrTail());
+  console.log(tail ? `${line}\n--- warmup stderr tail ---\n${tail}` : line);
+  return { port, pid: child.pid, teardownClean: teardownError == null, teardownError };
+}
+
+/** spawnArgs/env 由调用方决定（B=system node，C=Electron-as-node），其余纪律共用。 */
+async function spawnBundleBridge(n, label, electronExe) {
+  const port = pickFreePort();
+  const startedAt = Date.now();
+  const { child, stderrTail } = launchBundleChild(electronExe, port);
   let teardownError = null;
   try {
     const info = await probeServerInfo(port, 90000);
@@ -261,7 +298,19 @@ if (electronExe) {
       await new Promise((res) => setTimeout(res, ELECTRON_HANDOFF_SETTLE_MS));
       const afterSettle = electronHandoffBlockReason(handoffSnapshot(systemSpawn));
       if (afterSettle) fail(n, electronLabel, `落静后仍不净，拒绝开打包 spawn（${afterSettle}）`);
-      else await spawnBundleBridge(n, electronLabel, electronExe);
+      else {
+        // 预热紧挨 #15：中间不再夹别的 spawn。#14 交接门仍在预热之前。
+        const warmup = await warmElectronExe(electronExe);
+        const warmBlock = electronHandoffBlockReason(handoffSnapshot(warmup));
+        if (warmBlock) {
+          fail(n, electronLabel, `预热收场未净，拒绝开打包 spawn（${warmBlock}）`);
+        } else {
+          await new Promise((res) => setTimeout(res, ELECTRON_HANDOFF_SETTLE_MS));
+          const afterWarm = electronHandoffBlockReason(handoffSnapshot(warmup));
+          if (afterWarm) fail(n, electronLabel, `预热落静后仍不净，拒绝开打包 spawn（${afterWarm}）`);
+          else await spawnBundleBridge(n, electronLabel, electronExe);
+        }
+      }
     }
   }
 } else {
