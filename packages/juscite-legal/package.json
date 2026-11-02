@@ -17,6 +17,7 @@
     "./panels/EdiscPanel": "./src/panels/EdiscPanel.tsx",
     "./kernel/ediscUiModel": "./src/kernel/ediscUiModel.ts",
     "./panels/FlowStudioPanel": "./src/panels/FlowStudioPanel.tsx",
+    "./panels/SubscriptionPanel": "./src/panels/SubscriptionPanel.tsx",
     "./kernel/flowStudioModel": "./src/kernel/flowStudioModel.ts",
     "./kernel/skillActivationModel": "./src/kernel/skillActivationModel.ts",
     "./kernel/deliveryChainModel": "./src/kernel/deliveryChainModel.ts"
