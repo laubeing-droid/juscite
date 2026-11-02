@@ -3,7 +3,7 @@
 // 能独立拉起桥——不依赖仓库布局（销项 78b34899 记档的「无仓库布局机器桥 spawn fail-closed」边界）。
 //
 // 三段：
-//   A. 物化树要件断言（桥入口/tsx 装载器/@zcode 闭包/esbuild 平台二进制/services 源/内置文集）。
+//   A. 物化树要件断言（桥入口/tsx 装载器/@zcode 闭包/esbuild 平台二进制/services 源/juscite-flow quote-back/内置文集）。
 //   B. 随包 spawn 径（system node + 包内 tsx，cwd=包内 tools/bridge）：/api/server-info 应答
 //      store=sqlite + taskshell/flowgate/kb 能力代 + license 字段——与 dev 桥同面。
 //   C. 打包径（BRIDGE_BUNDLE_ELECTRON_EXE 设置时，ci_gate package 传入 win-unpacked 桌面 exe）：
@@ -39,6 +39,7 @@ function bundleEssentials() {
     ["zod", join(BUNDLE_DIR, "node_modules", "zod", "package.json")],
     ["services TS 源", join(BUNDLE_DIR, "packages", "services", "src", "index.ts")],
     ["services 包清单（#src 子路径导入）", join(BUNDLE_DIR, "packages", "services", "package.json")],
+    ["flow 原文回引（diligence_service 静态 import）", join(BUNDLE_DIR, "packages", "juscite-flow", "src", "quote-back.mjs")],
     ["内置文集（B61）", join(BUNDLE_DIR, "knowledge-base")],
     ["时间线技能规范包（timeline_skill 真源）", join(BUNDLE_DIR, "implementation", "skill-presets", "timeline-generation", "skill.json")],
   ];
@@ -95,6 +96,26 @@ async function probeServerInfo(port, timeoutMs) {
   return null;
 }
 
+// 探活失败时把子进程 stderr 尾打进失败行（stdio 不继承父进程；只留有界尾，避免管道塞满卡住子进程）。
+const STDERR_TAIL_KEEP = 4000;
+function collectStderrTail(child) {
+  let buf = "";
+  const stream = child.stderr;
+  if (!stream) return () => "";
+  stream.setEncoding("utf8");
+  stream.on("data", (chunk) => {
+    buf += chunk;
+    if (buf.length > STDERR_TAIL_KEEP) buf = buf.slice(-STDERR_TAIL_KEEP);
+  });
+  return () => buf;
+}
+
+function formatStderrTail(raw) {
+  const lines = String(raw ?? "").trim().split(/\r?\n/).slice(-12).join("\n");
+  if (!lines) return "";
+  return lines.length > 800 ? lines.slice(-800) : lines;
+}
+
 /** spawnArgs/env 由调用方决定（B=system node，C=Electron-as-node），其余纪律共用。 */
 async function spawnBundleBridge(n, label, electronExe) {
   const port = pickFreePort();
@@ -110,11 +131,18 @@ async function spawnBundleBridge(n, label, electronExe) {
     ...(isElectronRun ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
   };
   const child = spawn(electronExe ?? process.execPath, [tsxCli, entry], {
-    cwd: bridgeDir, env, stdio: "ignore",
+    cwd: bridgeDir, env, stdio: ["ignore", "ignore", "pipe"],
   });
+  const stderrTail = collectStderrTail(child);
   try {
     const info = await probeServerInfo(port, 90000);
-    if (!info) return fail(n, label, `:${port} 90s 不可探（随包 spawn 失败）`);
+    if (!info) {
+      const tail = formatStderrTail(stderrTail());
+      const why = tail
+        ? `:${port} 90s 不可探（随包 spawn 失败）\n--- child stderr tail ---\n${tail}`
+        : `:${port} 90s 不可探（随包 spawn 失败）`;
+      return fail(n, label, why);
+    }
     const problems = [];
     if (info.store !== "sqlite") problems.push(`store=${info.store} 期望 sqlite`);
     if (info.taskshell !== 1) problems.push("taskshell 能力代缺失");
