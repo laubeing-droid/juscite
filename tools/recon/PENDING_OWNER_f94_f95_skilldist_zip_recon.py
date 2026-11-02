@@ -36,7 +36,7 @@
   S10 桥 fail-closed（缺状态根 exit 3；未知方法 method_not_connected）
 
 用法（juscite worktree w3-u17 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f94_f95_skilldist_zip_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f94_f95_skilldist_zip_recon.py \
       [--profile desktop] [--profile selfhost]
 缺省双 profile。exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F94/
 <profile>/ 与 evidence/F95/<profile>/（及 docs/construction/evidence/ 镜像）。
@@ -56,7 +56,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 FACE = REPO_ROOT / "implementation" / "python" / "skill_catalog.py"
 
@@ -699,7 +699,7 @@ def main():
             payload = {
                 "unit": "W3-U17", "feature": feature,
                 "profile": profile,
-                "generated_by": "tools/PENDING_OWNER_f94_f95_skilldist_zip_recon.py",
+                "generated_by": "tools/recon/PENDING_OWNER_f94_f95_skilldist_zip_recon.py",
                 "checks": items,
                 "passed": sum(1 for i in items if i["status"] == "PASS"),
                 "total": len(items),

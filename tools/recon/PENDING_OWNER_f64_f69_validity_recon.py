@@ -29,8 +29,8 @@
      P11/网络引用（web 声明路径与数据库核验结构性隔离）。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f64_f69_validity_recon.py --profile desktop
-  python -X utf8 tools/PENDING_OWNER_f64_f69_validity_recon.py --profile desktop --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f64_f69_validity_recon.py --profile desktop
+  python -X utf8 tools/recon/PENDING_OWNER_f64_f69_validity_recon.py --profile desktop --profile selfhost
   [--formal-root <codices 正式目录>] [--codices-repo <含 lccc_consumer.py 目录>]
   [--commercial-tool <commercial_law_mcp.py>]
   [--evidence-roots "evidence/F64,evidence/F69"]
@@ -68,7 +68,7 @@ from pathlib import Path
 csv.field_size_limit(10 ** 9)
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 
 DEFAULT_FORMAL_ROOT = (

@@ -33,7 +33,7 @@ closed 被用户当『动不动拒绝用』」。
   S8 桥 fail-closed：缺 abstain_state_root → exit 3 具名 NOT_CONNECTED。
 
 用法（juscite worktree w4-u46 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f91_abstain_operational_recon.py --profile desktop --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f91_abstain_operational_recon.py --profile desktop --profile selfhost
 
 exit 0＝所请求全部 profile 断言全过（每 profile 各 RECON_OK）；证据
 JSON 写 evidence/F91/<profile>/。只读消费，不发任何网络请求。
@@ -54,7 +54,7 @@ import time
 from pathlib import Path
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 ABSTAIN_MODULE = REPO_ROOT / "implementation" / "python" / "abstain_operational.py"
 

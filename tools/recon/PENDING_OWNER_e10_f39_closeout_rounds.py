@@ -63,8 +63,8 @@
    已验）。管理员会话真跑，规则/抓包用毕即删即停（finally）。
 
 用法（juscite worktree 仓根 cwd；本单 W3-U29 用 w3-u29）：
-  python -X utf8 tools/PENDING_OWNER_e10_f39_closeout_rounds.py              # 四轮
-  python -X utf8 tools/PENDING_OWNER_e10_f39_closeout_rounds.py --rounds host  # 宿主级轮
+  python -X utf8 tools/recon/PENDING_OWNER_e10_f39_closeout_rounds.py              # 四轮
+  python -X utf8 tools/recon/PENDING_OWNER_e10_f39_closeout_rounds.py --rounds host  # 宿主级轮
   # --out 缺省：全四轮=规范路径 docs/construction/e10-f39-closeout-rounds-result.json；
   # 子集轮=自动 e10-f39-closeout-rounds-<轮名>-<UTC戳>Z.json（不覆盖四轮产物）。
 
@@ -94,7 +94,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import quote
 
-WORKTREE = Path(__file__).resolve().parents[1]
+WORKTREE = Path(__file__).resolve().parents[2]
 MAIN_TREE = WORKTREE.parents[2]
 
 sys.path.insert(0, str(WORKTREE / "tools"))
@@ -2328,7 +2328,7 @@ def main() -> int:
     result: dict = {
         "unit": "E10/F39 出口与隔离负测收口轮（W2a-U17 四轮＋W2a-U18 接线/R-HOST）",
         "meta": {
-            "tool": "tools/PENDING_OWNER_e10_f39_closeout_rounds.py",
+            "tool": "tools/recon/PENDING_OWNER_e10_f39_closeout_rounds.py",
             "started_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "worktree": str(WORKTREE),
             "adjudication": "00-总协调.md §6.1 裁决#2：无管理员方案先行；宿主级待环境"

@@ -11,7 +11,7 @@
   F cases 侧负测：外部全库未授权→容量增量 UNKNOWN（值 None，非 0），不编 URL
 
 用法（juscite 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_e22_codices_baseline.py
+  python -X utf8 tools/recon/PENDING_OWNER_e22_codices_baseline.py
     --formal-root <codices 正式发布目录>
     --codices-repo <codices 工程仓检出（lccc_consumer.py 所在，公开面入口）>
     [--evidence-dir docs/construction/evidence/E22/desktop]
@@ -466,7 +466,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     repo_root = os.path.normpath(os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), ".."))
+        os.path.dirname(os.path.abspath(__file__)), "..", ".."))
     candidates = [args.codices_repo] if args.codices_repo else [
         os.path.join(workspace, "legal-cn-core-codices-repo"),
         os.path.join(workspace, "legal-cn-core-codices-repo",
@@ -507,7 +507,7 @@ def main(argv=None) -> int:
         "run_date": RUN_DATE,
         "formal_root": args.formal_root,
         "public_entry_path": face_path,
-        "command": "python -X utf8 tools/PENDING_OWNER_e22_codices_baseline.py"
+        "command": "python -X utf8 tools/recon/PENDING_OWNER_e22_codices_baseline.py"
                    " --formal-root %s --codices-repo %s"
                    % (args.formal_root, os.path.dirname(face_path)),
         "inventory": inventory,

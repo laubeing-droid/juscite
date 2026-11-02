@@ -21,7 +21,7 @@ anonymizer 仓改动。
 （合成聊天文本导出，PII 面供材料化工作）。
 
 用法（juscite worktree w3-u13 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f61_batch_collection_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f61_batch_collection_recon.py \
       --profile desktop --profile selfhost
   [--attachments <dir>] [--exports <dir>] [--state-root-prefix <dir>]
   [--anonymizer-src <path>] [--interpreter <path>] [--skip-regen-check]
@@ -45,7 +45,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 CORPUS_SEED = 20261015
 DEFAULT_INTERPRETER = Path(os.environ.get(
     "JUSCITE_F40_BASELINE_INTERPRETER",

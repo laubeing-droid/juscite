@@ -41,7 +41,7 @@ desktop 径＝legal_entry CLI 子进程全链；selfhost 径＝产品面同进�
 品面无 harness seam——skill_routing 零 harness 方法）。
 
 用法（juscite worktree w4-u47 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f98_skill_routing_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f98_skill_routing_recon.py \
       [--profile desktop] [--profile selfhost]
 缺省双 profile。exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F98/
 <profile>/recon-result.json（＋docs/construction/evidence/ 镜像）。
@@ -62,7 +62,7 @@ import tempfile
 from pathlib import Path
 
 RUN_DATE = "20261021"
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 FACE = REPO_ROOT / "implementation" / "python" / "skill_routing.py"
 PRESETS = REPO_ROOT / "implementation" / "skill-presets"
@@ -770,7 +770,7 @@ def main() -> int:
                 "profile": profile,
                 "run_date": RUN_DATE,
                 "command": ("python -X utf8 "
-                            "tools/PENDING_OWNER_f98_skill_routing_recon"
+                            "tools/recon/PENDING_OWNER_f98_skill_routing_recon"
                             ".py --profile desktop --profile selfhost"),
                 "checks": payload.get("checks", []),
                 "facts": payload.get("facts", {}),

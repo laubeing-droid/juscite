@@ -40,7 +40,7 @@ e704553e582be9e6521aa854ab285bc8b215；JC/LH 两 worktree 开工/收工
 git status --porcelain 双查＝只读零改动。
 
 用法（juscite worktree w3-u16 根 cwd；--profile 缺省＝双 profile）：
-  python -X utf8 tools/PENDING_OWNER_f93_skill_semantics_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f93_skill_semantics_recon.py \
       [--profile desktop --profile selfhost]
 
 exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F93/<profile>/ 与
@@ -71,7 +71,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 EVIDENCE_ROOT = REPO_ROOT / "evidence" / "F93"
 

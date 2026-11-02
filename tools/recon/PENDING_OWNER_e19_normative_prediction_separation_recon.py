@@ -44,7 +44,7 @@ sha256 钉定漂移响亮拒；prediction_separation.py 保持 W2b-U27 钉定
      两维缺口/回收点在账）
 
 用法（juscite worktree w4-u55 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_e19_normative_prediction_separation_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_e19_normative_prediction_separation_recon.py \
       --profile desktop --profile selfhost
 
 exit 0＝全部 profile RECON_OK；2＝RECON_FAIL；3＝环境缺失。证据 JSON＋MD
@@ -60,7 +60,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 EVIDENCE_ROOT = REPO_ROOT / "docs" / "construction" / "evidence"
 LEDGER = REPO_ROOT / "docs" / "construction" / "acceptance-ledger.csv"

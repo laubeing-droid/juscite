@@ -2,7 +2,7 @@
 双 profile。
 
 验收命令（juscite worktree w4-u49 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f115_f116_dashboard_domain_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_f115_f116_dashboard_domain_recon.py
       --profile desktop --profile selfhost
 
 对账对象：harness 分支 w4-u49（基 W4 战役链头 w4-u46@5d6c920d——A2 分支链
@@ -62,7 +62,7 @@ import uuid as _uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "tests"))
 

@@ -28,7 +28,7 @@ e05_result_broker.py）后做活服务实测：
 服务凭据/lease 本体不打印不入账（lease 只以 sha256 呈现）；不重试变异调用。
 
 用法：
-  python -X utf8 tools/PENDING_OWNER_e05_result_consumption_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_e05_result_consumption_recon.py
       [--oc28 <path>] [--harness-root <path>] [--evidence-dir <path>] [--keep]
 
 退出码：0 = E05_RECON_OK；1 = E05_RECON_FAIL；3 = E05_RECON_BLOCKED
@@ -51,7 +51,7 @@ from pathlib import Path
 from unittest.mock import patch
 from urllib.parse import quote
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 
 from opencode_http import Client, TransportError  # noqa: E402

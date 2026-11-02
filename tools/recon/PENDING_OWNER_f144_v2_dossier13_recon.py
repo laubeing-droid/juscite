@@ -38,7 +38,7 @@ W4-U40 九条负测纪律全继承（台账 F144-desktop actual）：
 前造；F94 技能目录分发链不在本单。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f144_v2_dossier13_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_f144_v2_dossier13_recon.py
   [--state-root-prefix <dir>] [--keep-temp]
 
 退出码：0＝RECON_OK；2＝RECON_FAIL；3＝环境缺失。
@@ -59,7 +59,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 RUN_DATE = time.strftime("%Y%m%d")
 
 SYNTH_TOKEN = "JUSCITE-SYNTH-TOKEN-NOT-REAL"
@@ -731,7 +731,7 @@ def main(argv=None) -> int:
         "started_at": now_iso(),
         "run_date": RUN_DATE,
         "command": ("python -X utf8 "
-                    "tools/PENDING_OWNER_f144_v2_dossier13_recon.py"),
+                    "tools/recon/PENDING_OWNER_f144_v2_dossier13_recon.py"),
         "modules": {"dossier13": sha256_file(D13_MODULE),
                     "enterprise_connector": sha256_file(ENT_MODULE)},
         "authority_piece_names": list(AUTHORITY_PIECE_NAMES),

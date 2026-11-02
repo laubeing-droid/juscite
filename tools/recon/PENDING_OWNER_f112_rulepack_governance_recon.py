@@ -27,7 +27,7 @@ JCClient（jc_import_path 钉定 JC 仓 w2b-u56 worktree，sha256 钉定漂移�
   S6 双 profile 输出一致（治理面与宿主形态无关）
 
 用法（juscite worktree w2b-u56 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f112_rulepack_governance_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f112_rulepack_governance_recon.py \
       --profile desktop --profile selfhost
 
 exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F112/<profile>/ 与
@@ -44,7 +44,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 
 JC_REPO = Path(

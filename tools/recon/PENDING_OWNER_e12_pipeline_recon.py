@@ -9,7 +9,7 @@
 implementation/python/legal_entry.py 桥（material.parse_* 方法组）。
 
 用法（juscite worktree w2a-u02 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_e12_pipeline_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_e12_pipeline_recon.py \
       [--corpus <dir>] [--state <dir>] [--workers 6] [--interrupt-after 500]
       [--fresh] [--skip-run] [--worker <spec.json>]
 
@@ -34,7 +34,7 @@ import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 EVIDENCE_DIR = REPO / "docs" / "construction" / "evidence" / "E12"
 DEFAULT_CORPUS = Path(os.environ.get("TEMP", ".")) / "juscite-e12-corpus-5k-a"
 DEFAULT_STATE = Path(os.environ.get("TEMP", ".")) / "juscite-e12-parse-state"

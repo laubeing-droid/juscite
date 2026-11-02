@@ -21,7 +21,7 @@ F106（06 行，双实例）：日历版本账——2025/2026 全国假日＋调
 对拍报告当验收真值。
 
 用法（juscite worktree w2b-u54 根 cwd；--profile 缺省＝双 profile）：
-  python -X utf8 tools/PENDING_OWNER_f105_f106_rule_base_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f105_f106_rule_base_recon.py \
       [--profile desktop --profile selfhost]
 
 exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F105/<profile>/ 与
@@ -38,7 +38,7 @@ import tempfile
 import time
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 EVIDENCE_ROOT = REPO_ROOT / "docs" / "construction" / "evidence"
 
@@ -385,7 +385,7 @@ def main() -> int:
             "unit": "W2b-U54",
             "profile": profile,
             "run_stamp": run_stamp,
-            "command": f"python -X utf8 tools/PENDING_OWNER_f105_f106_rule_base_recon.py"
+            "command": f"python -X utf8 tools/recon/PENDING_OWNER_f105_f106_rule_base_recon.py"
                        f"{' --profile ' + ' --profile '.join(profiles) if args.profile else ''}",
             "jc_worktree": str(JC_REPO),
             "pins": {

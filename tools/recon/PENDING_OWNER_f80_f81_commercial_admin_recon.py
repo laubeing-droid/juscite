@@ -32,7 +32,7 @@ AST 面断言：两产品模块导入闭集恰零网络模块＋字符串常量�
 组织/用户/金额显式 synth；零真实外联）。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f80_f81_commercial_admin_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f80_f81_commercial_admin_recon.py \
       --profile desktop --profile selfhost
   [--state-root-prefix <dir>] [--keep-temp]
 
@@ -52,7 +52,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 RUN_DATE = time.strftime("%Y%m%d")
 
 COMM_MODULE = REPO / "implementation" / "python" / "commercial_service.py"
@@ -913,7 +913,7 @@ def main(argv=None) -> int:
         "started_at": now_iso(),
         "run_date": RUN_DATE,
         "command": ("python -X utf8 "
-                    "tools/PENDING_OWNER_f80_f81_commercial_admin_recon.py "
+                    "tools/recon/PENDING_OWNER_f80_f81_commercial_admin_recon.py "
                     "--profile desktop --profile selfhost"),
         "modules": {"commercial_service": sha256_file(COMM_MODULE),
                     "org_policy_admin": sha256_file(ORG_MODULE)},

@@ -21,7 +21,7 @@ harness 检出只读（分支核对＋git 只读命令），全程合成材料�
 碰，oc28 零触碰。
 
 用法：
-  python -X utf8 tools/PENDING_OWNER_f27_f28_injection_budget_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_f27_f28_injection_budget_recon.py
       [--profile desktop --profile selfhost]   （缺省双 profile）
 
 退出码：0 = 全部 profile RECON_OK；2 = RECON_FAIL；3 = 环境缺失。
@@ -43,7 +43,7 @@ import uuid as _uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 
 import legal_entry  # noqa: E402

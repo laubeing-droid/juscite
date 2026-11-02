@@ -18,7 +18,7 @@ public_entry）完全同一条链。全部合成材料：临时状态根、合�
   桥负向：未配置 NOT_CONNECTED／未知方法 method_not_connected。
 
 用法：
-  python -X utf8 tools/PENDING_OWNER_f114_version_sources_recon.py [--harness-root <path>] [--json]
+  python -X utf8 tools/recon/PENDING_OWNER_f114_version_sources_recon.py [--harness-root <path>] [--json]
 
 退出码：0 = RECON_OK；1 = RECON_FAIL；3 = RECON_BLOCKED。
 """
@@ -33,7 +33,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 
 import legal_entry  # noqa: E402

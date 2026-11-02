@@ -26,7 +26,7 @@
   S4 双副本逐位核同：scratch → evidence（docs/construction/evidence/F77/desktop/v1.5/，
      入 git）与 artifact（.local/artifacts/F77/v1.5/，gitignored 冗余副本）——exe＋
      blockmap 三方 sha256 相等且字节级 filecmp 相同；SHA256SUMS.txt 冻结值落盘。
-  S5 F77 冻结与闭包消费：复跑 tools/PENDING_OWNER_e04_f77_release_license_closure.py
+  S5 F77 冻结与闭包消费：复跑 tools/recon/PENDING_OWNER_e04_f77_release_license_closure.py
      --profile desktop（--installer/--dist-dir 指向 scratch v1.5 产物，--evidence-dir
      指向 v1.5 证据位）——A UNKNOWN 复核／B @sentry FSL 仅构建期／C BSL 参数+生效日期
      冻结（2030-10-20＋2026-10-20 逐字）／D 上游 NOTICE 修改声明保留＋in-app 注册表随包
@@ -38,7 +38,7 @@
      3478a41c 关系如实入档；W4-U28 衔接注记。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f01_v15_release_freeze_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_f01_v15_release_freeze_recon.py
       [--oc28 DIR] [--scratch DIR] [--skip-build]
 
 exit 0＝安装物产出＋双副本 sha256 逐位核同＋F77 冻结核对全 PASS。
@@ -289,7 +289,7 @@ def main() -> int:
 
     # ---------------- S6 F01 发行记录 + 证据落盘 ----------------
     result = {
-        "tool": "tools/PENDING_OWNER_f01_v15_release_freeze_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f01_v15_release_freeze_recon.py",
         "unit": "W4-U27",
         "run_utc": RUN_UTC,
         "oc28_head": head,

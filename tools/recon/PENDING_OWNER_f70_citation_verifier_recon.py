@@ -21,7 +21,7 @@
   S5 桥 fail-closed：未配置/未知方法/缺参 exit 3 具名 NOT_CONNECTED。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f70_citation_verifier_recon.py --profile desktop
+  python -X utf8 tools/recon/PENDING_OWNER_f70_citation_verifier_recon.py --profile desktop
   [--formal-root <codices 正式目录>] [--codices-repo <含 v1.1 lccc_consumer.py 目录>]
   [--evidence-root evidence/F70]
 
@@ -46,7 +46,7 @@ from pathlib import Path
 csv.field_size_limit(10 ** 9)
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 CITATION_MODULE = REPO_ROOT / "implementation" / "python" / "citation_verifier.py"
 

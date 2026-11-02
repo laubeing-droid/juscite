@@ -20,7 +20,7 @@ vault_decrypt_failed/vault_entry_missing，无明文回退路径，扫描证明�
 不入 git（git grep 零命中）；证据只记 sha256 与掩码形。
 
 用法（juscite worktree w3-u09 根 cwd；--profile 缺省＝双 profile）：
-  python -X utf8 tools/PENDING_OWNER_f07_f12_audit_hmac_byok_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f07_f12_audit_hmac_byok_recon.py \
       [--profile desktop --profile selfhost]
 
 exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F07/<profile>/ 与
@@ -41,7 +41,7 @@ import tempfile
 import time
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 
@@ -577,7 +577,7 @@ def main(argv: list[str] | None = None) -> int:
                 "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ",
                                               time.gmtime()),
                 "command": ("python -X utf8 "
-                            "tools/PENDING_OWNER_f07_f12_audit_hmac_byok_"
+                            "tools/recon/PENDING_OWNER_f07_f12_audit_hmac_byok_"
                             "recon.py --profile " + profile),
                 "cwd": str(REPO_ROOT),
                 "summary": {k: v for k, v in profiles_summary[profile].items()

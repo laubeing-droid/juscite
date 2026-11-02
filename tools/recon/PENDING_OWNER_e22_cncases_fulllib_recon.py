@@ -19,7 +19,7 @@
      须先落 codices 仓分支实现（该仓 pytest 门禁）＋用户授权，两前置缺一即拒。
 
 用法（juscite worktree 根 cwd，无参）：
-  python -X utf8 tools/PENDING_OWNER_e22_cncases_fulllib_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_e22_cncases_fulllib_recon.py
     [--codices-repo <含 lccc_consumer.py 的 codices 检出>]
     [--evidence-dir docs/construction/evidence/E22/desktop]
 
@@ -164,7 +164,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     repo_root = os.path.normpath(os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), ".."))
+        os.path.dirname(os.path.abspath(__file__)), "..", ".."))
     candidates = [args.codices_repo] if args.codices_repo else [
         os.path.join(workspace, "legal-cn-core-codices-repo"),
         os.path.join(workspace, "legal-cn-core-codices-repo",
@@ -276,7 +276,7 @@ def main(argv=None) -> int:
         "formal_root": args.formal_root,
         "public_entry_path": face_path,
         "face_sha256": face_sha,
-        "command": "python -X utf8 tools/PENDING_OWNER_e22_cncases_fulllib_recon.py",
+        "command": "python -X utf8 tools/recon/PENDING_OWNER_e22_cncases_fulllib_recon.py",
         "authorization_probe": {
             "env_var": "LCCC_EXTERNAL_SOURCES_AUTHORIZED",
             "env_value_present": env_raw is not None,

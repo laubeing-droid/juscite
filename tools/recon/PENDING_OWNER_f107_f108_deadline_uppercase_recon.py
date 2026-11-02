@@ -19,7 +19,7 @@ value_minor 且独立逆解析器（与格式化不同算路）逐夹具回读�
 float 入参 / 任意业务事件 / 冻结 UNKNOWN 预设硬算。
 
 用法（juscite worktree w2b-u55 根 cwd；--profile 缺省＝双 profile）：
-  python -X utf8 tools/PENDING_OWNER_f107_f108_deadline_uppercase_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f107_f108_deadline_uppercase_recon.py \
       [--profile desktop --profile selfhost]
 
 exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F107/<profile>/ 与
@@ -38,7 +38,7 @@ import tempfile
 from decimal import Decimal
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 
 JC_REPO = Path(

@@ -37,8 +37,8 @@ preserved＝随 F64 降级链末端开（硬依赖 W4-U41：F64-v1.5 付费/web 
      PROVIDERS 零引用（AST 零 commercial import）。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f74_web_fallback_recon.py --profile desktop
-  python -X utf8 tools/PENDING_OWNER_f74_web_fallback_recon.py --profile desktop --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f74_web_fallback_recon.py --profile desktop
+  python -X utf8 tools/recon/PENDING_OWNER_f74_web_fallback_recon.py --profile desktop --profile selfhost
   [--codices-repo <含 lccc_consumer.py 目录>] [--formal-root <codices 正式目录>]
   [--commercial-tool <commercial_law_mcp.py>]
   [--evidence-roots "evidence/F74"]
@@ -69,7 +69,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 WEB_FALLBACK = REPO_ROOT / "implementation" / "python" / "web_fallback.py"
 STATUTE_VALIDITY = REPO_ROOT / "implementation" / "python" / "statute_validity.py"

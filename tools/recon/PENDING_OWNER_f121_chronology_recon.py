@@ -44,7 +44,7 @@ PgMatterStore 直连 lh-pg-e08（resolve_provider_method 同一封闭注册）�
   C14 桥负向：未配置 NOT_CONNECTED／未知方法拒／方法组冻结恰五方法。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f121_chronology_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f121_chronology_recon.py \
       --profile desktop --profile selfhost
   [--harness-root <legal-harness w4-u52 worktree>] [--pg-dsn <dsn>]
   [--evidence-suffix <tag>]
@@ -67,7 +67,7 @@ import uuid as _uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "tests"))
 

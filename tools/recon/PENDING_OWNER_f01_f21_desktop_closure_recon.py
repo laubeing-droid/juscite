@@ -49,7 +49,7 @@ fromEvent），caller id 不作匹配键——每轮 prompt 嵌入唯一定位�
 不涉本面；不 push 不 PR。
 
 用法：
-  python -X utf8 tools/PENDING_OWNER_f01_f21_desktop_closure_recon.py ^
+  python -X utf8 tools/recon/PENDING_OWNER_f01_f21_desktop_closure_recon.py ^
       --profile desktop --profile selfhost [--workspace DIR]
 
 发行形态（W3-U34，F01-desktop「完整 v1 发行」闭包；08§2 B3 后段）：
@@ -87,7 +87,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 
 from opencode_http import Client, TransportError  # noqa: E402

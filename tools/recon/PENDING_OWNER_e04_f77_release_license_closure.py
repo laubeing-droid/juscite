@@ -19,9 +19,9 @@ F77 非功能行（17 卡）：BSL1.1 参数文本按已裁参数冻结／上游
     ＋安装物 sha256
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_e04_f77_release_license_closure.py --profile desktop
+  python -X utf8 tools/recon/PENDING_OWNER_e04_f77_release_license_closure.py --profile desktop
       [--oc28 <oc28 检出>] [--installer <dist exe>] [--evidence-dir docs/construction/evidence/F77/desktop]
-  python -X utf8 tools/PENDING_OWNER_e04_f77_release_license_closure.py --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_e04_f77_release_license_closure.py --profile selfhost
       [--evidence-dir docs/construction/evidence/F77/selfhost]
 
 exit 0＝本 profile 全部适用检查 PASS。
@@ -693,7 +693,7 @@ def main() -> int:
         }
 
     result = {
-        "tool": "tools/PENDING_OWNER_e04_f77_release_license_closure.py",
+        "tool": "tools/recon/PENDING_OWNER_e04_f77_release_license_closure.py",
         "unit": RUN_UNIT,
         "unit_note": "工件级补跑单 W3-U33；工具与 desktop 面首建=W3-U22（evidence 同目录 20261018 件）",
         "profile": args.profile,

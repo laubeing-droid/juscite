@@ -37,11 +37,11 @@ desktop 静默窗复跑因并发撞车未完成如实挂主控 W4 收口待办�
        E28 自身 ∈{NOT_RUN, IMPLEMENTING}——VERIFIED 即 FAIL（W4/W5 段未闭）。
   S2 经验层三段复跑（机器命令逐行自台账 command 字段提取原样执行，
      cwd=worktree 根）：
-       E19 tools/PENDING_OWNER_e19_normative_prediction_separation_recon.py
+       E19 tools/recon/PENDING_OWNER_e19_normative_prediction_separation_recon.py
            --profile desktop --profile selfhost
-       E20 tools/PENDING_OWNER_e20_voi_multirender_recon.py
+       E20 tools/recon/PENDING_OWNER_e20_voi_multirender_recon.py
            --profile desktop --profile selfhost
-       E22 tools/PENDING_OWNER_e22_codices_baseline.py --formal-root …
+       E22 tools/recon/PENDING_OWNER_e22_codices_baseline.py --formal-root …
            --codices-repo …（w2a-u12-e22 worktree＝台账原文；分支合并后
            才改仓根）
      各 exit 0＋刷新证据 verdict=RECON_OK（E22 passed=32）；
@@ -64,7 +64,7 @@ desktop 静默窗复跑因并发撞车未完成如实挂主控 W4 收口待办�
      自 failure_reason 具名断言；W4/W5 复跑扩展=E28 后续段。
 
 用法（juscite worktree 根 cwd；三段复跑真实执行，全程数分钟）：
-  python -X utf8 tools/PENDING_OWNER_e28_stage_acceptance.py
+  python -X utf8 tools/recon/PENDING_OWNER_e28_stage_acceptance.py
   [--skip-reruns 仅机检+既有证据核对（不执行三段复跑；exit 码 0/2 同规则）]
 
 exit 0＝全部断言过；证据写 evidence/E28/desktop/e28-stage-acceptance.{json,md}。
@@ -88,7 +88,7 @@ from pathlib import Path
 csv.field_size_limit(10 ** 9)
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEDGER_CSV = REPO_ROOT / "docs" / "construction" / "acceptance-ledger.csv"
 ROWS06_CSV = (REPO_ROOT / "docs" / "construction" / "authority"
               / "06-全量功能施工映射.csv")

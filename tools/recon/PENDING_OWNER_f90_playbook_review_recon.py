@@ -37,7 +37,7 @@ target＝JC compiler_core/client.py 公开 owner 扩展及真实规则包；UI �
      playbookReviewRef digest 逐字相等）
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f90_playbook_review_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f90_playbook_review_recon.py \
       --profile desktop --profile selfhost
 
 exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F90/<profile>/ 与
@@ -54,7 +54,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 
 JC_REPO = Path(

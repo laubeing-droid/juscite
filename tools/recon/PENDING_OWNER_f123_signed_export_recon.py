@@ -6,7 +6,7 @@ acceptance：实际导出清单/文件 hash 验签可核；篡改单文件被检
 包；preserved：与「每条主张绑具名证据」宪法同频）。
 
 验收命令（工单钦定，worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f123_signed_export_recon.py \\
+  python -X utf8 tools/recon/PENDING_OWNER_f123_signed_export_recon.py \\
       --profile desktop --profile selfhost
 exit 0 = RECON_OK。
 
@@ -57,7 +57,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 
 # harness 战役分支（A2 链）本单检出与 F123 面钉定

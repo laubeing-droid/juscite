@@ -60,7 +60,7 @@ r"""W4-U33 / F31 MCP 连接器＋四档暴露策略——双 profile 活体对�
 XDG 根）；不 push。
 
 用法（worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f31_mcp_exposure_recon.py --profile desktop --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f31_mcp_exposure_recon.py --profile desktop --profile selfhost
   exit 0 = 双 profile RECON_OK；1 = 存在 FAIL；2 = 阻塞（服务两试未起）。
 """
 from __future__ import annotations
@@ -80,7 +80,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import quote
 
-WORKTREE = Path(__file__).resolve().parents[1]
+WORKTREE = Path(__file__).resolve().parents[2]
 MAIN_TREE = WORKTREE.parents[2]
 sys.path.insert(0, str(WORKTREE / "implementation" / "python"))
 sys.path.insert(1, str(MAIN_TREE / "implementation" / "python"))
@@ -1292,7 +1292,7 @@ def write_evidence(out_dir: Path, unit: str, suffix: str, profile: str,
                "verdict": verdict,
                "finished_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
                "acceptance_command": (
-                   "python -X utf8 tools/PENDING_OWNER_f31_mcp_exposure_recon.py "
+                   "python -X utf8 tools/recon/PENDING_OWNER_f31_mcp_exposure_recon.py "
                    "--profile desktop --profile selfhost"),
                "summary": {"pass": sum(1 for r in ck.rows if r["status"] == "PASS"),
                            "fail": sum(1 for r in ck.rows if r["status"] == "FAIL")},

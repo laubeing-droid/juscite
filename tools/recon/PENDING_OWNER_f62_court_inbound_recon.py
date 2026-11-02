@@ -20,7 +20,7 @@ w2a-u18 同波 worktree（conftest 同式）。活产品服务零触碰（合成
 =docs/construction/evidence/F62/<profile>/ JSON＋MD。
 
 用法（juscite worktree w3-u14 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f62_court_inbound_recon.py --profile desktop --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f62_court_inbound_recon.py --profile desktop --profile selfhost
   [--corpus <dir>] [--state <dir>] [--interpreter <path>] [--anonymizer-src <path>] [--harness-root <path>]
 
 退出码：0＝全部 profile RECON_OK；2＝RECON_FAIL；3＝环境缺失。
@@ -40,7 +40,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 TEMP = Path(os.environ.get("TEMP", "."))
 DEFAULT_INTERPRETER = Path(os.environ.get(
     "JUSCITE_F40_BASELINE_INTERPRETER",

@@ -31,7 +31,7 @@ docs/f118-schedule-contract.md 既有语义，本单零新引擎）——schedul
 合成材料（临时状态根＋合成 matter/日程字符串），%APPDATA%/oc28 零触碰。
 
 用法（worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f118_v15_practical_reminders_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f118_v15_practical_reminders_recon.py \
       --profile desktop --profile selfhost
 
 退出码：0 = RECON_OK；1 = RECON_FAIL；3 = RECON_BLOCKED。
@@ -49,7 +49,7 @@ import uuid as _uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 
 import legal_entry  # noqa: E402
@@ -68,7 +68,7 @@ AS_AT = "2026-10-20T01:00:00Z"
 # lh-pg-e08 容器（E08 拓扑；selfhost 腿 PgMatterStore 直连，同 E24 recon）。
 DEFAULT_PG_DSN = "postgresql://lh_app:e08-synth-only@127.0.0.1:55432/legal_harness"
 
-# 钉定（与 tools/PENDING_OWNER_e24_external_actions_recon.py 同键同值）：
+# 钉定（与 tools/recon/PENDING_OWNER_e24_external_actions_recon.py 同键同值）：
 # harness＝W3 施工链头 w3-u20（基 w3-u12@7c9ccc16，master 零动）——本单
 # harness 零改动，F118 合同面在该链头即已完整（docs/f118-schedule-contract.md）。
 EXPECT_BRANCH = "w3-u20"
@@ -742,7 +742,7 @@ def write_evidence(recon: Recon, started: datetime) -> None:
         lines = ["# F118-v1.5 实务提醒 recon（W4-U50·%s）" % recon.profile,
                  "",
                  "命令：`python -X utf8 "
-                 "tools/PENDING_OWNER_f118_v15_practical_reminders_recon.py"
+                 "tools/recon/PENDING_OWNER_f118_v15_practical_reminders_recon.py"
                  " --profile %s`（worktree 根 cwd）" % recon.profile,
                  "",
                  "verdict=**RECON_OK**，%d/%d 检 PASS（harness 钉 %s@%s，"

@@ -66,7 +66,7 @@ DOCX 经 LibreOffice headless→PDF exit 0，答案值在、占位符不在）�
       品）。
 
 用法：
-  python -X utf8 tools/PENDING_OWNER_f56_template_drafting_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f56_template_drafting_recon.py \
       --profile desktop --profile selfhost
 
 退出码：0 = 全部 profile RECON_OK；2 = RECON_FAIL；3 = 环境缺失。
@@ -88,7 +88,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "tests"))
 

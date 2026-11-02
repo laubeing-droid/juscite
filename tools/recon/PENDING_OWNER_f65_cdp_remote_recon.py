@@ -48,8 +48,8 @@ cdp_remote.py 公开函数；recon 另持独立 raw CDP 客户端做对账回读
      legal_entry.py 全程零改动）。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f65_cdp_remote_recon.py --profile desktop
-  python -X utf8 tools/PENDING_OWNER_f65_cdp_remote_recon.py --profile desktop --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f65_cdp_remote_recon.py --profile desktop
+  python -X utf8 tools/recon/PENDING_OWNER_f65_cdp_remote_recon.py --profile desktop --profile selfhost
   [--browser <chrome|msedge|路径>] [--evidence-roots "evidence/F65"]
 
 --profile 可重复；缺省=desktop。exit 0＝全部断言过（RECON_OK）；证据
@@ -76,7 +76,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = REPO_ROOT / "implementation" / "python" / "cdp_remote.py"
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 

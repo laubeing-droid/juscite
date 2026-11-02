@@ -31,7 +31,7 @@ review_batch_* 公开面。双 profile：
       typed 迟到码经桥透传）
 
 用法：
-  python -X utf8 tools/PENDING_OWNER_f25_lease_generation_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_f25_lease_generation_recon.py
       [--profile desktop|selfhost]... [--harness-root <path>] [--json]
 
 退出码：0 = RECON_OK（全部所选 profile）；1 = RECON_FAIL；3 = RECON_BLOCKED。
@@ -48,7 +48,7 @@ import threading
 import time
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 
 import legal_entry  # noqa: E402

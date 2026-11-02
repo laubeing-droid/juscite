@@ -29,7 +29,7 @@ E27（07:28 复合对账义务）在 W0 已证文字面零偷删（e27-composite
      非偷计；F77 许可行双形态实例在账 NOT_RUN；四状态算术闭合。
 
 用法（juscite worktree 根 cwd；先跑 W3-U27 验收命令①刷新 F64 证据）：
-  python -X utf8 tools/PENDING_OWNER_e27_composite_split_recon.py --profile desktop --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_e27_composite_split_recon.py --profile desktop --profile selfhost
   [--profile 可重复，缺省=desktop+selfhost] [--f64-evidence-root evidence/F64]
   [--evidence-root evidence/E27]
 
@@ -52,7 +52,7 @@ from pathlib import Path
 csv.field_size_limit(10 ** 9)
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEDGER_CSV = REPO_ROOT / "docs" / "construction" / "acceptance-ledger.csv"
 ROWS06_CSV = (REPO_ROOT / "docs" / "construction" / "authority"
               / "06-全量功能施工映射.csv")
@@ -259,7 +259,7 @@ def section_s2_profile(checks: Checks, profile: str, head: str,
         checks.add(
             "S2C_f64_v1_recon_green_fresh[%s]" % profile, False,
             "%s 不存在——先跑 W3-U27 验收命令① "
-            "tools/PENDING_OWNER_f64_f69_validity_recon.py --profile %s" % (path, profile))
+            "tools/recon/PENDING_OWNER_f64_f69_validity_recon.py --profile %s" % (path, profile))
         checks.add(
             "S2D_f64_strategy_declares_v15_gap[%s]" % profile, False,
             "无 F64 证据可核策略面")

@@ -24,7 +24,7 @@
   S4 全链正测：真 HTTP 检查（latest.yml 拉取＋确定性解析＋语义版本比较）→ 真流式下载
      （staging 半包，边下边计数）→ 验签双闸（sha512==清单值 且 Ed25519 验签通过）
      → 原子升级（backup 旧→换新→版本回读）→ 合成 userData 保数据（E25 升级语义：
-     稳定集防删防改，tools/PENDING_OWNER_e25_f02_install_recon.py:104-125 同语）。
+     稳定集防删防改，tools/recon/PENDING_OWNER_e25_f02_install_recon.py:104-125 同语）。
   S5 负测·坏签名拒：payload 篡改 1 字节（签名仍旧）→ sha512 失配拒装 → 安装根保持
      原版本（逐文件 sha256 未动），坏包弃置，userData 完好。
   S6 负测·中断恢复：server 对 zip 单次注入『声明全长 Content-Length 中途硬断流』
@@ -50,7 +50,7 @@
     行命令登记随账房，本单交付 recon 证据＋通道语义证明。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f13_autoupdate_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_f13_autoupdate_recon.py
       [--profile desktop --profile selfhost] [--keep-temp]
 
 exit 0＝双 profile 全链＋三负测＋零触碰复核全 PASS。
@@ -657,7 +657,7 @@ def main() -> int:
             try:
                 import importlib.util
                 espec = importlib.util.spec_from_file_location(
-                    "e04tool", REPO / "tools/PENDING_OWNER_e04_f77_release_license_closure.py")
+                    "e04tool", REPO / "tools/recon/PENDING_OWNER_e04_f77_release_license_closure.py")
                 emod = importlib.util.module_from_spec(espec)
                 espec.loader.exec_module(emod)
                 header, _ = emod.parse_asar(asar)
@@ -756,7 +756,7 @@ def main() -> int:
             ev_dir = REPO / "evidence" / "F13" / profile
             ev_dir.mkdir(parents=True, exist_ok=True)
             slim = {
-                "tool": "tools/PENDING_OWNER_f13_autoupdate_recon.py",
+                "tool": "tools/recon/PENDING_OWNER_f13_autoupdate_recon.py",
                 "unit": "W4-U27",
                 "profile": profile,
                 "run_utc": RUN_UTC,

@@ -48,7 +48,7 @@ dispatch_refused。
      携带，与首位 panel_sha256 相等）
 
 用法：
-  python -X utf8 tools/PENDING_OWNER_f17_wps_host_surface_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f17_wps_host_surface_recon.py \
       [--profile desktop] [--profile selfhost]
 
 退出码：0 = 全部 profile RECON_OK；2 = RECON_FAIL；3 = 环境缺失
@@ -72,7 +72,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 
 import legal_entry  # noqa: E402

@@ -39,7 +39,7 @@
   X  双 profile 归一化 digest 相等（治理面与宿主形态无关）
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f100_expert_content_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f100_expert_content_recon.py \
       --profile desktop --profile selfhost
 
 exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F100/<profile>/ 与
@@ -60,7 +60,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 EXPERT_STORE = REPO_ROOT / "implementation" / "python" / "expert_store.py"
 WIRING_TEST = REPO_ROOT / "implementation" / "tests" \

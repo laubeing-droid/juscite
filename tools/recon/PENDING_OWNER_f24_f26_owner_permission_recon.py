@@ -32,7 +32,7 @@ profile 语义（E16/E20 recon 同径）：
 不入 git（临时根随跑随删）；不 push。
 
 用法：
-  python -X utf8 tools/PENDING_OWNER_f24_f26_owner_permission_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_f24_f26_owner_permission_recon.py
       [--profile desktop] [--profile selfhost]（默认双 profile）
       [--harness-root <path>] [--pg-dsn <dsn>] [--keep]
 
@@ -55,7 +55,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 
 import legal_entry  # noqa: E402

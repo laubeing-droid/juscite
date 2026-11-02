@@ -14,7 +14,7 @@ r"""W2b-U60 A1 裁决落账 recon：word 宿主半边三行翻 EXCLUDED＋E13 �
 
 用法：
   无参＝复验模式（验收命令，juscite main 树或本单 worktree 根 cwd）：
-    python -X utf8 tools/PENDING_OWNER_a1_word_rows_exclusion_recon.py
+    python -X utf8 tools/recon/PENDING_OWNER_a1_word_rows_exclusion_recon.py
     ⇒ 全检 PASS 输出 RECON_OK exit 0；任一 FAIL 输出 RECON_FAIL exit 2。
   --apply＝施工模式（本单施工期一次性落账）：仅当台账仍处基线态（逐行
     sha256 清单全对）时执行恰 4 行变更；已落账态拒绝重复写 exit 2。
@@ -48,7 +48,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEDGER_PATH = REPO_ROOT / "docs" / "construction" / "acceptance-ledger.csv"
 REGISTRY_PATH = REPO_ROOT / "tools" / "acceptance" / "registry.py"
 
@@ -369,7 +369,7 @@ def main(argv: list[str] | None = None) -> int:
     if args == ["--apply"]:
         return run_apply()
     if args:
-        print("用法：python -X utf8 tools/PENDING_OWNER_a1_word_rows_exclusion_recon.py "
+        print("用法：python -X utf8 tools/recon/PENDING_OWNER_a1_word_rows_exclusion_recon.py "
               "[--apply]", file=sys.stderr)
         return 2
     return run_verify()

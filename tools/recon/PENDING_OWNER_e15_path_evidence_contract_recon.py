@@ -23,7 +23,7 @@ harness 与 JC 检出零字节改动（只运行其代码，git 只读命令核�
   method_not_connected／方法组冻结）。
 
 用法：
-  python -X utf8 tools/PENDING_OWNER_e15_path_evidence_contract_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_e15_path_evidence_contract_recon.py \
       --profile desktop --profile selfhost
 
 退出码：0 = 全部 profile RECON_OK；2 = RECON_FAIL；3 = 环境缺失。
@@ -42,7 +42,7 @@ import uuid as _uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "tests"))
 

@@ -26,7 +26,7 @@ FATAL）。
      具名 NOT_CONNECTED。
 
 用法（juscite worktree w2b-u04 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f89_number_classification_recon.py --profile desktop --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f89_number_classification_recon.py --profile desktop --profile selfhost
 
 exit 0＝所请求全部 profile 断言全过（每 profile 各 RECON_OK）；证据 JSON
 写 <root>/<profile>/。只读消费，不发任何网络请求；材料全合成。
@@ -46,7 +46,7 @@ import time
 from pathlib import Path
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 NUMBER_MODULE = REPO_ROOT / "implementation" / "python" / "number_classifier.py"
 

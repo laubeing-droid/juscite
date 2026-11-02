@@ -27,7 +27,7 @@ desktop profile 与产品桥（legal_entry → 子进程 public_entry）完全�
   不作全文召回主张。
 
 用法：
-  python -X utf8 tools/PENDING_OWNER_f03_f113_dualdb_identity_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_f03_f113_dualdb_identity_recon.py
   （juscite worktree 根 cwd，缺省双 profile；--profile 可选单跑）
 
 退出码：0 = 全部 profile RECON_OK；2 = RECON_FAIL；3 = 环境缺失。
@@ -47,7 +47,7 @@ import uuid as _uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "tests"))
 

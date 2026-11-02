@@ -17,8 +17,8 @@ W2a-U02 解析产物（material.parse_* 真跑落盘）。
 id 序列与三类命中，逐项相等；序哈希由 Python 对前端输出重算复核。
 
 用法（juscite worktree w2a-u07 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f86_reading_order_recon.py --profile desktop
-  python -X utf8 tools/PENDING_OWNER_f86_reading_order_recon.py --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f86_reading_order_recon.py --profile desktop
+  python -X utf8 tools/recon/PENDING_OWNER_f86_reading_order_recon.py --profile selfhost
   [--corpus <dir>] [--state <dir>] [--bun <path>] [--skip-parse]
 
 退出码：0＝RECON_OK（硬门全过）；2＝RECON_FAIL；3＝环境缺失。
@@ -38,7 +38,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 TEMP = Path(os.environ.get("TEMP", "."))
 BRIDGE = REPO / "implementation" / "python" / "legal_entry.py"
 PATCH = REPO / "implementation" / "patches" / "013-f86-reading-surface.patch"

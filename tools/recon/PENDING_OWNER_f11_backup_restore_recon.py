@@ -32,7 +32,7 @@ P10；deps E05,E08,E09）。
   interval_days=2 隔日才 due）。
 
 用法（juscite w3-u11 worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f11_backup_restore_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f11_backup_restore_recon.py \
       --profile desktop --profile selfhost
 
 exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F11/<profile>/ 与
@@ -52,7 +52,7 @@ import tempfile
 import uuid
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 sys.path.insert(0, str(REPO_ROOT))
 

@@ -40,7 +40,7 @@
 裁决#1，绝无真实文档）。状态根 TEMP 子目录（绝不写 %APPDATA%）。
 
 用法（juscite worktree w2b-u14 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f49_replay_redline_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f49_replay_redline_recon.py \
       --profile desktop --profile selfhost
 
 退出码：0＝全部 profile RECON_OK；2＝RECON_FAIL；3＝环境缺失。
@@ -63,7 +63,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 TEMP = Path(os.environ.get("TEMP", "."))
 BRIDGE = REPO / "implementation" / "python" / "legal_entry.py"
 SCHEMA = "juscite-f49-replay-redline/1"

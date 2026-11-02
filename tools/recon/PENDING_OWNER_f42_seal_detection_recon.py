@@ -21,7 +21,7 @@ tools/e12_corpus_gen.py --stamp-boxes 全合成金标盒两卷八页（seed 2026
 持久证据=docs/construction/evidence/F42/<profile>/ JSON＋MD。
 
 用法（juscite worktree w4-u35 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f42_seal_detection_recon.py --profile desktop --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f42_seal_detection_recon.py --profile desktop --profile selfhost
   [--corpus <dir>] [--state <dir>] [--interpreter <path>] [--anonymizer-src <path>]
 
 退出码：0＝全部 profile RECON_OK；2＝RECON_FAIL；3＝环境缺失。
@@ -39,7 +39,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 TEMP = Path(os.environ.get("TEMP", "."))
 DEFAULT_INTERPRETER = Path(os.environ.get(
     "JUSCITE_F40_BASELINE_INTERPRETER",

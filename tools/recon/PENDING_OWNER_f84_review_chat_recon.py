@@ -45,7 +45,7 @@ review_status×支持戳引用的只读白名单投影（绝不携带原件/身�
   S05 零写通道：seam 只有 ask；聊天面板零写按钮
 
 用法（juscite worktree w2b-u48 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f84_review_chat_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f84_review_chat_recon.py \
       --profile desktop --profile selfhost
 
 exit 0＝双 profile 全检过＋CDP 五断言全过（RECON_OK）；证据 JSON 写
@@ -71,7 +71,7 @@ import urllib.request
 from pathlib import Path
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 MATTER = "m-f84chat-recon"
 SCOPE = {"kind": "matter", "matterId": MATTER}

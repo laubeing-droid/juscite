@@ -43,7 +43,7 @@ harness 零依赖零改动（owner=product）；台账零改动（F137 两行登
 房）；不 push。
 
 用法（juscite worktree w5-u12 根 cwd；--profile 缺省＝双 profile）：
-  python -X utf8 tools/PENDING_OWNER_f137_scheduled_tasks_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f137_scheduled_tasks_recon.py \
       --profile desktop --profile selfhost
 
 退出码：0 = RECON_OK；1 = RECON_FAIL。
@@ -66,7 +66,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 
@@ -863,7 +863,7 @@ def write_evidence(profile: str, checks: Checks, meta: dict,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ",
                                       time.gmtime()),
         "command": ("python -X utf8 "
-                    "tools/PENDING_OWNER_f137_scheduled_tasks_recon.py "
+                    "tools/recon/PENDING_OWNER_f137_scheduled_tasks_recon.py "
                     "--profile " + profile),
         "cwd": str(REPO_ROOT),
         "subject": ("juscite 分支 w5-u12（worktree 根 cwd；证据生成于收口 "

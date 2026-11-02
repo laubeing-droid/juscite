@@ -25,7 +25,7 @@ F108/F109 填槽）；unsupported 具名缺口（BAC 规则包缺席/复利/叠�
      6,625,000 读数歧义与裁定记录）
 
 用法（juscite worktree w2b-u19 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_e21_f104_calc_family_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_e21_f104_calc_family_recon.py \
       --profile desktop --profile selfhost
 
 exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/E21/<profile>/ 与
@@ -42,7 +42,7 @@ import tempfile
 import time
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 EVIDENCE_ROOT = REPO_ROOT / "docs" / "construction" / "evidence"
 
@@ -414,7 +414,7 @@ def main() -> int:
             "unit": "W2b-U19",
             "profile": profile,
             "run_stamp": run_stamp,
-            "command": f"python -X utf8 tools/PENDING_OWNER_e21_f104_calc_family_recon.py "
+            "command": f"python -X utf8 tools/recon/PENDING_OWNER_e21_f104_calc_family_recon.py "
                        f"--profile {' --profile '.join(args.profile)}",
             "jc_worktree": str(JC_REPO),
             "pins": {

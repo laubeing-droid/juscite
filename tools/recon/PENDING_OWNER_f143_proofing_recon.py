@@ -48,7 +48,7 @@ Harness正式采用；不模拟DOCX」。
 F48 recon 同默认；零字节改动）。
 
 用法（juscite worktree w5-u14 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f143_proofing_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f143_proofing_recon.py \
       --profile desktop --profile selfhost
 
 退出码：0＝全部 profile RECON_OK；2＝RECON_FAIL；3＝环境缺失。
@@ -69,7 +69,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 TEMP = Path(os.environ.get("TEMP", "."))
 BRIDGE = REPO / "implementation" / "python" / "legal_entry.py"
 MODULE = REPO / "implementation" / "python" / "document_proofing.py"

@@ -47,7 +47,7 @@
   形态实现，本工具不预造、不编 URL、不造数。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f72_court_library_recon.py --profile desktop --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f72_court_library_recon.py --profile desktop --profile selfhost
   [--cases-worktree <含 bced7c9 的 cases 检出>] [--state-root-prefix <dir>]
   [--evidence-root evidence/F72]
 exit 0＝RECON_OK（双 profile 全过＋跨 profile 对账过）；1＝断言失败；
@@ -71,7 +71,7 @@ from pathlib import Path
 
 RUN_TS = time.strftime("%Y-%m-%dT%H:%M:%S+08:00")
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]          # juscite worktree root
+REPO_ROOT = Path(__file__).resolve().parents[2]          # juscite worktree root
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 ENTRY_CSV = REPO_ROOT / "docs" / "construction" / "authority" / "14-Python入口证据.csv"
 PRODUCT_FACE = REPO_ROOT / "implementation" / "python" / "court_case_library.py"
@@ -609,7 +609,7 @@ def run_profile(profile: str, cases_worktree: Path, state_prefix: Path,
         "run_date": RUN_DATE,
         "unit": "W4-U42",
         "profile": profile,
-        "command": "python -X utf8 tools/PENDING_OWNER_f72_court_library_recon.py "
+        "command": "python -X utf8 tools/recon/PENDING_OWNER_f72_court_library_recon.py "
                    + " ".join(sys.argv[1:]),
         "cwd": str(REPO_ROOT),
         "subject_commit": git(["rev-parse", "HEAD"], REPO_ROOT).stdout.strip(),

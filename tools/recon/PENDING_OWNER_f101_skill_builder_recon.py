@@ -45,7 +45,7 @@ phase B5；source_rationale「生态成熟后的元层」）。验收向量（�
 desktop 径＝legal_entry CLI 子进程全链；selfhost 径＝产品面同进程。
 
 用法（juscite worktree w5-u10 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f101_skill_builder_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f101_skill_builder_recon.py \
       [--profile desktop] [--profile selfhost]
 缺省双 profile。exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F101/
 <profile>/recon-result.json（＋docs/construction/evidence/ 镜像）。
@@ -68,7 +68,7 @@ import zipfile
 from pathlib import Path
 
 RUN_DATE = "20261023"
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 FACE = REPO_ROOT / "implementation" / "python" / "skill_builder.py"
 GATE_FACE = REPO_ROOT / "implementation" / "python" / "skill_gate.py"
@@ -769,7 +769,7 @@ def main() -> int:
                 "profile": profile,
                 "run_date": RUN_DATE,
                 "command": ("python -X utf8 "
-                            "tools/PENDING_OWNER_f101_skill_builder_recon"
+                            "tools/recon/PENDING_OWNER_f101_skill_builder_recon"
                             ".py --profile desktop --profile selfhost"),
                 "checks": payload.get("checks", []),
                 "facts": payload.get("facts", {}),

@@ -83,7 +83,7 @@ T15 M 组干净会话纪律（tools/e02_tool_closure.py C 组）：每个模型�
 沿用=金额只出现在合成材料文件内，prompt 不含答案，模型必须经工具读取。
 
 用法（juscite worktree w3-u02 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f22_f23_stream_disconnect_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f22_f23_stream_disconnect_recon.py \
       [--profile desktop --profile selfhost] [--oc28 <path>] [--keep]
 
 退出码：0=RECON_OK（全部所选 profile 全检过）；1=RECON_FAIL；3=RECON_BLOCKED
@@ -110,7 +110,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import quote
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 
 from opencode_http import Client  # noqa: E402

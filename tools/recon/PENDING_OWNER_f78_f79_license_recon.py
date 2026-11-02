@@ -9,7 +9,7 @@ F78「授权校验/宽限/离线状态真实；不因服务中断删除数据或
 零真实外联；真实设施 v2 商业化时补（具名回收点在签发设施头注）。
 
 验收命令（工单钦定，worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f78_f79_license_recon.py \\
+  python -X utf8 tools/recon/PENDING_OWNER_f78_f79_license_recon.py \\
       --profile desktop --profile selfhost
 exit 0 = RECON_OK。
 
@@ -62,7 +62,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 ISSUER_TOOL = REPO_ROOT / "tools" / "license_issuer_synth.py"
 sys.path.insert(0, str(REPO_ROOT / "tools"))

@@ -37,7 +37,7 @@ Harness 正式材料，entries P02/P04。
 LibreOffice UserInstallation 隔离于状态根（绝不写 %APPDATA%）。
 
 用法（juscite worktree w4-u37 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f55_f58_compare_pdf_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f55_f58_compare_pdf_recon.py \
       --profile desktop --profile selfhost
 
 退出码：0＝全部 profile RECON_OK；2＝RECON_FAIL；3＝环境缺失。
@@ -60,7 +60,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 TEMP = Path(os.environ.get("TEMP", "."))
 BRIDGE = REPO / "implementation" / "python" / "legal_entry.py"
 SCHEMA_F55 = "juscite-f55-document-compare/1"

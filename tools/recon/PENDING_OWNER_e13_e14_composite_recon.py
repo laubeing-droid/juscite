@@ -4,7 +4,7 @@
 
 工单 W3-U25 验收命令（唯一入口，本工具不新造任何领域语义）：
 
-    python -X utf8 tools/PENDING_OWNER_e13_e14_composite_recon.py
+    python -X utf8 tools/recon/PENDING_OWNER_e13_e14_composite_recon.py
         [--profile desktop --profile selfhost]   # 透传给逐行工具（默认双 profile）
         [--only e13|e14]                          # 只跑单链（默认两链全跑）
         [--list]                                  # 只列登记行不执行
@@ -53,7 +53,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
 
@@ -76,7 +76,7 @@ LINES = [
     {
         "line_id": "F47",
         "chain": "E13",
-        "tool": "tools/PENDING_OWNER_f47_proposal_bake_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f47_proposal_bake_recon.py",
         "covers": ["F47-desktop", "F47-selfhost"],
         "first_verified": "W2b-U11（台账 VERIFIED；harness w2b-u11@88bf1757）",
         "assertion": "提案/base/canonical 分开；reject/superseded 区分；确认才登记新干净版本",
@@ -84,7 +84,7 @@ LINES = [
     {
         "line_id": "F48",
         "chain": "E13",
-        "tool": "tools/PENDING_OWNER_f48_edits_protocol_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f48_edits_protocol_recon.py",
         "covers": ["F48-desktop", "F48-selfhost"],
         "first_verified": "W2b-U12（台账 VERIFIED；harness w2b-u11 面）",
         "assertion": "流式 edit 唯一 quote 定位；insert/删除真修订；重载 DB 与书签对账以实际文档为准",
@@ -92,7 +92,7 @@ LINES = [
     {
         "line_id": "F49",
         "chain": "E13",
-        "tool": "tools/PENDING_OWNER_f49_replay_redline_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f49_replay_redline_recon.py",
         "covers": ["F49-desktop", "F49-selfhost"],
         "first_verified": "W2b-U14（台账 VERIFIED；产物红线 DOCX consumers=E13-docx-closeout）",
         "assertion": "干净基版与提案 replay 对比产真修订；表格/脚注/编号有内容回读",
@@ -100,7 +100,7 @@ LINES = [
     {
         "line_id": "F46-wps+F52-wps",
         "chain": "E13",
-        "tool": "tools/PENDING_OWNER_f46_f52_wps_host_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f46_f52_wps_host_recon.py",
         "covers": ["F46-wps", "F52-wps"],
         "evidence_dirs": ["F46", "F52"],
         "first_verified": "W2b-U36（台账 VERIFIED；真 WPS COM KWPS.Application 12.1.0.28802）",
@@ -115,7 +115,7 @@ LINES = [
     {
         "line_id": "F17-wps",
         "chain": "E13",
-        "tool": "tools/PENDING_OWNER_f17_wps_host_surface_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f17_wps_host_surface_recon.py",
         "covers": ["F17-wps"],
         "first_verified": "W2b-U50（台账 VERIFIED；F17-word NOT_RUN 挂 §6.1 裁决#4 回收点）",
         "assertion": "原生前端栈复用 WPS 宿主面：宿主内承载原生 UI，不建第二 DOCX 编辑器",
@@ -123,7 +123,7 @@ LINES = [
     {
         "line_id": "F50+F51",
         "chain": "E13",
-        "tool": "tools/PENDING_OWNER_f50_f51_reanchor_verbatim_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f50_f51_reanchor_verbatim_recon.py",
         "covers": ["F50-desktop", "F50-selfhost", "F51-desktop", "F51-selfhost"],
         "evidence_dirs": ["F50", "F51"],
         "first_verified": "W2b-U13（台账 VERIFIED）",
@@ -132,7 +132,7 @@ LINES = [
     {
         "line_id": "F53",
         "chain": "E13",
-        "tool": "tools/PENDING_OWNER_f53_author_decision_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f53_author_decision_recon.py",
         "covers": ["F53-desktop", "F53-selfhost"],
         "first_verified": "W2b-U49（台账 VERIFIED；harness w2b-u31 只读）",
         "assertion": "修订 author 与真实来源匹配不伪装律师；律师接受带真实决定引用，保对外可见策略",
@@ -141,7 +141,7 @@ LINES = [
     {
         "line_id": "F70-desktop",
         "chain": "E14",
-        "tool": "tools/PENDING_OWNER_f70_citation_verifier_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f70_citation_verifier_recon.py",
         "tool_args": ["--profile", "desktop"],
         "covers": ["F70-desktop"],
         "first_verified": "W2a-U14（台账 VERIFIED；codices 冻结面 v1.1）",
@@ -150,7 +150,7 @@ LINES = [
     {
         "line_id": "F70-selfhost",
         "chain": "E14",
-        "tool": "tools/PENDING_OWNER_f70_citation_verifier_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f70_citation_verifier_recon.py",
         "tool_args": ["--profile", "selfhost"],
         "covers": ["F70-selfhost"],
         "first_verified": "W2a-U14（台账 VERIFIED；codices 冻结面 v1.1）",
@@ -159,7 +159,7 @@ LINES = [
     {
         "line_id": "F87",
         "chain": "E14",
-        "tool": "tools/PENDING_OWNER_f87_extraction_gate_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f87_extraction_gate_recon.py",
         "covers": ["F87-desktop", "F87-selfhost"],
         "first_verified": "W2b-U02（台账 VERIFIED；顺序纪律：核验服务先于抽取接线）",
         "assertion": "独立核验服务先实现再接抽取；quote 存在不等于命题支持；伪引文/旧版本拒绝；格候选不伪已核",
@@ -167,7 +167,7 @@ LINES = [
     {
         "line_id": "F82",
         "chain": "E14",
-        "tool": "tools/PENDING_OWNER_f82_tabular_core_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f82_tabular_core_recon.py",
         "covers": ["F82-desktop", "F82-selfhost", "F82-列", "F82-溯源"],
         "first_verified": "W2b-U05（台账 VERIFIED；harness w2b-u05@32da892e）",
         "assertion": "列/批量/出处/支持状态；先引用核验服务再接抽取（F82-复核/重跑/人改属 w2b-u31 review-ops 面，不在本链枚举，不称覆盖）",
@@ -175,7 +175,7 @@ LINES = [
     {
         "line_id": "F25",
         "chain": "E14",
-        "tool": "tools/PENDING_OWNER_f25_lease_generation_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f25_lease_generation_recon.py",
         "covers": ["F25-desktop", "F25-selfhost"],
         "first_verified": "W2b-U01（台账 VERIFIED；harness w2b-u01@0d5c79bc）",
         "assertion": "过期租约/旧 generation 迟到结果不覆新结果或人工改格；批量暂停重启续处理；真实并发回读（工单「租约/generation 竞争负测」即本行 C03-C05/C07 负测）",
@@ -183,7 +183,7 @@ LINES = [
     {
         "line_id": "F88",
         "chain": "E14",
-        "tool": "tools/PENDING_OWNER_f88_dualset_ci_recon.py",
+        "tool": "tools/recon/PENDING_OWNER_f88_dualset_ci_recon.py",
         "covers": ["F88-desktop", "F88-selfhost"],
         "first_verified": "W2b-U03（台账 VERIFIED；黄金集 seed 20261016）",
         "assertion": "可答/应拒双集合评估＋六指标 CI 门；永远拒答不通过；核验器统计不冒独立幻觉率",

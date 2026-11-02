@@ -43,7 +43,7 @@ selfhost 径＝产品面同进程＋harness PgMatterStore 直连 lh-pg-e08（sch
 程全链（harness public_entry 子进程→SQLite MatterStore）。
 
 用法（juscite worktree w3-u18 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f96_f97_skillgate_preset_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f96_f97_skillgate_preset_recon.py \
       [--profile desktop] [--profile selfhost]
 缺省双 profile。exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F96/
 <profile>/ 与 evidence/F97/<profile>/（及 docs/construction/evidence/ 镜
@@ -67,7 +67,7 @@ import uuid
 from pathlib import Path
 
 RUN_DATE = "20261019"
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 FACE = REPO_ROOT / "implementation" / "python" / "skill_gate.py"
 PRESETS = REPO_ROOT / "implementation" / "skill-presets"
@@ -936,7 +936,7 @@ def main() -> int:
                     "profile": profile,
                     "run_date": RUN_DATE,
                     "command": ("python -X utf8 "
-                                "tools/PENDING_OWNER_f96_f97_skillgate_"
+                                "tools/recon/PENDING_OWNER_f96_f97_skillgate_"
                                 "preset_recon.py"),
                     "checks": payload.get("checks", []),
                     "facts": payload.get("facts", {}),

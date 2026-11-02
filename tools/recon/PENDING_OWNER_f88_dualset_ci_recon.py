@@ -30,7 +30,7 @@
   C14 黄金集只读锚：评估前后黄金集摘要不变（只读消费）
 
 用法（juscite worktree w2b-u03 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f88_dualset_ci_recon.py --profile desktop --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f88_dualset_ci_recon.py --profile desktop --profile selfhost
   [--codices-repo <含 v1.1 lccc_consumer.py 目录>] [--real-formal-root <真实正式目录>]
   [--evidence-root evidence/F88]
 
@@ -56,7 +56,7 @@ try:
 except OverflowError:  # 平台上限低于 1e9（与 lccc_consumer 同式）
     csv.field_size_limit(2 ** 31 - 1)
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 F88_MODULE = REPO_ROOT / "implementation" / "python" / "f88_dualset_ci.py"
 GENERATOR = REPO_ROOT / "tools" / "e12_corpus_gen.py"

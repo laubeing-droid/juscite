@@ -3,7 +3,7 @@
 """E24 外部动作与程序提醒分离收口对账（W3-U26）——双 profile（desktop/selfhost）。
 
 验收命令（juscite worktree w3-u26 根 cwd 无参双 profile）：
-  python -X utf8 tools/PENDING_OWNER_e24_external_actions_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_e24_external_actions_recon.py
       [--profile desktop --profile selfhost]
 
 义务 07:E24「外部动作与程序提醒分离」（owner=product+harness+jc，phase=B3）；
@@ -68,7 +68,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "tests"))
 

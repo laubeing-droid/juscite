@@ -43,7 +43,7 @@
 - S06 撤通道 fail-closed：删 config → 重新读取 → 未接入呈现，零编造。
 
 用法（juscite worktree w3-u21 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f18_paper_preview_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_f18_paper_preview_recon.py
 
 退出码：0＝RECON_OK（双 profile 全检＋CDP 六断言全过）；2＝RECON_FAIL；
 3＝环境缺失。证据：docs/construction/evidence/F18/<profile>/。
@@ -65,7 +65,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 BRIDGE = REPO / "implementation" / "python" / "legal_entry.py"
 SCHEMA = "juscite-f18-paper-preview/1"
 DEFAULT_SOFFICE = r"C:\Program Files\LibreOffice\program\soffice.exe"

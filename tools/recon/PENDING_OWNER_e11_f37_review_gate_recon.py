@@ -16,8 +16,8 @@ seed 20261015 全合成语料；corpus_manifest 每卷 title/case_no 推导当�
 anonymizer review_gate_service 公开面（同进程，P09/P10 纪律）。
 
 用法（juscite worktree w2a-u09 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_e11_f37_review_gate_recon.py --profile desktop
-  python -X utf8 tools/PENDING_OWNER_e11_f37_review_gate_recon.py --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_e11_f37_review_gate_recon.py --profile desktop
+  python -X utf8 tools/recon/PENDING_OWNER_e11_f37_review_gate_recon.py --profile selfhost
   [--docs 40] [--corpus <dir>] [--state-root <dir>] [--anonymizer-src <path>]
   [--interpreter <path>] [--skip-ocr]
 
@@ -39,7 +39,7 @@ import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 TEMP = Path(os.environ.get("TEMP", "."))
 DEFAULT_CORPUS = TEMP / "juscite-e12-corpus-5k-a"
 DEFAULT_INTERPRETER = Path(os.environ.get(

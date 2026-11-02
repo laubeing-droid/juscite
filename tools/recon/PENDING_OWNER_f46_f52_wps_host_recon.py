@@ -51,7 +51,7 @@ DATE 域并归一化 fldSimple→fldChar（缓存 2026-10-16→当日形，指�
 YYYY-MM-DD 形、PAGE 结果必非空数字，不钉缓存字面值。
 
 用法：
-  python -X utf8 tools/PENDING_OWNER_f46_f52_wps_host_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f46_f52_wps_host_recon.py \
       [--profile desktop] [--profile selfhost]
 
 退出码：0 = 全部 profile RECON_OK；2 = RECON_FAIL；3 = 环境缺失
@@ -77,7 +77,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 
 import legal_entry  # noqa: E402

@@ -30,7 +30,7 @@ f39_os_egress_negtest.py 无管理员差分法（netstat/DNS 缓存 flush 前后
 （00-总协调 §6.1 裁决#2 无管理员方案先行）。
 
 用法（juscite worktree w3-u05 根 cwd；--profile 缺省＝双 profile）：
-  python -X utf8 tools/PENDING_OWNER_f29_f30_cache_airplane_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f29_f30_cache_airplane_recon.py \
       [--profile desktop --profile selfhost]
 
 exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F29/<profile>/、
@@ -51,7 +51,7 @@ import threading
 import time
 from pathlib import Path
 
-WORKTREE = Path(__file__).resolve().parents[1]
+WORKTREE = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(WORKTREE / "tools"))
 sys.path.insert(0, str(WORKTREE / "implementation" / "python"))
 import e10_session_negtest as b0  # noqa: E402  既有采集器复用（E10 VERIFIED；f39 同款）

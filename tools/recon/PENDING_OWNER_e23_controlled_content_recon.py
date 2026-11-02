@@ -32,7 +32,7 @@ Observer建议待用户，不自动改路由prompt/规则发布启用」＋05:23
   S6 双 profile 输出一致（归一化 digest 与宿主形态无关）
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_e23_controlled_content_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_e23_controlled_content_recon.py \
       --profile desktop --profile selfhost
 
 exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/E23/<profile>/ 与
@@ -53,7 +53,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 PRODUCT_PY = REPO_ROOT / "implementation" / "python"
 

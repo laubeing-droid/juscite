@@ -35,7 +35,7 @@ acceptance 断言「Excel 真实格值与可审引用列一致；内部标记脱
   产品面同进程调用（三面 seam 指向 PG 绑定方法）。
 
 用法（juscite worktree w3-u15 根 cwd；--profile 缺省＝双 profile）：
-  python -X utf8 tools/PENDING_OWNER_f83_f85_columns_export_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f83_f85_columns_export_recon.py \
       [--profile desktop --profile selfhost]
 
 exit 0＝全部 profile 全部检过（RECON_OK）；证据 JSON 写 evidence/F83/
@@ -62,7 +62,7 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 MATTER = "m-f83f85-recon"
 

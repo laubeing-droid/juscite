@@ -16,7 +16,7 @@ legal_entry.py 桥（attachment.*/ocr.*/review.* 方法组）→anonymizer
 attachment_gate_service 公开面（同进程，P09/P10 纪律）。
 
 用法（juscite worktree w2a-u15 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f38_f44_attachment_gate_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f38_f44_attachment_gate_recon.py \
       --profile desktop --profile selfhost
   [--attachments <dir>] [--state-root-prefix <dir>] [--anonymizer-src <path>]
   [--interpreter <path>] [--keep-temp]
@@ -38,7 +38,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 TEMP = Path(os.environ.get("TEMP", "."))
 DEFAULT_ATTACHMENTS = TEMP / "juscite-f38f44-attachments"
 DEFAULT_INTERPRETER = Path(os.environ.get(

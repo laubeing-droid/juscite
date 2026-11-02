@@ -14,7 +14,7 @@ scan --dir 子进程复用＋受控泄漏负控证明扫描器非空转）；%AP
 与产品运行根 %APPDATA%\\Juscite 快照前后相等零触碰；oc28 钉定 commit 只读。
 
 用法（juscite worktree w5-u08 根 cwd；--profile 缺省＝双 profile）：
-  python -X utf8 tools/PENDING_OWNER_f06_mfa_recon.py \\
+  python -X utf8 tools/recon/PENDING_OWNER_f06_mfa_recon.py \\
       [--profile desktop --profile selfhost]
 
 exit 0＝RECON_OK 全断言过；证据 JSON/MD 写 docs/construction/evidence/
@@ -37,7 +37,7 @@ import tempfile
 import time
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 
@@ -627,7 +627,7 @@ def main(argv: list[str] | None = None) -> int:
             "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ",
                                           time.gmtime()),
             "command": ("python -X utf8 "
-                        "tools/PENDING_OWNER_f06_mfa_recon.py --profile "
+                        "tools/recon/PENDING_OWNER_f06_mfa_recon.py --profile "
                         + profile),
             "cwd": str(REPO_ROOT),
             "subject": ("juscite 分支 w5-u08（worktree 根 cwd；证据生成于收"

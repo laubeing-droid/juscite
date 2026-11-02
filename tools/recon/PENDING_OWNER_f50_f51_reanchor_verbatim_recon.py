@@ -40,7 +40,7 @@ F51-desktop/F51-selfhost）。
 语料全合成（00-总协调 §6.1 裁决#1，绝无真实文档）。
 
 用法（juscite worktree w2b-u13 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f50_f51_reanchor_verbatim_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f50_f51_reanchor_verbatim_recon.py \
       --profile desktop --profile selfhost
 
 退出码：0＝全部 profile RECON_OK；2＝RECON_FAIL；3＝环境缺失。
@@ -60,7 +60,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 TEMP = Path(os.environ.get("TEMP", "."))
 BRIDGE = REPO / "implementation" / "python" / "legal_entry.py"
 SCHEMA = "juscite-f50-f51-document-anchor/1"

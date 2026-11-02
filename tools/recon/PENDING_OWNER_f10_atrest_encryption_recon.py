@@ -36,7 +36,7 @@ CAS 产物与材料解析页载荷；公开入口（public_entry）密钥通道�
 合同冻结 13 变量；加密态经 owner API 显式 atrest_key 构造）。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f10_atrest_encryption_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f10_atrest_encryption_recon.py \
       --profile desktop --profile selfhost
 exit 0 = RECON_OK；exit 1 = FAIL；exit 2 = 环境预态不满足。
 证据落 evidence/F10/<profile>/f10-atrest-recon{,-suffix}.{json,md}。
@@ -53,7 +53,7 @@ import tempfile
 import time
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 UNIT_DEFAULT = "W4-U32"
 
 

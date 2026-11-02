@@ -22,7 +22,7 @@ E16 款源账 VERIFIED 零改动回归（裁决#21：真实回款不随它延迟
   ①台账 E16 行 status=VERIFIED exit_code=0 零动；②E16 面 juscite 侧
   文件（legal_entry.py／E16 recon 工具）对 main 基线 sha256 逐字节
   相等；③行为级——本单工作树内按 profile 复跑
-  tools/PENDING_OWNER_e16_cash_contract_recon.py 单 profile exit 0 且
+  tools/recon/PENDING_OWNER_e16_cash_contract_recon.py 单 profile exit 0 且
   verdict=RECON_OK（依赖钉定 harness/JC w2b-u51 worktree＋lh-pg-e08，
   缺环境＝exit 3 如实上报，不假 PASS）。
 
@@ -36,7 +36,7 @@ profile 说明：字段准备面未启用，故 desktop/selfhost 两部署形态
 docs/construction/evidence/F125/<profile>/。
 
 用法：
-  python -X utf8 tools/PENDING_OWNER_f125_field_prep_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f125_field_prep_recon.py \
       --profile desktop --profile selfhost
 
 退出码：0 = 全部 profile RECON_OK；2 = RECON_FAIL；3 = 环境缺失
@@ -54,7 +54,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 
 import f125_case_admin_fields as registry  # noqa: E402
@@ -161,7 +161,7 @@ NOT_ENABLED_METHODS = (
 ALLOWED_PATHS = frozenset({
     "implementation/python/f125_case_admin_fields.py",
     "implementation/tests/test_f125_field_prep_wiring.py",
-    "tools/PENDING_OWNER_f125_field_prep_recon.py",
+    "tools/recon/PENDING_OWNER_f125_field_prep_recon.py",
     "docs/construction/f125-field-prep-contract.md",
 })
 ALLOWED_PREFIXES = ("docs/construction/evidence/F125/",)
@@ -446,10 +446,16 @@ class Recon:
                   rows=f125_rows)
         base = git("rev-parse", "main").strip()
         zero_drift = {}
-        for rel in ("implementation/python/legal_entry.py",
-                    "tools/PENDING_OWNER_e16_cash_contract_recon.py"):
+        # e16 recon moved under tools/recon/; main still has the pre-move path.
+        pairs = (
+            ("implementation/python/legal_entry.py",
+             "implementation/python/legal_entry.py"),
+            ("tools/recon/PENDING_OWNER_e16_cash_contract_recon.py",
+             "tools/PENDING_OWNER_e16_cash_contract_recon.py"),
+        )
+        for rel, main_rel in pairs:
             head_bytes = (REPO_ROOT / rel).read_bytes()
-            main_bytes = git("show", "main:" + rel).encode("utf-8")
+            main_bytes = git("show", "main:" + main_rel).encode("utf-8")
             zero_drift[rel] = (
                 sha256_of(head_bytes) == sha256_of(main_bytes))
         self.step("s08_e16_surfaces_byte_equal_main",

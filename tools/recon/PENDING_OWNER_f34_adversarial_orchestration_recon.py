@@ -11,7 +11,7 @@ acceptance＝「v2高级对抗编排按需真会话与异构复核；v1当前必
 会话生命周期沿 F23 server-owned 已 VERIFIED 语义。
 
 验收命令（工单钦定，juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f34_adversarial_orchestration_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_f34_adversarial_orchestration_recon.py
       --profile desktop --profile selfhost
 exit 0 = RECON_OK；1 = RECON_FAIL；3 = RECON_BLOCKED。
 
@@ -70,7 +70,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 RUN_TS = time.strftime("%Y%m%dT%H%M%S")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 OOC28_PIN = "026b106bc5d41b679ffc413264229c340871e4d3"
 DEFAULT_BUN = Path.home() / ".bun" / "bun.exe"

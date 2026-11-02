@@ -13,8 +13,8 @@ MiniCPM-V 预留（「四端口」＝预留四个，级联登记=基础线+预�
 P09/P10 纪律）。
 
 用法（juscite worktree w2a-u03 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f40_ocr_ports_recon.py --profile desktop
-  python -X utf8 tools/PENDING_OWNER_f40_ocr_ports_recon.py --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f40_ocr_ports_recon.py --profile desktop
+  python -X utf8 tools/recon/PENDING_OWNER_f40_ocr_ports_recon.py --profile selfhost
   [--corpus <dir>] [--state <dir>] [--interpreter <path>]
   [--anonymizer-src <path>] [--skip-run]
 
@@ -36,7 +36,7 @@ import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 TEMP = Path(os.environ.get("TEMP", "."))
 DEFAULT_INTERPRETER = Path(os.environ.get(
     "JUSCITE_F40_BASELINE_INTERPRETER",

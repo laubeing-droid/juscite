@@ -34,7 +34,7 @@ failure_reason）。本工具只复验负测半边＋凭证/转录逻辑的合�
   根全部产物零 URL 字面量零 token 值。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f63_f144_external_api_negtest_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f63_f144_external_api_negtest_recon.py \
       --profile desktop --profile selfhost
   [--state-root-prefix <dir>] [--keep-temp]
 
@@ -56,7 +56,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 RUN_DATE = time.strftime("%Y%m%d")
 
 # 合成标记 token（显式合成，不入账不外发；recon 结束即还原环境）。
@@ -969,7 +969,7 @@ def main(argv=None) -> int:
             "%Y-%m-%dT%H:%M:%SZ"),
         "run_date": RUN_DATE,
         "command": ("python -X utf8 "
-                    "tools/PENDING_OWNER_f63_f144_external_api_negtest_recon"
+                    "tools/recon/PENDING_OWNER_f63_f144_external_api_negtest_recon"
                     ".py --profile desktop --profile selfhost"),
         "modules": {"ems_evidence": sha256_file(EMS_MODULE),
                     "enterprise_connector": sha256_file(ENT_MODULE)},

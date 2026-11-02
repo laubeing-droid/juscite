@@ -42,7 +42,7 @@ verify.ps1——其触发条件"动 harness 公开面"不成立）。
   （selfhost 与 desktop 产物逐字节相等——生成面与存储后端无关）。
 
 用法：
-  python -X utf8 tools/PENDING_OWNER_f45_clean_annotated_docx_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f45_clean_annotated_docx_recon.py \
       --profile desktop --profile selfhost
 
 退出码：0 = 全部 profile RECON_OK；2 = RECON_FAIL；3 = 环境缺失。
@@ -62,7 +62,7 @@ import uuid as _uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "tests"))
 

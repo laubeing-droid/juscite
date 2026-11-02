@@ -32,7 +32,7 @@ PDF 内嵌生成时间戳→跨次运行字节自然不同（如实记录），�
 不受影响。
 
 用法（juscite worktree w2b-u17 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f54_pdf_conversion_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f54_pdf_conversion_recon.py \
       --profile desktop --profile selfhost
 
 退出码：0＝全部 profile RECON_OK；2＝RECON_FAIL；3＝环境缺失。
@@ -53,7 +53,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 TEMP = Path(os.environ.get("TEMP", "."))
 BRIDGE = REPO / "implementation" / "python" / "legal_entry.py"
 SCHEMA = "juscite-f54-pdf-conversion/1"

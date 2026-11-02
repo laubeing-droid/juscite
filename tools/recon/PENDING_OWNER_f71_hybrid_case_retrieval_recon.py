@@ -50,7 +50,7 @@ winRate/胜率字段具名拒）；月/文档覆盖如实分母；全库义务�
   C09 证据落盘 evidence/F71/<profile>/。
 
 用法（juscite 本单 worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f71_hybrid_case_retrieval_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_f71_hybrid_case_retrieval_recon.py
     --profile desktop --profile selfhost
   [--cases-root <cases w4-u02 worktree>] [--codices-repo <codices 检出>]
   [--formal-root <E22 正式发布目录>] [--skip-fullcorpus 仅调试用，验收无效]
@@ -76,7 +76,7 @@ import time
 from pathlib import Path
 
 RUN_TS = time.strftime("%Y-%m-%dT%H:%M:%S+08:00")
-REPO_ROOT = Path(__file__).resolve().parents[1]          # juscite worktree root
+REPO_ROOT = Path(__file__).resolve().parents[2]          # juscite worktree root
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 ENTRY_CSV = REPO_ROOT / "docs" / "construction" / "authority" / "14-Python入口证据.csv"
 

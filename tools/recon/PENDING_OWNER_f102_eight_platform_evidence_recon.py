@@ -43,7 +43,7 @@ W5 七项商业/基建（含八平台）统一合成先行，真实平台采集 
      成先行』；冻结面 sha256 前后相等。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f102_eight_platform_evidence_recon.py --profile desktop --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f102_eight_platform_evidence_recon.py --profile desktop --profile selfhost
 
 --profile 可重复（action=append，f33/f74 工具同款）；重复即逐 profile
 依序全量跑各 24 检并各写证据；缺省=desktop。
@@ -65,7 +65,7 @@ import time
 from pathlib import Path
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 PRODUCT = REPO_ROOT / "implementation" / "python" / "platform_evidence.py"
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 LEDGER = REPO_ROOT / "docs" / "construction" / "acceptance-ledger.csv"

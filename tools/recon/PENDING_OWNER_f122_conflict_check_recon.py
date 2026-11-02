@@ -6,7 +6,7 @@ acceptance：客户/相对方/别名冲突候选真实匹配，人工解除留�
 preserved：收案前合规小件，规则匹配即可）。
 
 验收命令（工单钦定，worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f122_conflict_check_recon.py \\
+  python -X utf8 tools/recon/PENDING_OWNER_f122_conflict_check_recon.py \\
       --profile desktop --profile selfhost
 exit 0 = RECON_OK。
 
@@ -52,7 +52,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 
 # harness 战役分支（A2 链）本单检出与 F122 面钉定

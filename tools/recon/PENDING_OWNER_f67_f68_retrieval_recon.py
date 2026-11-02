@@ -24,7 +24,7 @@ F68：检索顺序宪法（本地免费→付费不可跳级）后端可审计�
   C12 证据落盘 evidence/F67|F68/<profile>/ ＋ 两形态统一报告。
 
 用法（juscite worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f67_f68_retrieval_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_f67_f68_retrieval_recon.py
   [--profile desktop|selfhost|both] [--cases-root <cases worktree>]
   [--evidence-root docs/construction/evidence]
 
@@ -46,7 +46,7 @@ import time
 from pathlib import Path
 
 RUN_TS = time.strftime("%Y-%m-%dT%H:%M:%S+08:00")
-REPO_ROOT = Path(__file__).resolve().parents[1]          # juscite worktree root
+REPO_ROOT = Path(__file__).resolve().parents[2]          # juscite worktree root
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 ENTRY_CSV = REPO_ROOT / "docs" / "construction" / "authority" / "14-Python入口证据.csv"
 

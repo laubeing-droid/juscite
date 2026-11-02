@@ -22,7 +22,7 @@ units（F62 recon 先例）；受测面（证据账/媒体账/质证账/生成/�
 走产品桥封闭信封。
 
 用法（juscite worktree w4-u51 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f119_f120_evidence_chain_recon.py --profile desktop --profile selfhost
+  python -X utf8 tools/recon/PENDING_OWNER_f119_f120_evidence_chain_recon.py --profile desktop --profile selfhost
   [--corpus <dir>] [--pg-dsn ...] [--harness-root <path>] [--anonymizer-src <path>]
   [--formal-root <path>] [--codices-repo <path>]
 
@@ -44,7 +44,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 TEMP = Path(os.environ.get("TEMP", "."))
 HARNESS_BRANCH = "w4-u51"
 CORPUS_PAGES = 24

@@ -13,7 +13,7 @@ W2a-U15/E11/F37 既有公开面扩展不建第二权威：闸链＝attachment_ga
 --attachments 产物（全合成红线，seed 20261015，与 F38/F44 验收同源）。
 
 用法（juscite worktree w4-u36 仓根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f43_redaction_presets_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f43_redaction_presets_recon.py \
       --profile desktop --profile selfhost
   [--attachments <dir>] [--state-root-prefix <dir>] [--anonymizer-src <path>]
   [--interpreter <path>] [--keep-temp]
@@ -33,7 +33,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 TEMP = Path(os.environ.get("TEMP", "."))
 DEFAULT_ATTACHMENTS = TEMP / "juscite-f38f44-attachments"
 DEFAULT_INTERPRETER = Path(os.environ.get(

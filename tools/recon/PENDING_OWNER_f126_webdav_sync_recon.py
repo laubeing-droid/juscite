@@ -40,7 +40,7 @@ selfhost 面沿 F02/F08 形态（basic auth 自托管服务形态），不重复
 化时补（裁决#13-19）。
 
 用法（juscite w5-u11 worktree 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f126_webdav_sync_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f126_webdav_sync_recon.py \
       --profile desktop --profile selfhost
 exit 0 = RECON_OK；exit 1 = FAIL；exit 2 = 环境预态不满足。
 证据落 evidence/F126/<profile>/f126-webdav-sync-recon{,-suffix}.{json,md}。
@@ -58,7 +58,7 @@ import tempfile
 import time
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 UNIT_DEFAULT = "W5-U11"
 PROFILE_DEVICE_NAMES = {
     "desktop": ("device-desktop-a", "device-desktop-b"),

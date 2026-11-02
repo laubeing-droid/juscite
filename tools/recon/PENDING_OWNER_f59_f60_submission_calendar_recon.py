@@ -1,7 +1,7 @@
 """F59 提交包＋F60 日历同步对账（W3-U12）——双 profile（desktop/selfhost）。
 
 验收命令（juscite worktree w3-u12 根 cwd 无参双 profile）：
-  python -X utf8 tools/PENDING_OWNER_f59_f60_submission_calendar_recon.py
+  python -X utf8 tools/recon/PENDING_OWNER_f59_f60_submission_calendar_recon.py
       [--profile desktop --profile selfhost]
 
 对账对象：harness 分支 w3-u12（基 W3 施工链头 w3-u08@c2cd5c29，schema v28
@@ -50,7 +50,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "python"))
 sys.path.insert(0, str(REPO_ROOT / "implementation" / "tests"))
 

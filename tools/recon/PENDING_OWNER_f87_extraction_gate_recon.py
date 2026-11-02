@@ -30,7 +30,7 @@
   G7 顺序纪律回读：闸响应 verification_face/face_sha256 钉定链在案。
 
 用法（juscite worktree 根 cwd；双 profile 单次调用）：
-  python -X utf8 tools/PENDING_OWNER_f87_extraction_gate_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f87_extraction_gate_recon.py \
       --profile desktop --profile selfhost
 
 exit 0＝全部 profile 全部断言过（RECON_OK）；证据 JSON 写
@@ -55,7 +55,7 @@ from pathlib import Path
 csv.field_size_limit(10 ** 9)
 
 RUN_DATE = time.strftime("%Y%m%d")
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 GATE_MODULE = REPO_ROOT / "implementation" / "python" / "extraction_gate.py"
 

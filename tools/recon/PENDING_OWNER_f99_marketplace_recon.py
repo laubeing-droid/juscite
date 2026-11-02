@@ -43,7 +43,7 @@ profile 恰同序操作序列（合成 zip 定时间戳字节确定→跨 profil
 可比）。
 
 用法（juscite worktree w5-u09 根 cwd）：
-  python -X utf8 tools/PENDING_OWNER_f99_marketplace_recon.py \
+  python -X utf8 tools/recon/PENDING_OWNER_f99_marketplace_recon.py \
       [--profile desktop] [--profile selfhost]
 缺省双 profile。exit 0＝RECON_OK 全断言过；证据 JSON 写 evidence/F99/
 <profile>/recon-result.json（＋docs/construction/evidence/ 镜像）。
@@ -65,7 +65,7 @@ import zipfile
 from pathlib import Path
 
 RUN_DATE = "20261023"
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGAL_ENTRY = REPO_ROOT / "implementation" / "python" / "legal_entry.py"
 FACE = REPO_ROOT / "implementation" / "python" / "skill_marketplace.py"
 DEPS = ["skill_catalog.py", "skill_gate.py", "skill_semantics.py",
@@ -731,7 +731,7 @@ def main() -> int:
                 "profile": profile,
                 "run_date": RUN_DATE,
                 "command": ("python -X utf8 "
-                            "tools/PENDING_OWNER_f99_marketplace_recon.py "
+                            "tools/recon/PENDING_OWNER_f99_marketplace_recon.py "
                             "--profile desktop --profile selfhost"),
                 "checks": payload.get("checks", []),
                 "facts": payload.get("facts", {}),
