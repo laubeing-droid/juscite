@@ -4,7 +4,7 @@
 //   未生效 / 过期 / 不可读）→ 一律全基础形态（免费层全开、高级模块门全关），
 //   不抛异常、不阻断启动；有效 → 形态判定表按文件开关位读出。
 // 付费实体全挂起：开关只做判定输出，不接任何功能。
-// 边界（本骨架明确不做，随 v2 商业化另单，回收点=tools/PENDING_OWNER_f78_f79_license_recon.py 面）：
+// 边界（本骨架明确不做，随 v2 商业化另单，回收点=tools/recon/PENDING_OWNER_f78_f79_license_recon.py 面）：
 //   Ed25519 离线验签 / 在线激活 / 宽限预算 / 时钟回拨反制——上一代 V7 recon 资产只作形态参照，不接码。
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
