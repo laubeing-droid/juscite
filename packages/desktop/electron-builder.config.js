@@ -13,6 +13,7 @@ import { noticesFileName, stageElectronNotices } from "../../scripts/third-party
 import { getBuildMetadata } from "./scripts/build-metadata.mjs";
 import { collectRuntimeModuleClosureEntries } from "./scripts/runtime-dependency-closure.mjs";
 import {
+  materializePackagedWin32NodePtyPrebuild,
   resolvePackagedNodePtyPrebuildPath,
   restoreTargetNodePtyPrebuild,
 } from "./scripts/node-pty-package-assets.mjs";
@@ -670,6 +671,16 @@ export default {
     );
     runTimedSync("afterPack:assertPackagedNativeResourcePolicy", () =>
       assertPackagedNativeResourcePolicy(context),
+    );
+    // 桌面 package.json 不声明 node-pty，asar 收集与 asarUnpack 都匹配不到，
+    // 重打包会留下空的（或根本没有的）app.asar.unpacked。断言前把 win32-x64
+    // 预编译目录落到断言路径；assertPackagedNodePtyPrebuild 本身不改。
+    runTimedSync("afterPack:materializePackagedWin32NodePtyPrebuild", () =>
+      materializePackagedWin32NodePtyPrebuild({
+        desktopPackageRoot,
+        resourcesDir: resolvePackagedResourcesDir(context),
+        targetPlatform,
+      }),
     );
     runTimedSync("afterPack:assertPackagedNodePtyPrebuild", () =>
       assertPackagedNodePtyPrebuild(context),
