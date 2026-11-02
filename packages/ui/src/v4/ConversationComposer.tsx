@@ -2408,7 +2408,7 @@ function ConversationComposerImpl({
             <Button
               type="button"
               variant="secondary"
-              size="icon-md"
+              size="icon-lg"
               onClick={handleStopClick}
               data-testid={TID_V4_STOP}
               aria-label={stopTooltipTitle}
@@ -2426,7 +2426,7 @@ function ConversationComposerImpl({
           >
             <Button
               type="submit"
-              size="icon-md"
+              size="icon-lg"
               disabled={!canSend}
               onClick={handleSendButtonClick}
               data-testid={TID_V4_COMPOSER_SEND}

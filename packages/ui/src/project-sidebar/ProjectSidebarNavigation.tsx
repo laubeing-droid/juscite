@@ -40,7 +40,7 @@ export function ProjectSidebarNavigation({
     <div
       data-testid="sidebar-primary-navigation"
       data-tour="tour-overview"
-      className={`flex flex-col gap-1 px-2 py-3 ${props.isWebRemoteControl && !deviceNavigation ? "max-md:pt-11" : ""}`}
+      className={`flex flex-col gap-2 px-2 py-3 ${props.isWebRemoteControl && !deviceNavigation ? "max-md:pt-11" : ""}`}
     >
       {/* Relay V2 远控：当前电脑是项目与任务的上一级，放在导航首行；手机端占用原顶部留白。 */}
       {deviceNavigation ? <WebRemoteControlDeviceHeader navigation={deviceNavigation} /> : null}

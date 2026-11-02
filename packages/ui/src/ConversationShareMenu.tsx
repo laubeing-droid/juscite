@@ -31,7 +31,7 @@ export function ConversationShareMenu({
       type="button"
       variant="ghost"
       // 分享曾使用更大的热区和独立 mask 缩放；复用相邻工具栏按钮的尺寸与图标规范。
-      size="icon-md"
+      size="icon-lg"
       className={cn(
         "text-foreground hover:bg-hover hover:text-foreground [app-region:no-drag]",
         useWindowsCaptionSpacing ? "ml-3" : "ml-2.5",

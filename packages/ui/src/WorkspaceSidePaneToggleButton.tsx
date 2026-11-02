@@ -29,7 +29,7 @@ export function WorkspaceSidePaneToggleButton({
       <Button
         type="button"
         variant="ghost"
-        size="icon-md"
+        size="icon-lg"
         data-testid={TID_SIDE_PANE_TOGGLE}
         className={cn(
           "text-foreground hover:bg-hover hover:text-foreground [app-region:no-drag]",

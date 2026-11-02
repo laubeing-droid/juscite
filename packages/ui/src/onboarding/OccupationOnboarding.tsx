@@ -323,13 +323,13 @@ export function OccupationOnboarding({
                       formatLabel={(key) => t(key)}
                     />
                   ) : preferences ? (
-                    <div className="mt-8 space-y-3">
+                    <div className="mt-5 space-y-3">
                       {(["suggestions", "memory", "migration"] as const)
                         .filter((key) => key !== "suggestions" || mode === "office")
                         .map((key) => (
                           <label
                             key={key}
-                            className="grid cursor-pointer grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 rounded-xl border border-card-border bg-card dark:bg-surface/40 p-5 text-ui-base transition-colors hover:bg-surface-hover"
+                            className="grid cursor-pointer grid-cols-[auto_1fr] items-center gap-x-4 gap-y-1 rounded-xl border border-card-border bg-card dark:bg-surface/40 p-4 text-ui-base transition-colors hover:bg-surface-hover"
                           >
                             <Checkbox
                               checked={

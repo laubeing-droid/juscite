@@ -279,7 +279,7 @@ function SettingsSidebarButton({
         type={buttonProps.type ?? "button"}
         aria-label={label}
         className={cn(
-          "flex h-8 w-full items-center gap-2 rounded-xl px-2.5 text-left transition-colors",
+          "flex h-9 w-full items-center gap-2 rounded-xl px-2.5 text-left transition-colors",
           "max-lg:mx-auto max-lg:size-10 max-lg:justify-center max-lg:px-0",
           active
             ? "bg-surface-hover text-foreground"
@@ -344,6 +344,7 @@ export function SettingsPage({
   const usesInlineWindowControls = Boolean(isWindowsDesktop || isLinuxDesktop);
   const platform = usePlatform();
   const remoteWorkspaceController = useOptionalRemoteWorkspaceController();
+  const [settingsNavQuery, setSettingsNavQuery] = useState("");
   const [activeSection, setActiveSection] = useState<SettingsSectionId>(() => {
     const initialSection = consumeInitialSettingsSection("general");
     const visibleInitialSection = resolveSettingsSectionForPlatform(
@@ -1593,12 +1594,30 @@ export function SettingsPage({
                 aria-label={intl.formatMessage({ id: "settings.navLabel" })}
                 className="flex-1 overflow-y-auto px-2 pb-3"
               >
-                <div className="space-y-4">
+                <div className="mb-3 px-1 max-lg:hidden">
+                  <input
+                    type="search"
+                    value={settingsNavQuery}
+                    onChange={(event) => setSettingsNavQuery(event.target.value)}
+                    placeholder={intl.formatMessage({ id: "settings.nav.search" })}
+                    aria-label={intl.formatMessage({ id: "settings.nav.search" })}
+                    className="h-8 w-full rounded-xl border border-border bg-background px-3 text-ui-sm text-foreground outline-none placeholder:text-remote-foreground-muted focus-visible:border-ring"
+                  />
+                </div>
+                <div className="space-y-5">
                   {settingsSectionGroups.map((group, groupIndex) => {
                     const groupLabel = intl.formatMessage({
                       id: group.titleId,
                     });
                     const groupLabelId = `settings-sidebar-group-${group.id}`;
+                    const query = settingsNavQuery.trim().toLowerCase();
+                    const visibleSections = group.sections
+                      .filter(({ id }) => isSettingsSectionAvailable(id, Boolean(isDesktop)))
+                      .filter(({ titleId }) => {
+                        if (!query) return true;
+                        return intl.formatMessage({ id: titleId }).toLowerCase().includes(query);
+                      });
+                    if (visibleSections.length === 0) return null;
 
                     return (
                       <div
@@ -1606,7 +1625,7 @@ export function SettingsPage({
                         role="group"
                         aria-labelledby={groupLabelId}
                         className={cn(
-                          "space-y-1",
+                          "space-y-1.5",
                           groupIndex > 0 && "max-lg:border-t max-lg:border-border max-lg:pt-3",
                         )}
                       >
@@ -1616,9 +1635,7 @@ export function SettingsPage({
                         >
                           {groupLabel}
                         </div>
-                        {group.sections
-                          .filter(({ id }) => isSettingsSectionAvailable(id, Boolean(isDesktop)))
-                          .map(({ id, icon: Icon, titleId }) => {
+                        {visibleSections.map(({ id, icon: Icon, titleId }) => {
                             const isActive = activeSection === id;
                             const label = intl.formatMessage({ id: titleId });
 
@@ -1666,11 +1683,33 @@ export function SettingsPage({
                     );
                   })}
                 </div>
+                {settingsNavQuery.trim() &&
+                !settingsSectionGroups.some((group) =>
+                  group.sections.some((section) => {
+                    if (!isSettingsSectionAvailable(section.id, Boolean(isDesktop))) return false;
+                    return intl
+                      .formatMessage({ id: section.titleId })
+                      .toLowerCase()
+                      .includes(settingsNavQuery.trim().toLowerCase());
+                  }),
+                ) ? (
+                  <p className="px-2.5 py-2 text-ui-sm text-remote-foreground-muted max-lg:hidden">
+                    {intl.formatMessage({ id: "settings.nav.searchEmpty" })}
+                  </p>
+                ) : null}
 
                 <SettingsSidebarButton
                   icon={Rocket}
                   label={intl.formatMessage({ id: "settings.onboarding" })}
-                  className="mt-4 border border-dashed border-border hover:border-border-hover"
+                  className={cn(
+                    "mt-4 border border-dashed border-border hover:border-border-hover",
+                    settingsNavQuery.trim() &&
+                      !intl
+                        .formatMessage({ id: "settings.onboarding" })
+                        .toLowerCase()
+                        .includes(settingsNavQuery.trim().toLowerCase()) &&
+                      "hidden",
+                  )}
                   onClick={() => {
                     runUserAction({
                       input: {

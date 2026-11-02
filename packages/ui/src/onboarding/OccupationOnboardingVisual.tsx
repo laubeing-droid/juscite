@@ -50,7 +50,7 @@ export function OccupationOnboardingVisual({
         className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] border border-border"
       />
       <div className="relative my-auto flex w-full max-w-[640px] shrink-0 flex-col items-start [container-type:inline-size]">
-        <div aria-hidden="true" className="relative mb-10 rounded-3xl">
+        <div aria-hidden="true" className="relative mb-8 rounded-3xl ring-1 ring-[#C9A45C]/60">
           <ZCodeStartupLogoBadge animated={false} />
           <div className="onboarding-logo-sweep">
             <div />

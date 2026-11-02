@@ -567,7 +567,7 @@ export const MemoTaskItem = memo(function TaskListItem({
         }
       }}
       className={cn(
-        "group/task-item flex cursor-pointer gap-2 rounded-lg pl-2.5 pr-1 py-1 transition-[background-color,border-color,box-shadow]",
+        "group/task-item flex cursor-pointer gap-2 rounded-lg pl-2.5 pr-1 py-1.5 transition-[background-color,border-color,box-shadow]",
         // 默认行 32px 时前置槽整行居中；长出工作流运行行后行体是两行的纵向列，槽改为对齐首行。
         variant === "timeline"
           ? "items-start py-1.5"

@@ -14,7 +14,10 @@ const copyByLocale = {
   "zh-CN": {
     connectingTo: (name: string) => `正在连接 ${name}`,
     connectingFallback: "正在连接电脑",
-    steps: ["连接中转服务", "设备鉴权", "等待桌面端配对", "同步工作区"],
+    steps: ["接通", "确认身份", "等待配对", "打开任务"],
+    stepProgress: (current: number, total: number, label: string) =>
+      `第 ${current} 步，共 ${total} 步 · ${label}`,
+    destination: "完成后进入任务窗口",
     stages: {
       connecting: "正在连接中转服务…",
       authenticating: "正在认证设备…",
@@ -30,12 +33,10 @@ const copyByLocale = {
   "en-US": {
     connectingTo: (name: string) => `Connecting to ${name}`,
     connectingFallback: "Connecting to your computer",
-    steps: [
-      "Connect to relay service",
-      "Authenticate device",
-      "Wait for desktop pairing",
-      "Sync workspace",
-    ],
+    steps: ["Connect", "Confirm", "Pair", "Open task"],
+    stepProgress: (current: number, total: number, label: string) =>
+      `Step ${current} of ${total} · ${label}`,
+    destination: "Then the task window opens",
     stages: {
       connecting: "Connecting relay service…",
       authenticating: "Authenticating device…",
@@ -113,35 +114,56 @@ export function WebRemoteControlLoadingScreen({
           <LoaderCircleIcon aria-hidden="true" className="size-3.5 shrink-0 animate-spin" />
           {stage.label}
         </p>
+        {stepIndex !== undefined ? (
+          <p className="mt-1.5 text-ui-sm font-medium text-foreground">
+            {copy.stepProgress(stepIndex + 1, copy.steps.length, copy.steps[stepIndex] ?? "")}
+          </p>
+        ) : null}
         {stage.description ? (
           <p className="mt-1.5 max-w-xs text-ui-sm text-foreground-subtlest">{stage.description}</p>
+        ) : stepIndex !== undefined ? (
+          <p className="mt-1.5 max-w-xs text-ui-sm text-foreground-subtlest">{copy.destination}</p>
         ) : null}
-        <ol className="mt-5 flex gap-1.5" aria-label={copy.steps.join(" → ")}>
-          {copy.steps.map((step, index) => (
-            <li
-              key={step}
-              aria-current={index === stepIndex ? "step" : undefined}
-              data-step-state={
-                stepIndex === undefined
-                  ? "idle"
-                  : index < stepIndex
-                    ? "done"
-                    : index === stepIndex
-                      ? "active"
-                      : "pending"
-              }
-              className={[
-                "h-1 w-8 rounded-full",
-                stepIndex === undefined || index > stepIndex
-                  ? "bg-foreground-subtlest/50"
+        <ol className="mt-5 w-full max-w-xs space-y-2 text-left" aria-label={copy.steps.join(" → ")}>
+          {copy.steps.map((step, index) => {
+            const state =
+              stepIndex === undefined
+                ? "idle"
+                : index < stepIndex
+                  ? "done"
                   : index === stepIndex
-                    ? "animate-pulse bg-foreground/60"
-                    : "bg-foreground",
-              ].join(" ")}
-            >
-              <span className="sr-only">{step}</span>
-            </li>
-          ))}
+                    ? "active"
+                    : "pending";
+            return (
+              <li
+                key={step}
+                aria-current={index === stepIndex ? "step" : undefined}
+                data-step-state={state}
+                className="flex items-center gap-2"
+              >
+                <span
+                  aria-hidden="true"
+                  className={[
+                    "h-1 w-8 shrink-0 rounded-full",
+                    state === "idle" || state === "pending"
+                      ? "bg-foreground-subtlest/50"
+                      : state === "active"
+                        ? "animate-pulse bg-foreground/60"
+                        : "bg-foreground",
+                  ].join(" ")}
+                />
+                <span
+                  className={
+                    state === "active"
+                      ? "text-ui-sm font-medium text-foreground"
+                      : "text-ui-sm text-foreground-subtle"
+                  }
+                >
+                  {step}
+                </span>
+              </li>
+            );
+          })}
         </ol>
       </div>
     </div>

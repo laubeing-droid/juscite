@@ -3023,6 +3023,8 @@ const enUS: Record<string, string> = {
   "settings.subtitle":
     "Switch major settings on the left and edit the details in the panel on the right.",
   "settings.navLabel": "Sections",
+  "settings.nav.search": "Search settings",
+  "settings.nav.searchEmpty": "No matching settings",
   "settings.sidebar.group.basics": "Basics",
   "settings.sidebar.group.agentCapabilities": "Agent capabilities",
   "settings.sidebar.group.dataAndStats": "Data and statistics",

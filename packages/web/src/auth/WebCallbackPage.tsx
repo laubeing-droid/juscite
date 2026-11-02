@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button } from "@zcode/ui";
+import { Button } from "@zcode/ui/button";
 import type { WebAuthCallbackResult, WebAuthService } from "./webAuthService.js";
 import { getWebAuthCopy } from "./webAuthLocale.js";
 
@@ -12,6 +12,7 @@ interface WebCallbackPageProps {
 export function WebCallbackPage({ authService, onRetry, onSuccess }: WebCallbackPageProps) {
   const copy = getWebAuthCopy();
   const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -45,23 +46,47 @@ export function WebCallbackPage({ authService, onRetry, onSuccess }: WebCallback
               !
             </div>
             <h1 className="text-ui-lg font-medium text-foreground">{copy.callbackErrorTitle}</h1>
-            <p className="mt-2 text-ui-xs leading-6 text-foreground-subtle">
+            <p role="alert" className="mt-2 text-ui-sm leading-6 text-foreground-subtle">
               {copy.callbackErrorDescription}
             </p>
-            <p className="mt-3 rounded-lg border border-border bg-surface px-3 py-2 text-ui-xs leading-5 text-foreground-subtle">
-              {error}
+            <p className="mt-2 text-ui-sm leading-6 text-foreground-subtle">
+              {copy.callbackErrorPath}
             </p>
-            <Button type="button" size="lg" className="mt-5 w-full" onClick={onRetry}>
+            <details className="mt-3 rounded-lg border border-border bg-surface px-3 py-2">
+              <summary className="cursor-pointer text-ui-xs text-foreground-subtle">
+                {copy.callbackErrorDetail}
+              </summary>
+              <p className="mt-2 break-words text-ui-xs leading-5 text-foreground-subtle">{error}</p>
+            </details>
+            <Button
+              type="button"
+              size="lg"
+              className="mt-5 h-11 w-full"
+              disabled={retrying}
+              onClick={() => {
+                if (retrying) return;
+                setRetrying(true);
+                try {
+                  onRetry();
+                } catch {
+                  setRetrying(false);
+                }
+              }}
+            >
               {copy.retryAction}
             </Button>
           </>
         ) : (
           <>
-            <div className="mb-4 size-9 rounded-full border-2 border-border border-t-primary" />
+            <div
+              aria-hidden="true"
+              className="mb-4 size-9 animate-spin rounded-full border-2 border-border border-t-[#C9A45C]"
+            />
             <h1 className="text-ui-lg font-medium text-foreground">{copy.callbackTitle}</h1>
-            <p className="mt-2 text-ui-xs leading-6 text-foreground-subtle">
+            <p role="status" className="mt-2 text-ui-sm leading-6 text-foreground-subtle">
               {copy.callbackDescription}
             </p>
+            <p className="mt-2 text-ui-sm leading-6 text-foreground">{copy.callbackNext}</p>
           </>
         )}
       </section>

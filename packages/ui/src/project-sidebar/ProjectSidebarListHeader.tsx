@@ -48,7 +48,7 @@ export function ProjectSidebarListHeader({
       >
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon-md"
           className="shrink-0 text-foreground-subtle hover:text-foreground"
           data-testid="sidebar-search-open"
           aria-label={intl.formatMessage({ id: "commandCenter.open" })}
@@ -62,7 +62,7 @@ export function ProjectSidebarListHeader({
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon-md"
               className="shrink-0 text-foreground-subtle hover:text-foreground"
               data-testid="sidebar-view-menu"
               aria-label={intl.formatMessage({ id: "project.view" })}

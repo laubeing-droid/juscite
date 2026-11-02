@@ -508,7 +508,7 @@ export function WorkspaceHeaderTitleSection({
           <Button
             type="button"
             variant="ghost"
-            size={isRemoteWorkspace ? "sm" : compact ? "icon-sm" : "icon-md"}
+            size={isRemoteWorkspace ? "sm" : compact ? "icon-sm" : "icon-lg"}
             className={
               isRemoteWorkspace
                 ? "min-w-0 max-w-40 gap-1.5 px-1.5 text-foreground-subtle"
@@ -570,7 +570,7 @@ export function WorkspaceHeaderTitleSection({
               <Button
                 type="button"
                 variant="ghost"
-                size={compact ? "icon-sm" : "icon-md"}
+                size={compact ? "icon-sm" : "icon-lg"}
                 data-testid={TID_WORKSPACE_MORE_BUTTON}
                 aria-label={intl.formatMessage({ id: "common.more" })}
               >

@@ -25,15 +25,15 @@ export function showWebRemoteControlVersionNotice(
       <h2 id="remote-version-title" className="text-ui-lg font-medium">
         {zh ? "桌面版本已更新" : "Desktop version changed"}
       </h2>
-      <p
-        id="remote-version-description"
-        className="text-ui-base text-foreground-subtle break-words"
-      >
-        {zh
-          ? `桌面当前版本为 ${version}。任务操作已暂停，请重新加载以继续。未发送的附件不会保留。`
-          : `The desktop is now running ${version}. Task controls are paused. Reload to continue. Unsent attachments will not be retained.`}
+      <p id="remote-version-description" className="text-ui-base text-foreground break-words">
+        {zh ? "任务操作已暂停。重新加载后继续。" : "Task controls are paused. Reload to continue."}
       </p>
-      <Button autoFocus size="lg" className="self-end" onClick={onReload}>
+      <p className="text-ui-sm text-foreground-subtle break-words">
+        {zh
+          ? `桌面当前版本为 ${version}。未发送的附件不会保留。`
+          : `The desktop is now running ${version}. Unsent attachments will not be retained.`}
+      </p>
+      <Button autoFocus size="lg" className="h-11 w-full" onClick={onReload}>
         {zh ? "重新加载" : "Reload"}
       </Button>
     </div>,
