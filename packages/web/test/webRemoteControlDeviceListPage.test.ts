@@ -176,6 +176,7 @@ describe("连接前设备列表", () => {
       /aria-label="刷新"[^>]*disabled=""|disabled=""[^>]*aria-label="刷新"/,
     );
     expect(empty(false, true)).toContain("无法加载设备");
+    expect(empty(false, true)).toContain(">刷新</button>");
     expect(empty(false, true)).not.toContain("暂无设备");
   });
 

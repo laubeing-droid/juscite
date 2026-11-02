@@ -17,6 +17,7 @@ describe("连接过程页", () => {
       locale === "zh-CN" ? "正在连接 Alice’s MacBook" : "Connecting to Alice’s MacBook",
     );
     expect(html).toContain(locale === "zh-CN" ? "正在认证设备…" : "Authenticating device…");
+    expect(html).toContain(locale === "zh-CN" ? "第 2 步，共 4 步 · 确认身份" : "Step 2 of 4 · Confirm");
     expect(html).toContain('data-device-platform-icon="darwin"');
     expect(html.match(/data-step-state="done"/g)).toHaveLength(1);
     expect(html).toMatch(/aria-current="step"[^>]*data-step-state="active"/);

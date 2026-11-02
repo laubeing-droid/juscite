@@ -17,14 +17,15 @@ import type { WebRemoteControlScreenLocale } from "#src/web-remote-control/domai
 const copyByLocale = {
   "zh-CN": {
     unnamed: "未命名设备",
-    sheetDescription: (count: number) => `这台电脑上有 ${count} 个 Juscite 在线，选择要连接的一个`,
+    sheetEyebrow: "选择窗口",
+    sheetDescription: (count: number) => `${count} 个在线窗口，点一个即可连接`,
     startedAgo: (relative: string) => `${relative}启动`,
     cancel: "取消",
   },
   "en-US": {
     unnamed: "Unnamed device",
-    sheetDescription: (count: number) =>
-      `${count} Juscite instances are online on this computer. Choose one.`,
+    sheetEyebrow: "Choose a window",
+    sheetDescription: (count: number) => `${count} online windows. Choose one to connect.`,
     startedAgo: (relative: string) => `started ${relative}`,
     cancel: "Cancel",
   },
@@ -109,10 +110,15 @@ export function WebRemoteControlConnectionList({
             disabled={disabled}
             onClick={() => onSelect(connection.device_sid)}
             leading={
-              <DevicePlatformIcon
-                platform={connection.meta.platform?.trim() || device.platform}
-                className="size-4 text-foreground-subtle"
-              />
+              <span className="flex items-center gap-2">
+                <span className="flex size-5 items-center justify-center rounded-full bg-[#1B2A4A] text-[11px] font-semibold text-[#C9A45C]">
+                  {index + 1}
+                </span>
+                <DevicePlatformIcon
+                  platform={connection.meta.platform?.trim() || device.platform}
+                  className="size-4 text-foreground-subtle"
+                />
+              </span>
             }
             trailing={
               <ChevronRightIcon
@@ -164,6 +170,9 @@ export function WebRemoteControlConnectionSheet({
       {device ? (
         <BottomSheetContent>
           <BottomSheetHeader>
+            <p className="text-ui-xs font-medium tracking-wide text-[#C9A45C]">
+              {copy.sheetEyebrow}
+            </p>
             <BottomSheetTitle>{device.name || copy.unnamed}</BottomSheetTitle>
             <BottomSheetDescription>
               {copy.sheetDescription(device.onlineConnections.length)}

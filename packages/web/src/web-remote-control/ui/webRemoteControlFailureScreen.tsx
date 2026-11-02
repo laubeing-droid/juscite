@@ -73,16 +73,41 @@ export function WebRemoteControlFailureScreen({
               <span className="min-w-0 truncate">{copy.badge}</span>
             </div>
             <h1 className="text-ui-lg font-medium text-foreground">{copy.title}</h1>
-            <p className="mt-2 text-ui-xs leading-6 text-foreground-subtle">{copy.description}</p>
+            <p className="mt-2 text-ui-sm leading-6 text-foreground-subtle">{copy.description}</p>
           </div>
+        </div>
+
+        {/* 失败页原先把唯一动作放在步骤和详情下面，首屏经常看不到下一步。动作先于说明。 */}
+        <div className="mt-5 flex flex-col gap-2">
+          {failure.reason === "device-not-owned" ? (
+            <WebRemoteControlSwitchAccountDialog locale={locale} onConfirm={onReload}>
+              <Button type="button" size="lg" className="h-11 w-full">
+                {primaryActionLabel ?? copy.action}
+              </Button>
+            </WebRemoteControlSwitchAccountDialog>
+          ) : (
+            <Button type="button" size="lg" className="h-11 w-full" onClick={onReload}>
+              {primaryActionLabel ?? copy.action}
+            </Button>
+          )}
+          {secondaryAction ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-10 w-full"
+              onClick={secondaryAction.onClick}
+            >
+              {secondaryAction.label}
+            </Button>
+          ) : null}
         </div>
 
         <section className="mt-5 border-t border-border pt-4">
           <h2 className="text-ui-xs font-medium text-foreground">{copy.nextStepsTitle}</h2>
-          <ol className="mt-2 space-y-2 text-ui-xs leading-6 text-foreground-subtle">
+          <ol className="mt-2 space-y-2 text-ui-sm leading-6 text-foreground-subtle">
             {copy.nextSteps.map((step, index) => (
               <li key={step} className="flex gap-2">
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-surface text-ui-xs text-foreground-subtle">
+                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#1B2A4A] text-[11px] font-semibold text-[#C9A45C]">
                   {index + 1}
                 </span>
                 <span className="min-w-0">{step}</span>
@@ -98,28 +123,6 @@ export function WebRemoteControlFailureScreen({
               {failure.message}
             </div>
           </section>
-        ) : null}
-
-        {failure.reason === "device-not-owned" ? (
-          <WebRemoteControlSwitchAccountDialog locale={locale} onConfirm={onReload}>
-            <Button type="button" className="mt-5 w-full">
-              {primaryActionLabel ?? copy.action}
-            </Button>
-          </WebRemoteControlSwitchAccountDialog>
-        ) : (
-          <Button type="button" className="mt-5 w-full" onClick={onReload}>
-            {primaryActionLabel ?? copy.action}
-          </Button>
-        )}
-        {secondaryAction ? (
-          <Button
-            type="button"
-            variant="ghost"
-            className="mt-2 w-full"
-            onClick={secondaryAction.onClick}
-          >
-            {secondaryAction.label}
-          </Button>
         ) : null}
       </main>
     </div>

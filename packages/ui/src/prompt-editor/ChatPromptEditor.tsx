@@ -346,7 +346,13 @@ export function ChatPromptEditor({
 
   const editorNode = (
     // 单行时输入区至少占一半宽度，上下留白与 h-7 控件对齐；两行布局下 contents 不改变原有排版。
-    <div className={isInline ? "min-w-1/2 flex-1 py-1 [&_[contenteditable]]:min-h-5" : "contents"}>
+    <div
+      className={
+        isInline
+          ? "min-w-1/2 flex-1 py-1 [&_[contenteditable]]:min-h-5"
+          : "contents [&_[contenteditable]]:min-h-12"
+      }
+    >
       <LexicalChatInput
         placeholder={placeholder}
         disabled={disabled}
@@ -407,7 +413,7 @@ export function ChatPromptEditor({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-input-border bg-input p-3 transition-colors hover:border-input-border-hover focus-within:!border-input-border-focused focus-within:bg-input-focused",
+          "relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-input-border bg-input p-4 transition-colors hover:border-input-border-hover focus-within:!border-input-border-focused focus-within:bg-input-focused",
           isInline && "flex-row flex-wrap items-end gap-2 p-2",
           (isWorkspaceFileDropActive || isExternalFileDropActive) &&
             "border-brand bg-input-focused ring-1 ring-brand/30",
@@ -442,7 +448,10 @@ export function ChatPromptEditor({
           className={cn("group/toolbar flex items-end gap-3", isInline && "shrink-0 gap-1.5")}
         >
           <div className="flex min-w-0 flex-1 items-center" data-composer-leading-actions>
-            <div className="flex shrink-0 items-center gap-1" data-composer-leading-content>
+              <div
+                className={cn("flex shrink-0 items-center", isInline ? "gap-1" : "gap-2")}
+                data-composer-leading-content
+              >
               {isInline ? null : actionMenuNode}
               {/* Bugfix：权限/模式选择曾作为 leadingActions 先于动作菜单渲染，导致常驻顺序与产品规范相反。 */}
               {leadingActions}

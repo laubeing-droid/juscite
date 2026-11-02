@@ -16,7 +16,7 @@ export function OnboardingHeader({
   onClose: () => void;
 }) {
   return (
-    <header className="relative grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] [@media(max-height:740px)]:h-10 items-center px-6 sm:px-10">
+    <header className="relative grid min-h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center px-6 py-1 sm:px-10 [@media(max-height:740px)]:h-10 [@media(max-height:740px)]:min-h-10">
       {step > 0 ? (
         <Button
           variant="ghost"
@@ -28,29 +28,31 @@ export function OnboardingHeader({
           {t("back")}
         </Button>
       ) : null}
-      <ol
-        aria-label={t("preferences")}
-        className="col-start-2 row-start-1 flex w-28 items-center gap-2"
-      >
-        {["stepRole", "stepMode", "stepPreferences"].map((key, index) => (
-          <li
-            key={key}
-            aria-current={step === index ? "step" : undefined}
-            className="min-w-0 flex-1"
-          >
-            <div
-              aria-hidden="true"
-              className={cn(
-                "h-1 rounded-full transition-colors",
-                index <= step ? "bg-primary" : "bg-border",
-              )}
-            />
-            <span className="sr-only">
-              {index + 1}. {t(key)}
-            </span>
-          </li>
-        ))}
-      </ol>
+      <div className="col-start-2 row-start-1 flex flex-col items-center gap-1">
+        <ol aria-label={t("preferences")} className="flex w-28 items-center gap-2">
+          {["stepRole", "stepMode", "stepPreferences"].map((key, index) => (
+            <li
+              key={key}
+              aria-current={step === index ? "step" : undefined}
+              className="min-w-0 flex-1"
+            >
+              <div
+                aria-hidden="true"
+                className={cn(
+                  "h-1 rounded-full transition-colors",
+                  index <= step ? "bg-[#C9A45C]" : "bg-border",
+                )}
+              />
+              <span className="sr-only">
+                {index + 1}. {t(key)}
+              </span>
+            </li>
+          ))}
+        </ol>
+        <span className="text-ui-xs text-foreground-subtle [@media(max-height:740px)]:sr-only">
+          {step + 1}/3 · {t(["stepRole", "stepMode", "stepPreferences"][step] ?? "stepRole")}
+        </span>
+      </div>
       <Button
         variant="ghost"
         size="icon"

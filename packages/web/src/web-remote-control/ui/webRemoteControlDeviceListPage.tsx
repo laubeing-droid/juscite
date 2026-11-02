@@ -29,8 +29,11 @@ const copyByLocale = {
     connections: (count: number) => `${count} 个连接`,
     notFound: "没看到你的电脑？在电脑端 Juscite 登录同一账号并开启远程控制，然后刷新。",
     emptyTitle: "暂无设备",
-    emptyDescription: "在电脑端登录同一账号并开启 Web 远程控制，然后刷新列表。",
+    emptyDescription: "在电脑端登录同一账号并开启 Web 远程控制",
+    emptyNext: "然后回到这里刷新列表。",
     error: "无法加载设备，请检查网络后刷新。",
+    errorHint: "刷新会重新拉取这台账号下的电脑。",
+    refreshList: "刷新列表",
   },
   "en-US": {
     title: "Choose a computer",
@@ -46,8 +49,11 @@ const copyByLocale = {
       "Don't see your computer? Sign in to Juscite on it with the same account, turn on remote control, then refresh.",
     emptyTitle: "No devices yet",
     emptyDescription:
-      "Sign in with the same account on your computer, enable Web remote control, then refresh this list.",
+      "Sign in with the same account on your computer, enable Web remote control",
+    emptyNext: "Then come back here and refresh the list.",
     error: "Could not load devices. Check your connection and refresh.",
+    errorHint: "Refresh loads this account's computers again.",
+    refreshList: "Refresh list",
   },
 };
 
@@ -66,6 +72,30 @@ interface WebRemoteControlDeviceListPageProps {
   onSwitchAccount(): void;
   /** 多连接弹层的“启动于”相对时间基准，测试注入。 */
   now?: () => number;
+}
+
+function StepIndex({ index }: { index: number }) {
+  return (
+    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#1B2A4A] text-[11px] font-semibold text-[#C9A45C]">
+      {index}
+    </span>
+  );
+}
+
+function LoadErrorCallout({ copy, onRefresh }: { copy: DeviceListCopy; onRefresh(): void }) {
+  return (
+    <div
+      role="alert"
+      className="mt-6 rounded-xl border border-destructive/30 bg-card px-4 py-4"
+    >
+      <p className="text-ui-base font-medium text-foreground">{copy.error}</p>
+      <p className="mt-1 text-ui-sm leading-5 text-foreground-subtle">{copy.errorHint}</p>
+      <Button type="button" className="mt-4 h-10 px-4" onClick={onRefresh}>
+        <RefreshCwIcon />
+        {copy.refresh}
+      </Button>
+    </div>
+  );
 }
 
 function SectionHeader({ label, count }: { label: string; count: number }) {
@@ -278,11 +308,7 @@ export function WebRemoteControlDeviceListPage({
           onSwitchAccount={onSwitchAccount}
         />
 
-        {view.error ? (
-          <p role="alert" className="mt-5 px-1 text-ui-sm text-destructive">
-            {copy.error}
-          </p>
-        ) : null}
+        {view.error ? <LoadErrorCallout copy={copy} onRefresh={onRefresh} /> : null}
         <div aria-busy={view.loading}>
           {view.devices.length > 0 ? (
             <>
@@ -300,30 +326,42 @@ export function WebRemoteControlDeviceListPage({
                 selectable={selectable}
                 onOpen={openDevice}
               />
-              <p className="px-1 pt-3 text-ui-sm leading-5 text-foreground-subtlest">
-                {copy.notFound}
-              </p>
+              <div className="px-1 pt-3">
+                <p className="text-ui-sm leading-5 text-foreground-subtlest">{copy.notFound}</p>
+                {selectable ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="mt-1 h-9 px-2 text-foreground"
+                    onClick={onRefresh}
+                  >
+                    <RefreshCwIcon />
+                    {copy.refreshList}
+                  </Button>
+                ) : null}
+              </div>
             </>
           ) : view.loading ? (
             <p role="status" className="py-16 text-center text-ui-sm text-foreground-subtle">
               {copy.loading}
             </p>
           ) : !view.error ? (
-            <div className="mt-16 flex flex-col items-center px-6 text-center">
-              <span className="flex size-14 items-center justify-center rounded-xl bg-surface text-foreground-subtle">
+            <div className="mt-12 flex flex-col items-center px-4 text-center">
+              <span className="flex size-14 items-center justify-center rounded-xl bg-[#1B2A4A] text-[#C9A45C]">
                 <LaptopIcon aria-hidden="true" className="size-7" />
               </span>
               <p className="mt-4 text-ui-base font-semibold">{copy.emptyTitle}</p>
-              <p className="mt-1.5 text-ui-sm leading-5 text-foreground-subtle">
-                {copy.emptyDescription}
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                className="mt-5 h-10 px-4"
-                onClick={onRefresh}
-              >
+              <ol className="mt-4 w-full space-y-2 text-left text-ui-sm leading-5 text-foreground-subtle">
+                <li className="flex items-start gap-2 rounded-lg border border-card-border bg-card px-3 py-2.5">
+                  <StepIndex index={1} />
+                  <span>{copy.emptyDescription}</span>
+                </li>
+                <li className="flex items-start gap-2 rounded-lg border border-card-border bg-card px-3 py-2.5">
+                  <StepIndex index={2} />
+                  <span>{copy.emptyNext}</span>
+                </li>
+              </ol>
+              <Button type="button" size="lg" className="mt-5 h-10 px-4" onClick={onRefresh}>
                 <RefreshCwIcon />
                 {copy.refresh}
               </Button>

@@ -12,5 +12,7 @@ describe("手机远控登录页", () => {
     expect(html).toContain(
       lang === "zh-CN" ? "登录后继续使用 Web 远程控制" : "Sign In To Continue",
     );
+    expect(html).toContain(lang === "zh-CN" ? "选择电脑" : "Choose a computer");
+    expect(html).toContain(lang === "zh-CN" ? "打开任务" : "Open a task");
   });
 });

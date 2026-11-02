@@ -77,7 +77,7 @@ export function WorkspaceHelpMenuButton({
           <Button
             type="button"
             variant="ghost"
-            size="icon-md"
+            size="icon-lg"
             // Settings 页会把帮助按钮绝对定位在 Electron 顶部拖拽区上方。
             // 只依赖外层容器 no-drag 时，真实 trigger 仍可能被标题栏 drag 区吞掉点击。
             className={cn(

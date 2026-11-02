@@ -429,7 +429,7 @@ export const TaskList = memo(function TaskList({
       ) : null}
 
       {showCreateButton ? (
-        <div className="border-b p-3">
+        <div className="px-2 pb-1 pt-2">
           <ControlHintTooltip
             title={readOnlyReason ?? intl.formatMessage({ id: "taskList.newThread" })}
           >
@@ -452,7 +452,7 @@ export const TaskList = memo(function TaskList({
             showEmptyState ? (
               <div
                 data-testid={TID_TASK_EMPTY}
-                className="px-8.5 py-2 text-ui-base text-foreground-subtlest"
+                className="px-4 py-6 text-center text-ui-base text-foreground-subtle"
               >
                 {intl.formatMessage({ id: "taskList.noTasks" })}
               </div>
@@ -466,7 +466,7 @@ export const TaskList = memo(function TaskList({
               }}
             >
               <ContextMenuTrigger asChild>
-                <ul className="space-y-0.5">{visibleSourceTasks.map(renderTaskItem)}</ul>
+                <ul className="space-y-1">{visibleSourceTasks.map(renderTaskItem)}</ul>
               </ContextMenuTrigger>
               {contextMenuTask ? (
                 <TaskListItemContextMenuContent
@@ -503,14 +503,14 @@ export const TaskList = memo(function TaskList({
       </div>
 
       {showFooter ? (
-        <div className="border-t border-outline/40 p-3">
+        <div className="px-2 pb-2 pt-1">
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="lg"
             onClick={openSettingsTab}
             data-testid={TID_TASK_SETTINGS_BUTTON}
-            className="w-full justify-center"
+            className="h-10 w-full justify-center"
           >
             <Settings2 className="h-3.5 w-3.5" />
             {intl.formatMessage({ id: "taskList.openSettings" })}
