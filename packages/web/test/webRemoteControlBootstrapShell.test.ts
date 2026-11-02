@@ -11,10 +11,6 @@ function readWorkspaceFile(path: string): Buffer {
   return readFileSync(resolve(process.cwd(), path));
 }
 
-function readWorkspaceFileDataUrl(path: string, mimeType: string): string {
-  return `data:${mimeType};base64,${readWorkspaceFile(path).toString("base64")}`;
-}
-
 function createBootstrapDocument(theme: "zai-dark" | "zai-light"): JSDOM {
   return new JSDOM(readWebIndexHtml(), {
     beforeParse(window) {
@@ -30,19 +26,24 @@ function createBootstrapDocument(theme: "zai-dark" | "zai-light"): JSDOM {
 }
 
 describe("web remote control bootstrap shell", () => {
-  it("内嵌与桌面 App 同源的浏览器标签图标", () => {
+  it("浏览器标签图标使用锁定的引用锚点，而不是桌面旧图标", () => {
     const html = readWebIndexHtml();
     const document = new JSDOM(html).window.document;
-    const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"][type="image/png"]');
+    const icons = [...document.querySelectorAll<HTMLLinkElement>('link[rel="icon"]')];
+    const svgIcon = icons.find((icon) => icon.getAttribute("type") === "image/svg+xml");
+    const icoIcon = icons.find((icon) => icon.getAttribute("href") === "/favicon.ico");
 
-    expect(icon?.href).toBe(readWorkspaceFileDataUrl("public/logo/icons/32x32.png", "image/png"));
-    expect(icon?.getAttribute("sizes")).toBe("32x32");
-    expect(readWorkspaceFile("packages/web/public/favicon.ico")).toEqual(
-      readWorkspaceFile("packages/desktop/build/icon.ico"),
-    );
-    expect(readWorkspaceFile("public/logo/icons/icon.ico")).toEqual(
-      readWorkspaceFile("packages/desktop/build/icon.ico"),
-    );
+    expect(svgIcon?.getAttribute("href")).toBe("/favicon.svg");
+    expect(icoIcon?.getAttribute("sizes")).toBe("32x32");
+
+    const svg = readWorkspaceFile("packages/web/public/favicon.svg").toString("utf8");
+    expect(svg).toContain("mark-navy-gold.png");
+    expect(svg).not.toContain("天平");
+    expect(svg).not.toContain("M8 10");
+
+    const ico = readWorkspaceFile("packages/web/public/favicon.ico");
+    expect(ico.subarray(0, 4).equals(Buffer.from([0, 0, 1, 0]))).toBe(true);
+    expect(ico.equals(readWorkspaceFile("packages/desktop/build/icon.ico"))).toBe(false);
   });
 
   it.each([

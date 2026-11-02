@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import jusciteMarkUrl from "@/assets/brand/mark-white-gold.png";
 import { cn } from "@/components/lib/utils.js";
 
 interface RootStartupLoadingProps {
@@ -78,15 +79,8 @@ export function ZCodeStartupLogo({
           values="1;0.4;1"
         />
       ) : null}
-      {/* Juscite 占位 logo：抽象天平（正式 logo 定稿后替换） */}
-      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none">
-        <circle cx="16" cy="5" r="1.6" fill="currentColor" stroke="none" />
-        <line x1="16" y1="6.6" x2="16" y2="25" />
-        <line x1="7" y1="9" x2="25" y2="9" />
-        <path d="M7 9 L4 15 H10 Z" fill="currentColor" stroke="none" />
-        <path d="M25 9 L22 15 H28 Z" fill="currentColor" stroke="none" />
-        <line x1="9" y1="25.5" x2="23" y2="25.5" />
-      </g>
+      {/* 锁定引用锚点（白标 + 金尖），替换原占位天平。 */}
+      <image href={jusciteMarkUrl} x="4.9" y="1" width="22.2" height="30" />
     </svg>
   );
 }
