@@ -4,12 +4,12 @@
 
 ## 范围
 
-包含：组件全景、分层职责、一次请求的完整旅程、数据与隐私边界、工程合同面与验证门禁。
+包含：组件全景、本轮流程消费、分层职责、一次请求的完整旅程、数据与隐私边界、工程合同面与验证门禁。
 不包含：安装步骤（见[快速上手](getting-started.md)）与各包逐文件说明（见[自有包一览](packages.md)）。
 
 ## 全景
 
-先用一段大白话定向：你在屏幕上看到的一切是**桌面壳里的工作台界面**；界面背后是一个常驻本机的**本地桥**进程，它是产品的服务中心——法条手册、引证核验、文档对比、电子证据、流程编排、定时任务、技能管理、安全审计都在桥上，数据落本地 SQLite；桥不自己"思考"，它通过一层**能力合同 + 适配器**调用钉定版本的 **AI 运行时**（OpenCode）完成生成类工作；另有一个 **Python 能力面**以固定白名单入口对接外部确定性引擎（法律计算、案件账本）。Word/WPS 的 Office 集成走独立的本地桥接服务。
+先用一段大白话定向：你在屏幕上看到的一切是**桌面壳里的工作台界面**；界面背后是一个常驻本机的**本地桥**进程，它是产品的服务中心——法条手册、引证核验、文档对比、电子证据、流程闸门（FlowGate）、引文回验（quote-back）、定时任务、技能管理、安全审计都在桥上，数据落本地 SQLite；桥不自己"思考"，它通过一层**能力合同 + 适配器**调用钉定版本的 **AI 运行时**（OpenCode）完成生成类工作；另有一个 **Python 能力面**以固定白名单入口对接外部确定性引擎（法律计算、案件账本）。Word/WPS 的 Office 集成走独立的本地桥接服务。整套 flow 引擎本轮不装配进桥宿主，边界见下文「本轮流程消费」。
 
 下图看三件事：谁拉起谁（实线上下）、数据落在哪里（圆柱）、外部边界在哪里（虚线外侧）。
 
@@ -22,7 +22,7 @@ flowchart TB
         PET["桌面伴侣窗口 @juscite/desktop-pet"]
     end
     subgraph BRIDGE["本地桥（应用级单例进程 · tools/bridge）"]
-        BSVCS["法律服务族：法条手册 · 引证核验 · 文档对比<br/>电子证据 · 流程编排 · 定时任务 · 技能 · 安全审计 · 支持"]
+        BSVCS["法律服务族：法条手册 · 引证核验 · 文档对比<br/>电子证据 · 流程闸门 · 引文回验 · 定时任务 · 技能 · 安全审计 · 支持"]
         DB[("SQLite 本地库")]
         LB[("lawbook-packs 法条数据包")]
     end
@@ -46,6 +46,17 @@ flowchart TB
 
 若图未渲染，文字版：桌面壳（`packages/desktop`）拉起工作台界面与桌面伴侣窗口，并以应用级单例方式拉起本地桥（`tools/bridge/bridge_host.mjs`，WebSocket 3030 端口 + HTTP）；界面经 RPC 调用桥上的法律服务族；桥读写本地 SQLite 与法条数据包，经 `@juscite/runtime-port` 能力合同与 OpenCode 适配器调用 AI 运行时，经 Python 白名单入口对接外部确定性引擎，并经 `@juscite/office-bridge` 与 Word/WPS 互操作。
 
+## 本轮流程消费
+
+本轮接到桥运行时的流程能力是两块：
+
+- **FlowGate**：`tools/bridge/flow_gate_service.mjs`。`bridge_host` 只调用 `createFlowGate`，并挂上 `flowGate*` RPC。
+- **quote-back**：`packages/juscite-flow/src/quote-back.mjs`。尽调服务 `tools/bridge/diligence_service.mjs` 静态引用它，做逐字引文回验。
+
+`@juscite/flow` 内核在盘，目录 `packages/juscite-flow`，自带 `package.json`（包名 `@juscite/flow`，版本 0.0.0）。`index.mjs`、`engine.mjs`、`dsl.mjs` 都在；随包物化会把这个包拷进桥 bundle。
+
+整套 flow 引擎本轮留在包内，不进 `bridge_host`。`tools/bridge/flow_engine_service.mjs` 的 `createFlowEngineService` 在入口拒绝装配（`ERR_MODULE_NOT_FOUND`，消息含「拒绝装配」）。桥宿主不调用该函数，也不把 flow 引擎 RPC 挂上桥。这是接线决定未做之前的 fail-closed，留待后续再决定是否装配。
+
 ## 分层职责
 
 | 层 | 位置 | 职责 |
@@ -53,7 +64,7 @@ flowchart TB
 | 桌面壳 | `packages/desktop` | Electron 主进程/预加载/渲染；拉起本地桥；生产打包（Windows NSIS 安装器） |
 | 工作台界面 | `packages/web`、`packages/ui`、`packages/client` | React 工作台；法律面板族经 `packages/ui/src/legal/register.tsx` 唯一注册点从 `@juscite/legal` 挂载 |
 | 自有功能包 | `packages/juscite-*` | 面板、内核与集成件，一览见[自有包一览](packages.md) |
-| 本地桥 | `tools/bridge` | 服务中心与数据归属：全部法律服务、SQLite 持久化、技能与任务调度 |
+| 本地桥 | `tools/bridge` | 服务中心与数据归属：法律服务、SQLite 持久化、技能与任务调度。流程运行时见「本轮流程消费」 |
 | AI 运行时接入 | `packages/juscite-runtime-port`、`packages/juscite-runtime-adapters/` | 产品自定义的最小能力合同（接口用自有域词，不照抄任何运行时 API）与落到 OpenCode 的适配器；换运行时只需新增适配器，产品层零改动 |
 | Python 能力面 | `implementation/python` | `legal_entry.py` 以冻结方法白名单桥接外部确定性引擎；配置缺失或方法未知名义拒（fail-closed），绝不伪造成功 |
 | 数据与配置 | `lawbook-packs/`、`config/` | 公有领域法条文本的确定性打包（sha256 完整性校验）；随客户端分发的内置默认配置 |
@@ -104,7 +115,10 @@ Juscite 把"自有代码与基础壳之间的接面"钉成机器可读文件，�
 
 | 关注点 | 位置 |
 |---|---|
-| 桥入口与服务装配 | `tools/bridge/bridge_host.mjs` |
+| 桥入口与服务装配 | `tools/bridge/bridge_host.mjs`（流程侧只 `createFlowGate`） |
+| 流程闸门 | `tools/bridge/flow_gate_service.mjs` |
+| 引文回验 | `packages/juscite-flow/src/quote-back.mjs` |
+| 流程引擎装配入口（本轮拒绝） | `tools/bridge/flow_engine_service.mjs` 的 `createFlowEngineService` |
 | 门禁 | `tools/bridge/ci_gate.mjs` |
 | 运行时能力合同 | `packages/juscite-runtime-port/src/index.ts` |
 | OpenCode 适配器 | `packages/juscite-runtime-adapters/opencode/src/opencodeAdapter.mjs` |

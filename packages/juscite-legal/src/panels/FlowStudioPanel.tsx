@@ -1,8 +1,9 @@
-// 【功能 #35 尾巴②】Flow Studio/运行看板面板（RE-35 §2 D/E/G 面 UI 消费；桥 RPC=flow* 族已注册）。
+// 【功能 #35 尾巴②】Flow Studio/运行看板面板（RE-35 §2 D/E/G 面 UI 消费）。
+// 本轮桥宿主只装配 FlowGate（flowGate*）。flowDef* / flowRun* 等引擎 RPC 未挂上桥，
+// createFlowEngineService 保持拒绝装配；面板上的引擎方法仍是可选调用，桥侧没有对应入口。
 // 三区：运行看板（状态徽章/事件流/链校验/AI-run 一等记录/待审关卡决断——乐观锁冲突回显不自动重放）；
 // 流程库（Studio 双来源草稿/发布/内置只读、节点普查、导入导出、编译诊断）；发起面（草稿只可试跑）。
-// 数据经 zcodeAgentService 的 flow* 可选方法（桥 RPC 转发）；文案全部自写（表达隔离）。
-// agent 节点在正式运行/试跑中打真模型轮（尾巴①接线）——面板如实展示 AI-run 的模型钉定，不代判。
+// 文案全部自写（表达隔离）。
 import { useCallback, useEffect, useState } from "react";
 import { useServices } from "../ui-kit.js";
 import {

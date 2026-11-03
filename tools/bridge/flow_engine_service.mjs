@@ -1,16 +1,18 @@
-// 功能 #35 Flow 工作流消费侧（RE-35 §3 实现规格落码）：桥面服务装配点。
-// 内核=@juscite/flow（packages/juscite-flow 出树自有包，相对路径消费——edisc/vizb 同法）：
-//   dsl.mjs=DSL 编译诊断（B1/B2/B3/B11 域值）｜capabilities.mjs=声明式能力控权（C1-C4）
-//   engine.mjs=协调器/RunActor（C5 放权+D1 上限+D2 恢复门四件+D3 attestation 链+D4 map checkpoint+
-//               D5 fail-fast+D6 心跳+D7 产物链+D8 冻结双半边+D9 注入防护+G1-G4 AI-run 一等记录）
-//   line-manifest.mjs=线单解析驱动（line-manifest/1 frontmatter+六阶段→Flow 定义装配，禁第二真源）
-//   dry-run.mjs=合成执行器（六阶段全合成材料 dry-run；真模型执行接线挂后续集成单）
-// 本文件只做三件事：DDL 单源（迁移 0022 与合成自测共用，防两处漂移）+Studio 持久化面（草稿/发布/双来源/
-// 布局分离/导入导出/开关）+桥 RPC 方法装配。错误沿通道异常文本回（code 随消息）。
+// 功能 #35 Flow 工作流：装配入口留在本文件，本轮不接线。
+// 内核 @juscite/flow 已在盘（packages/juscite-flow，自有 package.json）。
+// index.mjs、engine.mjs、dsl.mjs，以及 capabilities / line-manifest / dry-run，都在；
+// materialize 会把该包拷进桥随包。本文件不 import 它们。
+// 本轮运行时消费不走本函数：
+//   bridge_host 只 createFlowGate（flow_gate_service.mjs），不调用 createFlowEngineService，
+//   也不把 flow 引擎 RPC 挂上桥；
+//   尽调 diligence_service 静态 import quote-back.mjs。
+// 本文件导出 FLOW_ENGINE_DDL（字符串，不依赖内核）和 createFlowEngineService。
+// createFlowEngineService 在入口故意 fail-closed，直到另一次接线决定：
+// 抛 ERR_MODULE_NOT_FOUND，消息含「拒绝装配」（R3 S13 锁定）。不要拆 throw，
+// 不要从 bridge_host 调用本函数。
+// 抛出文案里的「不在本分支」是被锁住的历史信号，不是当前文件清单。
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-// 引擎入口 index.mjs / engine.mjs / dsl.mjs 不在本分支。DDL 字符串不依赖它们，
-// 所以桥库可以打开；真正装配流程时在 createFlowEngineService 入口拒绝，不发明引擎。
 
 export const STUDIO_BUNDLE_FORMAT = "juscite-workflow-studio"; // 自写格式名（E3 导入导出对应物，不建内置商店）
 export const STUDIO_BUNDLE_VERSION = 1;
@@ -147,6 +149,8 @@ export function createFlowEngineService({
   agentExecutor = null, // 【#35 尾巴①】真模型 agent 执行器（runtime-port 域面注入；null=全合成旧状）
 } = {}) {
   void db; void gate; void trustDir; void config; void studioEnabled; void loadPersistedCapabilities; void agentExecutor;
+  // 内核在盘。这里仍拒绝装配：接线决定未做。勿删这条 throw；bridge_host 不得调用本函数。
+  // code 与文案保持不动（S13：ERR_MODULE_NOT_FOUND，消息含「拒绝装配」）。
   const missing = new Error("Flow 引擎入口缺失：packages/juscite-flow/src/index.mjs、engine.mjs、dsl.mjs 不在本分支，拒绝装配");
   missing.code = "ERR_MODULE_NOT_FOUND";
   throw missing;

@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | `@juscite/legal` | `packages/juscite-legal` | 0.0.0 | 法律工作台的面板族与内核模型：法律工作台、知识库、检索研究、团队、利益冲突预检、学习迭代、电子证据、流程工作室、安全审计中心 | 依赖 `@zcode/services` 与 React；由 `packages/ui` 经唯一注册点挂载进工作台 |
 | `@juscite/vizb` | `packages/juscite-vizb` | 0.0.0 | 面向庭审交付物的可视化渲染内核：大事记表与庭审对抗图——判据守卫不通过即拒绝出图出表，内容照录原文，可输出表格、文档与位图 | 零第三方依赖；由本地桥作为判定与渲染唯一源，面板零判据零渲染 |
-| `@juscite/flow` | `packages/juscite-flow` | —（源码包，无独立 package.json） | 流程编排内核：代理运行时、事实核验、交叉验证、原文回引 | 由本地桥直接引用 |
+| `@juscite/flow` | `packages/juscite-flow` | 0.0.0 | 流程内核在盘：代理运行时、事实核验、交叉验证、原文回引。本轮桥运行时只消费 quote-back | 自有 `package.json`。`bridge_host` 装配 FlowGate，不调用 `createFlowEngineService`（入口拒绝装配） |
 | `@juscite/edisc` | `packages/juscite-edisc` | 0.0.0 | 电子证据内核：锚定、表格、审阅、任务四个子内核 | 零第三方依赖；由本地桥与工作台面板消费 |
 | `@juscite/office-bridge` | `packages/juscite-office-bridge` | 0.0.0 | Word/WPS 互操作：只绑回环、配对认证的本地桥接服务，附零构建的任务窗格静态页与旁加载 CLI | 运行时仅用 Node 内建与 `ws`；由本地桥与桌面环境消费 |
 | `@juscite/runtime-port` | `packages/juscite-runtime-port` | —（类型件） | AI 运行时最小能力合同：以自有域词定义产品层需要的能力面，协议形状全部引自真源，不照抄任何运行时的 API | 零运行时依赖；本地桥与流程内核唯一认可的能力面 |
@@ -26,7 +26,7 @@
 ## 依赖关系速览
 
 - 界面线：`packages/ui` --注册点--> `@juscite/legal` --> `@zcode/services`。
-- 桥线：`@juscite/bridge`（tools/bridge）--> `@juscite/vizb`、`@juscite/edisc`、`@juscite/flow`、`@juscite/legal` 内核、`@juscite/office-bridge`、法条数据包。
+- 桥线：`@juscite/bridge`（tools/bridge）--> `@juscite/vizb`、`@juscite/edisc`、`@juscite/legal` 内核、`@juscite/office-bridge`、法条数据包。`@juscite/flow` 本轮只以 quote-back 被尽调静态引用；整套引擎不装配进 `bridge_host`（FlowGate 在桥内 `flow_gate_service.mjs`）。
 - 运行时线：`@juscite/bridge` --> `@juscite/runtime-port` <--实现-- `@juscite/runtime-adapter-opencode` --> OpenCode 运行时。
 - 桌面线：`packages/desktop` --> `@juscite/desktop-pet`；打包时把本地桥与所需自有包物化进安装产物。
 

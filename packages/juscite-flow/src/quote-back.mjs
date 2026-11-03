@@ -10,7 +10,8 @@
 // #32 尽调台账经桥 I/O 层 tools/bridge/diligence_service.mjs import（juscite-legal kernel 零跨包依赖不碰）。
 // 回验=报告旗标面（呈现给复核者），不承担发布硬门——引用存在性闭环（各面既有 cite-verify 族）与本件分立。
 // 纯函数、零 IO、零模型；同输入字节级同输出。
-// engine.mjs 不在本分支（S12 缺口）。回验只需要这个错误类型，不装配整套流程引擎。
+// 本地 FlowEngineError：quote-back 保持纯函数回验，不 import engine.mjs，因而不装配整套流程引擎。
+// engine.mjs 已在本包。桥运行时本轮只消费本 validator（尽调 quote-back）与桥内 FlowGate。
 class FlowEngineError extends Error {
   constructor(code, message) {
     super(message);
