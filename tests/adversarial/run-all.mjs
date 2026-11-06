@@ -3,7 +3,7 @@
 import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const dir = fileURLToPath(new URL(".", import.meta.url));
 const files = readdirSync(dir).filter((name) => /^s\d\d-/.test(name)).sort();
@@ -11,7 +11,9 @@ let failed = 0;
 const summary = [];
 for (const file of files) {
   const started = Date.now();
-  const child = spawnSync(process.execPath, ["--experimental-strip-types", "--import", join(dir, "resolve-ts-js.mjs"), join(dir, file)], {
+  // Windows 绝对路径（D:\...）会被 ESM loader 当成 "d:" 协议 URL 拒载（ERR_UNSUPPORTED_ESM_URL_SCHEME）；
+  // --import 必须给 file:// URL，位置参数脚本路径两种系统都接受原路径。
+  const child = spawnSync(process.execPath, ["--experimental-strip-types", "--import", pathToFileURL(join(dir, "resolve-ts-js.mjs")).href, join(dir, file)], {
     encoding: "utf8",
     timeout: 120000,
     cwd: join(dir, "..", ".."),
