@@ -212,7 +212,7 @@ function normalizeSearchSnippetText(text: string): string {
   return text.replace(/\s+/g, " ").trim().slice(0, TASK_SEARCH_SNIPPET_MAX_CHARS);
 }
 
-// 全局会话搜索 (TaskSearchDialog) 期望命中正文时返回若干片段做摘要展示。
+// 全局会话搜索 (TaskFindDialog) 期望命中正文时返回若干片段做摘要展示。
 // 以匹配点为中心截窗，去重相近窗口，最多 4 条；
 // 全部未命中（title 命中）时回退一条整段摘要，避免下方空白。
 function buildSearchSnippets(searchableText: string, search: string | null): string[] {
@@ -1314,7 +1314,7 @@ export class TaskIndexRepo {
       where.push("pinned = 0", "archived = 0");
     }
     if (normalizedSearchLike) {
-      // 之前只按 title 模糊匹配，没有命中聊天正文；TaskSearchDialog 长期搜不到内容。
+      // 之前只按 title 模糊匹配，没有命中聊天正文；TaskFindDialog 长期搜不到内容。
       // 现在 title 或 searchable_text 任一命中即视为匹配，正文摘要在结果阶段构建。
       where.push(
         "(LOWER(CASE WHEN title_overridden=1 THEN title ELSE cli_title END) LIKE ? OR LOWER(searchable_text) LIKE ?)",
