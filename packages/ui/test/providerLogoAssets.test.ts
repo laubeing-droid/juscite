@@ -28,11 +28,15 @@ function readSvgSize(source: string): { width: number; height: number } {
 }
 
 describe("Provider built-in logo assets", () => {
-  it("Z.AI PNG 原样复用无额外留白的应用图标，不再误用同名旧 SVG", () => {
-    const source = readFileSync(new URL("../../desktop/build/icons/128x128.png", import.meta.url));
+  it("模型供应商 PNG 保持自有 128 方形，不再跟随桌面应用图标", () => {
+    const applicationIcon = readFileSync(
+      new URL("../../desktop/build/icons/128x128.png", import.meta.url),
+    );
     const packaged = readFileSync(new URL("model-provider-zai-app.png", assetDirectory));
-    expect(packaged.equals(source)).toBe(true);
+    // 应用图标已换成 Juscite 藏青锚点。供应商图是冻结副本，不能再被 128x128.png 覆盖。
+    expect(packaged.equals(applicationIcon)).toBe(false);
     expect(readPngSize(packaged)).toEqual({ width: 128, height: 128 });
+    expect(readPngSize(applicationIcon)).toEqual({ width: 128, height: 128 });
   });
   it("来源清单中的每个内置 Logo 素材本身都是方形", () => {
     for (const { file } of manifest.logos) {
