@@ -30,6 +30,13 @@ describe("settingsNavigation", () => {
     expect(navigation.resolveSettingsSection("memory", "general")).toBe("memory");
   });
 
+  it("桌宠分区已停用，旧入口回落到 general", async () => {
+    const navigation = await loadSettingsNavigation("test");
+
+    expect(navigation.isSettingsSectionEnabled("pet")).toBe(false);
+    expect(navigation.resolveSettingsSection("pet", "general")).toBe("general");
+  });
+
   it("通知已打开的设置页切换到新的分区意图", async () => {
     const eventTarget = new EventTarget();
     const storage = new Map<string, string>();

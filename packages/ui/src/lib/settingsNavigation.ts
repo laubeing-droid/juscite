@@ -50,6 +50,8 @@ const HIDDEN_SETTINGS_SECTIONS = new Set<SettingsSectionId>([
   // 工作区搜索（.zcodeignore）设置入口先隐藏：规则文件仍生效并可手动编辑，
   // 编辑页代码保留，放开时从这里移除即可。
   "workspaceFileSearch",
+  // 桌宠已停用：导航里不出现开关，避免用户把窗口重新打开。
+  "pet",
 ]);
 
 export interface SettingsSectionIntentEventDetail {

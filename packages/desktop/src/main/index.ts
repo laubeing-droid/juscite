@@ -127,12 +127,10 @@ import {
   disposeBridgeHostProcess,
   ensureBridgeHostProcess,
   getBridgeHostProcess,
-  isBridgeHostAlive,
   loadWindow,
 } from "./desktopHostProcess.js";
-// 功能 #28 桌宠：桌面壳内独立透明窗口（RE-28 §3.0 形态）。
-// 桌宠已出树（r12 波4，波1 分账 L3）：createPetModule 由 @juscite/desktop-pet 提供。
-import { createPetModule, type PetModule } from "@juscite/desktop-pet/main";
+// 桌宠已停用：启动不再创建 pet 模块，因此不会读 desktop/pet.json，也不会打开桌宠窗口。
+// @juscite/desktop-pet 仍留在工作区里（preload / pet 页入口还指着它），避免为删包去改 lockfile。
 import { resolveBootstrapSettingsFile } from "./desktopDataBaseDirBootstrap.js";
 import { spawnCronScheduler, type CronSchedulerHandle } from "./desktopCronScheduler.js";
 import { installFinderOpenFolderWorkflow } from "./desktopFinderOpenFolderWorkflow.js";
@@ -1586,30 +1584,8 @@ app.whenReady().then(async () => {
     });
   }
 
-  // 功能 #28 桌宠：模块随壳启动（enabled=false 不预创建窗口，B28）。
-  let petModule: PetModule | null = null;
-  try {
-    petModule = createPetModule({
-      userDataDir: app.getPath("userData"),
-      logger,
-      isBridgeAlive: isBridgeHostAlive,
-      ensurePrimaryWindow: (reason) => {
-        void primaryWindowCoordinator.ensurePrimaryWindow(reason);
-      },
-      broadcastToRenderers: (channel, payload) => {
-        for (const win of getApplicationWindowsExcludingCuaIndicator()) {
-          win.webContents.send(channel, payload);
-        }
-      },
-    });
-    app.once("will-quit", () => {
-      petModule?.dispose();
-      petModule = null;
-    });
-  } catch (error) {
-    logger.warn("[pet] module init failed; desktop pet disabled this run:", error);
-  }
-
+  // 桌宠已停用：不调用 createPetModule。新鲜安装（默认 enabled=true）和升级
+  // （旧 desktop/pet.json 里 enabled:true）都不会创建窗口。设置 IPC 不传模块。
   registerPlatformIpcHandlers({
     fetchHelpConfig: readHelpConfig,
     logger,
@@ -1699,14 +1675,8 @@ app.whenReady().then(async () => {
     getDesktopSessionActivity: () => ({
       runningAgentSessionCount: getRunningAgentSessionCount(),
     }),
-    // 功能 #28 桌宠：设置面读写与运行事件转发（模块初始化失败时为 null，面自动降级）。
-    petModule: petModule
-      ? {
-          getStatus: () => petModule!.getStatus(),
-          updateConfig: (patch) => petModule!.updateConfig(patch),
-          reportRunEvent: (event) => petModule!.reportRunEvent(event),
-        }
-      : undefined,
+    // 桌宠已停用：不传模块。PetUpdateConfig 在模块缺失时直接失败，无法把窗口再拉起来。
+    petModule: undefined,
     syncAppSettings: (patch) => syncImmediateAppSettings(patch as Partial<AppSettings>),
     // 设置页置灰查询：monitor 带 stale 缓存，装完 AppIndicator 扩展重开设置页即可刷新。
     // 设置页置灰查询：先确保托盘实例就绪（用户装扩展后首次查询会补建），再返回合并了
