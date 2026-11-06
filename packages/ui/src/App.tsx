@@ -73,8 +73,6 @@ import { useTaskSidePaneMemoryBridge } from "@/app-shell/useTaskSidePaneMemoryBr
 import { resolveAppWorkspaceRpcTarget } from "@/app-shell/workspaceRpcTarget.js";
 import { useWorkspaceServicesResolution } from "@/hooks/useWorkspaceServices.js";
 import { useWorkspaceTerminalTaskNotifications } from "@/hooks/useTaskNotifications.js";
-// 功能 #28 桌宠：sessions-index 边沿 → 桌宠运行事件转发（驱动流 1）。
-import { usePetRunStatusForwarder } from "@/hooks/usePetRunStatusForwarder.js";
 import { useMarketingTaskCompletionRefresh } from "@/components/marketing-touch/useMarketingTaskCompletionRefresh.js";
 import { useOffPeakTaskNotifications } from "@/hooks/useOffPeakTaskNotifications.js";
 import type { AppProps, WorkspaceMainView } from "@/app-shell/types.js";
@@ -304,14 +302,6 @@ export function App({
     rpcReady: workspaceRpcReady,
     platform,
     formatMessage: intl.formatMessage,
-  });
-  // 功能 #28 桌宠：与任务通知同源的边沿投影，不受通知开关约束（陪伴状态≠通知意图）。
-  usePetRunStatusForwarder({
-    workspacePath: workspaceAbsPath,
-    ...(workspaceIdentity ? { workspaceIdentity } : {}),
-    ...(workspaceRemoteSessionId ? { endpointKey: workspaceRemoteSessionId } : {}),
-    rpcReady: workspaceRpcReady,
-    platform,
   });
   // 闲时任务终态/等确认通知：仅桌面本地链路，main 进程按 status:taskId 去重多窗口重复。
   useOffPeakTaskNotifications({

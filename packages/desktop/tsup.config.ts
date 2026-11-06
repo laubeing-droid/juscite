@@ -290,8 +290,6 @@ export default defineConfig([
       "preload/browserVideoRecorder": "src/preload/browserVideoRecorder.ts",
       "preload/index": "src/preload/index.ts",
       "preload/pluginSandbox": "src/preload/pluginSandbox/index.ts",
-      // 功能 #28 桌宠：pet 窗口专用窄 preload（out/preload/petPreload.cjs）。
-      "preload/petPreload": "../juscite-desktop-pet/src/preload/petPreload.ts",
     },
     outDir: "out",
     format: "cjs",
