@@ -205,8 +205,5 @@ function formatLimitModels(limit: UsageQuotaLimit): string {
 
 function formatModelCode(modelCode: string): string {
   const normalized = modelCode.replace(/^model:/i, "");
-  if (normalized.toLowerCase() === "glm-5-turbo") {
-    return "Juscite-5Turbo";
-  }
   return normalized.toUpperCase();
 }
