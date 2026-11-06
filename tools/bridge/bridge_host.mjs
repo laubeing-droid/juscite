@@ -164,7 +164,7 @@ import {
   isMetaSidecar, normalizeQuery, planQueries, tokenize, chunkText, scoreChunk, rankReasonOf, rerank,
   rrfFuse, isMetaExpired, buildRetrievalContext, buildAskPrompt, threadTitle, isKbThreadTitle,
   safeRelPath, extOf, ruleClassify, KB_CATEGORIES, inferDocLayer, routeLayer, cleanAnswer, sha256,
-  kbShellBypassGuard, KB_BYPASS_ADVISORY,
+  kbShellBypassGuard, KB_BYPASS_ADVISORY, kbIndexRemovals,
 } from "./kb_service.mjs";
 // 【步骤4·#16 调研报告】调研纯模型（RE-16 §3）：即时规划/规划评分器/三桶切分/报告完整性/
 // 证据门/工具剔除/配额错误/裸话题/导出预处理/编辑落账/导出命名/提示词装配/法规库兜底——
@@ -2489,8 +2489,10 @@ const agentService = {
         chunksTotal += chunks.length;
       }
     }
-    for (const rel of known) {
-      if (!seen.has(rel)) store.kbDeleteDocument(rel);
+    // 截断批次不是全量目录：未扫到的尾部不能当成已删除。
+    const cutoff = batch.length ? batch[batch.length - 1].rel : "";
+    for (const rel of kbIndexRemovals(known, seen, { truncated, cutoff })) {
+      store.kbDeleteDocument(rel);
     }
     // 盘上目录登记为文集行（同步以盘为真源；上传通道外的文件夹也进树）
     const seenDirs = new Set();

@@ -446,6 +446,29 @@ export function isKbThreadTitle(title) {
 }
 
 // ── 路径安全（B62）：拒绝 .. 逃逸/绝对路径/盘符；分隔符统一 / 存库 ──
+/**
+ * 同步差集删除。全量扫完才按「账上有、盘上无」删除；截断时只删除排序不晚于
+ * 本批最后一条的未见路径（与 kbWalkFiles 的 zh-Hans-CN 序一致）。晚于 cutoff
+ * 的账本行这次没被扫到，不能当成已删除。
+ * @param {Iterable<string>} knownRels
+ * @param {Iterable<string>} seenRels
+ * @param {{truncated?: boolean, cutoff?: string}} [opts]
+ * @returns {string[]}
+ */
+export function kbIndexRemovals(knownRels, seenRels, { truncated = false, cutoff = "" } = {}) {
+  const seen = seenRels instanceof Set ? seenRels : new Set(seenRels);
+  const out = [];
+  for (const rel of knownRels) {
+    if (seen.has(rel)) continue;
+    if (!truncated) {
+      out.push(rel);
+      continue;
+    }
+    if (cutoff && String(rel).localeCompare(cutoff, "zh-Hans-CN") <= 0) out.push(rel);
+  }
+  return out;
+}
+
 export function safeRelPath(input) {
   const raw = String(input ?? "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (/^[a-zA-Z]:/.test(raw)) throw new Error("知识库路径不得为盘符绝对路径");

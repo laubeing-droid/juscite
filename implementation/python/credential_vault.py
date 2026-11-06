@@ -30,6 +30,7 @@ import ctypes
 import hashlib
 import json
 import os
+import re
 import secrets
 import sys
 import tempfile
@@ -52,6 +53,9 @@ AUDIT_KEY_ACCOUNT = "hmac-sha256-v1"
 AUDIT_KEY_BYTES = 32
 
 _SECRET_MAX_BYTES = 4096
+# 服务名/账户名是路径段。允许点与连字符（lvyin.audit / hmac-sha256-v1），
+# 拒绝分隔符、盘符、ADS（name:stream）和 `..`。
+_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 # get 回执掩码形：sk-xxxx…xxxx（只露前 3 后 4）。
 _MASK_HEAD, _MASK_TAIL = 3, 4
 
@@ -122,11 +126,16 @@ def dpapi_unprotect(blob: bytes) -> bytes:
 # 存取面
 # ---------------------------------------------------------------------- #
 
+def _check_ref(value: object) -> str:
+    if not isinstance(value, str) or not _REF_RE.match(value) or ".." in value:
+        raise VaultError("vault_ref_invalid")
+    return value
+
+
 def _entry_path(state_root: str | Path, service: str, account: str) -> Path:
     root = Path(str(state_root))
-    if not str(service).strip() or not str(account).strip() \
-            or any(sep in service + account for sep in ("/", "\\", "..")):
-        raise VaultError("vault_ref_invalid")
+    service = _check_ref(service)
+    account = _check_ref(account)
     return root / "credentials" / service / (account + ".json")
 
 
@@ -155,6 +164,8 @@ def vault_put(state_root: str | Path, service: str, account: str,
         raise VaultError("vault_secret_oversized")
     if backend not in _BACKENDS:
         raise VaultError("vault_backend_unknown:" + str(backend))
+    # 路径先于加密：非法引用不得先把 secret 送进 DPAPI/keyring。
+    path = _entry_path(state_root, service, account)
     if backend == "dpapi":
         blob = dpapi_protect(bytes(secret))
         stored = "dpapi-current-user"
@@ -163,7 +174,6 @@ def vault_put(state_root: str | Path, service: str, account: str,
             import keyring  # noqa: 供 keyring 后端；未装＝具名拒
         except ImportError:
             raise VaultError("vault_keyring_backend_unavailable") from None
-        path = _entry_path(state_root, service, account)
         keyring.set_password(service, account,
                              base64.b64encode(bytes(secret)).decode("ascii"))
         _write_entry(path, {
@@ -183,7 +193,7 @@ def vault_put(state_root: str | Path, service: str, account: str,
         "sha256": hashlib.sha256(secret).hexdigest(),
         "stored_at": _now(),
     }
-    _write_entry(_entry_path(state_root, service, account), entry)
+    _write_entry(path, entry)
     return {"service": service, "account": account, "backend": "dpapi",
             "sha256": entry["sha256"],
             "note": "secret 只存 DPAPI 密文 blob；回执与登记文件零明文"}
@@ -197,8 +207,11 @@ def vault_get(state_root: str | Path, service: str, account: str,
         raise VaultError("vault_backend_unknown:" + str(backend))
     if not path.is_file():
         raise VaultError("vault_entry_missing:" + _name2(service, account))
-    entry = json.loads(path.read_text(encoding="utf-8"))
-    if entry.get("schema") != VAULT_SCHEMA:
+    try:
+        entry = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError, UnicodeDecodeError):
+        raise VaultError("vault_schema_unknown") from None
+    if not isinstance(entry, dict) or entry.get("schema") != VAULT_SCHEMA:
         raise VaultError("vault_schema_unknown")
     if entry.get("backend") == "keyring":
         try:
