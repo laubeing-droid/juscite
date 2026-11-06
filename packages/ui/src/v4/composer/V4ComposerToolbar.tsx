@@ -3,7 +3,7 @@
  * V4 composer 工具条。
  *
  * 展示件全部复用旧 chat-input-toolbar 的纯 props 组件（ModelConfigSelect /
- * ChatModeSwitchControl / ThoughtLevelCycleControl / ChatContextUsage），外观与旧
+ * ThoughtLevelCycleControl / ChatContextUsage），外观与旧
  * ChatInputToolbar 对齐；但状态编排是全新 v4 wiring，不复活旧 ChatInputToolbar 的
  * effect 链 / 旧协议写路径：
  * - 当前模型/档位来自 Composer；已运行会话的用量来自 snapshot.usage.contextWindow

@@ -1702,7 +1702,7 @@ export function createZCodeTaskIndexSyncer(
     }
     const presentation = buildPresentationFromSnapshot(snapshot, options);
     // Bugfix: 同时把 snapshot.messages 里可见的聊天正文索引下去，
-    // 让 TaskSearchDialog 正文搜索能命中；旧 sqlite 行下次到这里时自然回填。
+    // 让 TaskFindDialog 正文搜索能命中；旧 sqlite 行下次到这里时自然回填。
     const searchableText = buildSearchableTextFromSnapshot(snapshot);
     const persisted = await taskIndexRepo.updateTaskPresentation({
       ...target,
