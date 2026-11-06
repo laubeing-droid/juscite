@@ -15,7 +15,6 @@
     "lint": "tsc -b tsconfig.main.json tsconfig.preload.json tsconfig.scheduler.json --noEmit 2>/dev/null || true"
   },
   "dependencies": {
-    "@babel/runtime": "^7.24.5",
     "@fiahfy/icns": "^0.0.7",
     "@modelcontextprotocol/client": "2.0.0",
     "@modelcontextprotocol/core": "2.0.0",
