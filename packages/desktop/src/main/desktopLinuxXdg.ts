@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 
-// Linux XDG 桌面集成共享基础设施：deep link 注册（desktopLinuxDeepLinkRegistration）
-// 与 AppImage 图标安装（desktopLinuxAppImageIcon）共用，独立成模块避免两者互相依赖形成环。
+// Linux XDG 桌面命令运行时：超时、日志形状，以及 xdg-* 命令执行。
+// 独立成模块，避免桌面集成调用方互相依赖形成环。
 
 export const XDG_COMMAND_TIMEOUT_MS = 2_000;
 
