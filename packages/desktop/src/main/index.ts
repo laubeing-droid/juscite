@@ -129,13 +129,14 @@ import {
   getBridgeHostProcess,
   loadWindow,
 } from "./desktopHostProcess.js";
-// 桌宠已停用：启动不再创建 pet 模块，因此不会读 desktop/pet.json，也不会打开桌宠窗口。
-// @juscite/desktop-pet 仍留在工作区里（preload / pet 页入口还指着它），避免为删包去改 lockfile。
+// 桌宠已停用：启动不 import、不调用 createPetModule，因此不读 desktop/pet.json，也不创建窗口。
+// @juscite/desktop-pet 仍留在工作区依赖里，避免为删包去改 lockfile。
 import { resolveBootstrapSettingsFile } from "./desktopDataBaseDirBootstrap.js";
 import { spawnCronScheduler, type CronSchedulerHandle } from "./desktopCronScheduler.js";
 import { installFinderOpenFolderWorkflow } from "./desktopFinderOpenFolderWorkflow.js";
 import { installWindowsOpenFolderContextMenu } from "./desktopWindowsOpenFolderContextMenu.js";
 import {
+  isMainApplicationWindowWebContents,
   listRegisteredHostAgentProcessIds,
   setBrowserUseGuestWebContentsIdsProvider,
 } from "./resourceManagerWindow.js";
@@ -531,7 +532,8 @@ const readHelpConfig = createDesktopHelpConfigReader({
 let forceUpdateMainWindowCreationBlocked = false;
 
 function focusForceUpdateGateWindow() {
-  const gateWindow = getApplicationWindowsExcludingCuaIndicator()[0];
+  // 强制升级窗不是 createWindow 登记的工作台，不能从工作台名单里取。
+  const gateWindow = BrowserWindow.getAllWindows().find((win) => !win.isDestroyed());
   if (!gateWindow) {
     return;
   }
@@ -1065,7 +1067,12 @@ function resolveFocusedDesktopZoomLevel(): number {
 }
 
 function getApplicationWindowsExcludingCuaIndicator(): BrowserWindow[] {
-  return BrowserWindow.getAllWindows().filter((win) => !win.isDestroyed());
+  // 只返回 createWindow 已用 registerMainApplicationWindow 登记的工作台。
+  // 冷启动时登记集为空，revealExistingWindow 找不到窗口，会继续 createWindow。
+  // 未登记的辅助窗（桌宠、更新状态、关于、资源管理器）不能被当成主窗口复用。
+  return BrowserWindow.getAllWindows().filter(
+    (win) => !win.isDestroyed() && isMainApplicationWindowWebContents(win.webContents.id),
+  );
 }
 
 function getMainApplicationWindows(): BrowserWindow[] {
@@ -1360,6 +1367,10 @@ app.on("second-instance", () => {
       win.show();
     }
     win.focus();
+    return;
+  }
+  if (forceUpdateMainWindowCreationBlocked) {
+    focusForceUpdateGateWindow();
   }
 });
 

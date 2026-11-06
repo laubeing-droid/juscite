@@ -241,8 +241,6 @@ export default defineConfig(({ mode }) => {
           index: resolve(__dirname, "src/renderer/index.html"),
           // 插件 UI 沙箱的受信 shell，经 zcode-sandbox:// 提供
           "plugin-sandbox": resolve(__dirname, "src/renderer/plugin-sandbox.html"),
-          // 功能 #28 桌宠：透明独立窗口页（petHost preload 窄桥，无 React）
-          pet: resolve(__dirname, "src/renderer/pet.html"),
         },
       },
     },

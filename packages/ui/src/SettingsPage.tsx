@@ -73,8 +73,6 @@ import { ArchiveManagement, useOptionalProjectDirectory } from "@/project-sideba
 import { resolveRecentRemoteProjectPreference } from "@/project-sidebar/remote-project-connection.js";
 import { ModelProviderSection } from "@/settings/ModelProviderSection.js";
 import { StealthSettingsSection } from "@/settings/StealthSettingsSection.js";
-// 功能 #28 桌宠（RE-28 §3.3）：设置面五控件分区。
-import { PetSettingsSection } from "@/settings/PetSettingsSection.js";
 // 【步骤4·#18 学习迭代】通用节三控件（J14：总开关/空闲等待/托盘驻留，保存热 sync）
 import { LearningSettingsSection } from "@/settings/LearningSettingsSection.js";
 // 【#43 订阅引擎·UI 消费面】来源卡片/登录回调三分支/用量条/模型与推理 pills（RE-43 §3.5，面板出树 @juscite/legal）
@@ -2148,8 +2146,6 @@ export function SettingsPage({
                             </ServiceProvider>
                           ) : activeSection === "stealth" ? (
                             <StealthSettingsSection />
-                          ) : activeSection === "pet" ? (
-                            <PetSettingsSection platform={platform} />
                           ) : activeSection === "subscription" ? (
                             <SubscriptionPanel />
                           ) : activeSection === "help" ? (
