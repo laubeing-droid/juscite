@@ -75,8 +75,15 @@ const SENSITIVE_FRAGMENTS = [
 const DESTRUCTIVE_RE =
   /(^|[\s&|;])(rm|rmdir|shred|mkfs(\.\w+)?|dd|fdisk|format|del|erase|rd)\b|sudo\s|chmod\s+-R|chown\s+-R/;
 
-/** 命令替换语法（替换会让检查落空——先替换后检查等于没检查）。 */
-const SUBSTITUTION_RE = /\$\(|\$\{|`/;
+/** 命令替换 / 环境展开（替换会让检查落空——先替换后检查等于没检查）。
+ *  bash: $() ${} `；cmd: %VAR% 与延迟展开 !VAR!。 */
+const SUBSTITUTION_RE = /\$\(|\$\{|`|%[^%\r\n]+%|![^!\r\n]+!/;
+
+/** find 用这些开关执行命令或删除，白名单只放行了 find 本身。 */
+const FIND_EXEC_FLAGS = new Set(["-exec", "-execdir", "-ok", "-okdir", "-delete"]);
+
+/** 输出重定向（含无空格的 `>`、`1>`/`2>`，以及引号包住的目标）。 */
+const REDIRECT_RE = />{1,2}\s*("[^"]*"|'[^']*'|\S+)/g;
 
 const COMMAND_CODES = new Set([
   "ok", "shell_disabled", "command_substitution", "sensitive_path",
@@ -84,16 +91,43 @@ const COMMAND_CODES = new Set([
   "redirect_escape", "empty_command",
 ]);
 
+function unquoteToken(token) {
+  const t = String(token ?? "");
+  if (t.length >= 2) {
+    const a = t[0];
+    const b = t[t.length - 1];
+    if ((a === "\"" && b === "\"") || (a === "'" && b === "'")) return t.slice(1, -1);
+  }
+  return t;
+}
+
 function bareCommand(token) {
   // 剥路径：/usr/bin/curl → curl；C:\Windows\system32\cmd.exe → cmd
-  const base = token.replace(/^["']|["']$/g, "").split(/[\\/]/).pop() ?? "";
+  const base = unquoteToken(token).split(/[\\/]/).pop() ?? "";
   return base.replace(/\.(exe|cmd|bat|com|ps1)$/i, "").toLowerCase();
 }
 
+function pathLike(token) {
+  return /[/\\]/.test(token) || isAbsolute(token) || /^\.{1,2}$/.test(token) || token.split(/[/\\]/).includes("..");
+}
+
+/** 命令文本里的 \\ 与 / 都是分隔符（cmd 文本在 POSIX 上跑闸也要认反斜杠）。 */
+function normalizeShellPath(token) {
+  return process.platform === "win32" ? token : token.replace(/\\/g, "/");
+}
+
+function rejectEscapingPath(token, workspaceRoot, segment, code) {
+  if (!workspaceRoot || !pathLike(token)) return null;
+  const target = resolve(workspaceRoot, normalizeShellPath(token));
+  const g = gateWorkspacePath(workspaceRoot, target);
+  if (!g.ok) return { ok: false, code, segment };
+  return null;
+}
+
 /**
- * 宿主命令闸（文本级，不信任调用方）。判序：shell 关⇒拒→分段（;/&&/||/
- * |/换行）逐段验→命令替换语法⇒拒→敏感片段⇒拒→破坏性模式⇒拒→网络命令
- * 具名拒→命令名白名单→参数内路径 token 过路径闸→重定向目标过写闸。
+ * 宿主命令闸（文本级，不信任调用方）。判序：shell 关⇒拒→分段（; / & / && /
+ * || / | / 换行）逐段验→命令替换或环境展开⇒拒→敏感片段⇒拒→破坏性模式⇒拒→
+ * 网络命令具名拒→命令名白名单→参数内路径 token 过路径闸→重定向目标过写闸。
  * @param {string} commandLine
  * @param {{shellEnabled?: boolean, workspaceRoot?: string}} options
  * @returns {ok, code, segment?}
@@ -104,10 +138,11 @@ export function gateCommand(commandLine, { shellEnabled = false, workspaceRoot =
   }
   const line = String(commandLine ?? "");
   if (!line.trim()) return { ok: false, code: "empty_command", segment: "" };
-  // 分段链式：;/&&/||/|/换行切分逐段验（链式不豁免任何一段）。
-  const segments = line.split(/;|&&|\|\||\||\r?\n/).map((s) => s.trim()).filter(Boolean);
+  // 分段链式：cmd 的 & 与 bash 的 ;/&&/||/|/换行都要切开逐段验（链式不豁免任何一段）。
+  // && 必须写在单个 & 前面，否则 a && b 会被切成两段以 & 开头的残段。
+  const segments = line.split(/;|&&|&|\|\||\||\r?\n/).map((s) => s.trim()).filter(Boolean);
   for (const segment of segments) {
-    // ① 命令替换语法：替换结果未定，检查必然落空——拒。
+    // ① 命令替换 / 环境展开：替换结果未定，检查必然落空——拒。
     if (SUBSTITUTION_RE.test(segment)) {
       return { ok: false, code: "command_substitution", segment };
     }
@@ -120,12 +155,19 @@ export function gateCommand(commandLine, { shellEnabled = false, workspaceRoot =
     if (DESTRUCTIVE_RE.test(segment)) {
       return { ok: false, code: "destructive", segment };
     }
-    // 重定向目标按写闸过（目标必须仍在工作区内）。
-    const redirect = /\s>{1,2}\s*(\S+)/.exec(segment);
-    if (redirect && workspaceRoot) {
-      const target = resolve(workspaceRoot, redirect[1]);
-      const g = gateWorkspacePath(workspaceRoot, target);
-      if (!g.ok) return { ok: false, code: "redirect_escape", segment };
+    // 重定向目标按写闸过（无空格的 >、n>、引号目标都要先剥引号再归一）。
+    if (workspaceRoot) {
+      REDIRECT_RE.lastIndex = 0;
+      let redirect;
+      while ((redirect = REDIRECT_RE.exec(segment)) !== null) {
+        const target = unquoteToken(redirect[1]);
+        // 重定向目标一律按工作区写闸（相对名也要归一进根内；>&1 这类描述符复制拒）。
+        if (!target || target.startsWith("&")) {
+          return { ok: false, code: "redirect_escape", segment };
+        }
+        const g = gateWorkspacePath(workspaceRoot, resolve(workspaceRoot, normalizeShellPath(target)));
+        if (!g.ok) return { ok: false, code: "redirect_escape", segment };
+      }
     }
     // 命令名与参数逐 token。
     const tokens = segment.split(/\s+/);
@@ -138,17 +180,25 @@ export function gateCommand(commandLine, { shellEnabled = false, workspaceRoot =
     if (!COMMAND_ALLOWLIST.has(cmd)) {
       return { ok: false, code: "command_not_allowed", segment };
     }
+    // find -exec/-ok/-delete 会在白名单命令名之下执行或删除任意目标。
+    if (cmd === "find" && tokens.some((token) => FIND_EXEC_FLAGS.has(token.toLowerCase()))) {
+      return { ok: false, code: "command_not_allowed", segment };
+    }
     // ⑥ 参数里的路径 token 也过路径闸（cat ../../.ssh/id_rsa 被参数闸拦
     // ——敏感片段已在②拦；此处拦的是越出工作区的普通路径）。
+    // 开关里 `=` 后的路径同样要查（--output=../x 以前因「以 - 开头」被整段跳过）。
     if (workspaceRoot) {
       for (const token of tokens.slice(1)) {
-        const t = token.replace(/^["']|["']$/g, "");
-        if (t.startsWith("-")) continue; // 开关参数不判路径
-        if (/[/\\]/.test(t) || isAbsolute(t) || /^\.{1,2}$/.test(t)) {
-          const target = resolve(workspaceRoot, t);
-          const g = gateWorkspacePath(workspaceRoot, target);
-          if (!g.ok) return { ok: false, code: "arg_path_escape", segment };
+        const t = unquoteToken(token);
+        if (t.startsWith("-")) {
+          const eq = t.indexOf("=");
+          if (eq === -1) continue;
+          const escaped = rejectEscapingPath(unquoteToken(t.slice(eq + 1)), workspaceRoot, segment, "arg_path_escape");
+          if (escaped) return escaped;
+          continue;
         }
+        const escaped = rejectEscapingPath(t, workspaceRoot, segment, "arg_path_escape");
+        if (escaped) return escaped;
       }
     }
   }

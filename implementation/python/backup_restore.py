@@ -179,6 +179,32 @@ def _path_covers(parent: Path, child: Path) -> bool:
     return child == parent or parent in child.parents
 
 
+def _safe_rel_parts(rel: object) -> tuple[str, ...]:
+    """包内成员路径：相对、无空段、无 . / ..、无盘符与分隔符混用。
+
+    清单来自解密后的包，仍是不可信输入。`Path(root) / rel` 在 rel 为绝对
+    路径或含 `..` 时会写到 root 之外，所以恢复落盘前必须先拒。
+    """
+    if not isinstance(rel, str) or not rel or len(rel) > 512:
+        raise _fail("f11_member_path_invalid")
+    if rel.startswith(("/", "\\")) or "\\" in rel or ":" in rel or "\x00" in rel:
+        raise _fail("f11_member_path_invalid")
+    parts = tuple(rel.split("/"))
+    if any(part in ("", ".", "..") for part in parts):
+        raise _fail("f11_member_path_invalid")
+    if any(any(ord(ch) < 32 for ch in part) for part in parts):
+        raise _fail("f11_member_path_invalid")
+    return parts
+
+
+def _contained_destination(root: Path, rel: str) -> Path:
+    """把已校验的相对路径贴到 root 上，并再确认解析后仍在 root 内。"""
+    dest = root.joinpath(*_safe_rel_parts(rel))
+    if not _path_covers(root, dest):
+        raise _fail("f11_member_path_invalid")
+    return dest
+
+
 # --------------------------------------------------------------------------
 # owner 公开面导入（harness E08 既有 backup/restore；只消费不自实现）
 # --------------------------------------------------------------------------
@@ -342,7 +368,9 @@ def backup_create(args: dict, config: dict) -> dict:
                 else:
                     base = staging / target["id"]
                     for rel in sorted(target["files"]):
-                        archive.write(base / rel, f"{target['id']}/{rel}")
+                        archive.write(
+                            _contained_destination(base, rel),
+                            f"{target['id']}/{rel}")
 
         salt = os.urandom(16)
         token = _fernet(passphrase, salt).encrypt(inner.getvalue())
@@ -432,13 +460,23 @@ def _read_package(package_path: Path, passphrase: str):
         raise _fail("f11_package_format_invalid")
     for target in manifest["targets"]:
         if target["kind"] == "harness_store":
-            member = f"{target['id']}/{target['artifact']['name']}"
+            artifact_name = (target.get("artifact") or {}).get("name")
+            if not isinstance(artifact_name, str) or "/" in artifact_name \
+                    or "\\" in artifact_name:
+                raise _fail("f11_member_path_invalid")
+            _safe_rel_parts(artifact_name)
+            member = f"{target['id']}/{artifact_name}"
             data = members.get(member)
             if data is None \
                     or _sha256_bytes(data) != target["artifact"]["sha256"]:
                 raise _fail("f11_member_digest_mismatch")
         else:
-            for rel, want in target["files"].items():
+            files = target.get("files")
+            if not isinstance(files, dict):
+                raise _fail("f11_member_path_invalid")
+            for rel, want in files.items():
+                # 路径先于摘要：越界成员不等同于「摘要不符」，也不进入落盘。
+                _safe_rel_parts(rel)
                 data = members.get(f"{target['id']}/{rel}")
                 if data is None or _sha256_bytes(data) != want["sha256"] \
                         or len(data) != want["size"]:
@@ -493,7 +531,7 @@ def backup_restore(args: dict, config: dict) -> dict:
                 staging_dir = staging / target["id"]
                 staging_dir.mkdir()
                 for rel in sorted(target["files"]):
-                    member_path = staging_dir / rel
+                    member_path = _contained_destination(staging_dir, rel)
                     member_path.parent.mkdir(parents=True, exist_ok=True)
                     member_path.write_bytes(members[f"{target['id']}/{rel}"])
                 destination.parent.mkdir(parents=True, exist_ok=True)
@@ -505,9 +543,10 @@ def backup_restore(args: dict, config: dict) -> dict:
             else:
                 declared = next(
                     t for t in targets if t["id"] == target["id"])
-                artifact = staging / target["artifact"]["name"]
+                artifact_name = target["artifact"]["name"]
+                artifact = _contained_destination(staging, artifact_name)
                 artifact.write_bytes(
-                    members[f"{target['id']}/{target['artifact']['name']}"])
+                    members[f"{target['id']}/{artifact_name}"])
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 schema_used = None
                 if declared.get("dsn"):

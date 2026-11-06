@@ -21,6 +21,7 @@ v2 商业化时补）。
 from __future__ import annotations
 
 import base64
+import hmac
 import re
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -31,6 +32,8 @@ _METHODS = ("OPTIONS", "PROPFIND", "MKCOL", "PUT", "GET", "DELETE")
 # 段长上限 199：bundle 落盘名双摘要（bundleId 64 + "." + 信封 sha 64 +
 # ".bin"）＝134 字符，device manifest＝≤68；白名单字符＋长度双闸防写穿。
 _SAFE_SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
+# PUT 体上限。负的或非数字 Content-Length 不能交给 rfile.read：read(-1) 会一直读到 EOF。
+_MAX_PUT_BYTES = 32 * 1024 * 1024
 
 
 class SyntheticWebDavError(RuntimeError):
@@ -78,7 +81,20 @@ class SyntheticWebDavServer:
                 expected = "Basic " + base64.b64encode(
                     f"{server.auth[0]}:{server.auth[1]}".encode("utf-8")
                     ).decode("ascii")
-                return header == expected
+                try:
+                    return hmac.compare_digest(header, expected)
+                except (TypeError, ValueError):
+                    return False
+
+            def _read_limited_body(self) -> bytes | None:
+                raw = self.headers.get("Content-Length", "0").strip()
+                # 位数先于 int()：超长数字串不必先变成任意精度整数。
+                if len(raw) > 10 or not raw.isdigit():
+                    return None
+                length = int(raw)
+                if length > _MAX_PUT_BYTES:
+                    return None
+                return self.rfile.read(length) if length else b""
 
             def _reply(self, status: int, body: bytes = b"",
                        content_type: str = "application/octet-stream") -> None:
@@ -149,8 +165,12 @@ class SyntheticWebDavServer:
                 self._reply(201)
 
             def do_PUT(self) -> None:
-                length = int(self.headers.get("Content-Length", "0"))
-                body = self.rfile.read(length) if length else b""
+                body = self._read_limited_body()
+                if body is None:
+                    self.close_connection = True
+                    self._record(0)
+                    self._reply(400)
+                    return
                 self._record(len(body))
                 if not self._authorized():
                     self._reply(401)
