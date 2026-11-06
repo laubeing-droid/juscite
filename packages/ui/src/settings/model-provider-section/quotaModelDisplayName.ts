@@ -1,18 +1,7 @@
 export function formatQuotaModelDisplayName(value: string): string {
   const compact = value.replace(/\s+/g, " ").trim();
   if (/^GLM-\S+$/i.test(compact)) {
-    return compact
-      .split("-")
-      .map((part, index) => {
-        if (index === 0) {
-          return "Juscite";
-        }
-        if (/^turbo$/i.test(part)) {
-          return "Turbo";
-        }
-        return part;
-      })
-      .join("-");
+    return compact;
   }
 
   const normalized = compact.replace(/[_-]+/g, " ");
